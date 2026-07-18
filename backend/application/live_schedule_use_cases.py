@@ -10,12 +10,14 @@ try:
     from backend.scheduler_engine.models.activity import Activity
     from backend.scheduler_engine.models.schedule import Schedule
     from backend.repositories.academic_data_repository import AcademicDataRepository
+    from backend.time_units import blocks_to_hours
 except ModuleNotFoundError:  # pragma: no cover
     from repositories.working_timetable_repository import WorkingTimetableRepository, WorkingTimetableSnapshot
     from services.fet_importer import load_activities, load_scheduler_activities
     from scheduler_engine.models.activity import Activity
     from scheduler_engine.models.schedule import Schedule
     from repositories.academic_data_repository import AcademicDataRepository
+    from time_units import blocks_to_hours
 
 from .serializers import serialize_activity, serialize_conflicts
 
@@ -99,14 +101,19 @@ class LiveScheduleUseCases:
                         pass
 
                 teaching_assignments = []
-                for (t, s, g), total_duration in assignment_map.items():
+                for (t, s, g), total_duration_blocks in assignment_map.items():
                     if not (t and s and g):
                         continue
+                    # `duration` from the FET file is expressed in half-hour
+                    # blocks (see fet_importer.load_activities), not hours.
+                    # It must be converted before being stored as weekly_hours,
+                    # otherwise e.g. 4 blocks (2h real) get shown as "4.0h".
+                    weekly_hours = blocks_to_hours(int(round(total_duration_blocks)))
                     teaching_assignments.append({
                         "teacher": t,
                         "subject": s,
                         "group": g,
-                        "weekly_hours": total_duration,
+                        "weekly_hours": weekly_hours,
                     })
 
                 snapshot = {

@@ -331,18 +331,28 @@ class SchedulerUseCases:
             "message": "Proposal accepted",
         }
 
-    def move_proposal_activity(self, proposal_id: str, activity_id: int, day: str, start: str) -> Dict[str, Any]:
+    def move_proposal_activity(
+        self,
+        proposal_id: str,
+        activity_id: int,
+        day: str,
+        start: str,
+    ) -> Dict[str, Any]:
+
         print("\n========== MOVE ==========")
         print("Proposal rebuda:", proposal_id)
+
         print("Proposal store:")
-    for key in self._proposal_store.keys():
-        print(" -", key)
+
+        for key in self._proposal_store.keys():
+            print(" -", key)
+
         print("==========================\n")
 
-    proposal = self._proposal_store.get(proposal_id)
+        proposal = self._proposal_store.get(proposal_id)
 
-    if proposal is None:
-        raise LookupError("proposal_not_found")
+        if proposal is None:
+            raise LookupError("proposal_not_found")
 
         current_activities = [
             Activity(
@@ -357,63 +367,68 @@ class SchedulerUseCases:
             )
             for activity in proposal.activities
         ]
-        unscheduled = list((proposal.metadata or {}).get("unscheduled_activities", []))
-        target = next((activity for activity in current_activities if activity.id == activity_id), None)
+
+        target_activity = next(
+            (item for item in current_activities if item.id == activity_id),
+            None,
+        )
+
+        if target_activity is None:
+            return {
+                "ok": False,
+                "error": "activity_not_found",
+                "proposal": serialize_proposal(proposal),
+            }
 
         baseline_schedule = self._build_schedule(current_activities)
         baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
         baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
 
-        if target is None:
-            pending = next((activity for activity in unscheduled if activity["id"] == activity_id), None)
-            if pending is None:
-                raise LookupError("proposal_activity_not_found")
-            target = Activity(
-                id=pending["id"],
-                teacher=pending.get("teacher", ""),
-                subject=pending.get("subject", ""),
-                group=pending.get("group", ""),
-                room=pending.get("room", ""),
-                day=day,
-                start=start,
-                duration=pending.get("duration", 1),
-            )
-            current_activities.append(target)
-        else:
-            target.day = day
-            target.start = start
+        previous_day = target_activity.day
+        previous_start = target_activity.start
+
+        target_activity.day = day
+        target_activity.start = start
 
         candidate_schedule = self._build_schedule(current_activities)
         conflicts = self._scheduler_engine.validate(candidate_schedule)
-        new_conflicts = [conflict for conflict in conflicts if self._conflict_key(conflict) not in baseline_keys]
+
+        new_conflicts = [
+            conflict
+            for conflict in conflicts
+            if self._conflict_key(conflict) not in baseline_keys
+        ]
+
         if new_conflicts:
-                return {
+            target_activity.day = previous_day
+            target_activity.start = previous_start
+
+            return {
                 "ok": False,
                 "error": "validation_failed",
                 "conflicts": serialize_conflicts(new_conflicts),
                 "proposal": serialize_proposal(proposal),
-                "unscheduled_activities": unscheduled,
             }
 
-        remaining_unscheduled = [activity for activity in unscheduled if activity["id"] != activity_id]
-        updated_metadata = dict(proposal.metadata or {})
-        updated_metadata["unscheduled_activities"] = remaining_unscheduled
         updated_proposal = ScheduleProposal(
             id=proposal.id,
             activities=current_activities,
             score=proposal.score,
-            conflicts=[],
+            conflicts=conflicts,
             warnings=proposal.warnings,
-            score_breakdown=proposal.score_breakdown,
-            metadata=updated_metadata,
+            score_breakdown=getattr(proposal, "score_breakdown", None),
+            metadata=dict(proposal.metadata or {}),
         )
         self._proposal_store[proposal_id] = updated_proposal
-        self._persist_proposal_state(updated_proposal, self._load_snapshot().generation_stats, remaining_unscheduled)
+        self._persist_proposal_state(
+            updated_proposal,
+            self._load_snapshot().generation_stats,
+            list((updated_proposal.metadata or {}).get("unscheduled_activities", [])),
+        )
+
         return {
             "ok": True,
             "proposal": serialize_proposal(updated_proposal),
-            "conflicts": [],
-            "unscheduled_activities": remaining_unscheduled,
         }
 
     def _scheduled_to_activity(
