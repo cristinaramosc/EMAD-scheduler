@@ -332,9 +332,17 @@ class SchedulerUseCases:
         }
 
     def move_proposal_activity(self, proposal_id: str, activity_id: int, day: str, start: str) -> Dict[str, Any]:
-        proposal = self._proposal_store.get(proposal_id)
-        if proposal is None:
-            raise LookupError("proposal_not_found")
+        print("\n========== MOVE ==========")
+        print("Proposal rebuda:", proposal_id)
+        print("Proposal store:")
+    for key in self._proposal_store.keys():
+        print(" -", key)
+        print("==========================\n")
+
+    proposal = self._proposal_store.get(proposal_id)
+
+    if proposal is None:
+        raise LookupError("proposal_not_found")
 
         current_activities = [
             Activity(
@@ -379,7 +387,7 @@ class SchedulerUseCases:
         conflicts = self._scheduler_engine.validate(candidate_schedule)
         new_conflicts = [conflict for conflict in conflicts if self._conflict_key(conflict) not in baseline_keys]
         if new_conflicts:
-            return {
+                return {
                 "ok": False,
                 "error": "validation_failed",
                 "conflicts": serialize_conflicts(new_conflicts),
