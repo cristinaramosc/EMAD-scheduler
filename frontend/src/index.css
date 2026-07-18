@@ -1,0 +1,114 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: Inter, Arial, Helvetica, sans-serif;
+  background: #eef2f7;
+}
+
+.app {
+  display: flex;
+  height: 100vh;
+}
+
+/* ---------- SIDEBAR ---------- */
+
+.sidebar {
+  width: 270px;
+  background: white;
+  border-right: 1px solid #d9dee8;
+  display: flex;
+  flex-direction: column;
+}
+
+.logo {
+  padding: 24px;
+  border-bottom: 1px solid #eceff5;
+}
+
+.logo h1 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.logo p {
+  margin: 6px 0 0;
+  color: #777;
+  font-size: 14px;
+}
+
+.teacher-list {
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.teacher-list h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.teacher {
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: white;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 14px;
+}
+
+.teacher:hover {
+  background: #eef4ff;
+}
+
+.teacher.active {
+  background: #2f80ed;
+  color: white;
+}
+
+/* ---------- CONTINGUT ---------- */
+
+.content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  background: white;
+  border-bottom: 1px solid #d9dee8;
+  padding: 20px 28px;
+}
+
+.toolbar h2 {
+  margin: 0;
+}
+
+.toolbar span {
+  color: #666;
+  font-size: 14px;
+}
+
+.main-content {
+  flex: 1;
+  padding: 24px;
+  overflow: auto;
+}
+
+.empty {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #666;
+  font-size: 18px;
+}

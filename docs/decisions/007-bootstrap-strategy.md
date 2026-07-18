@@ -1,0 +1,3 @@
+Context: El centre ja disposa d'un fitxer FET complet amb configuració, activitats i restriccions.
+Decisió: La primera configuració del centre es crea important aquest FET. A partir d'aquí, la configuració passa a ser gestionada per la plataforma.
+Conseqüències: Els cursos futurs reutilitzen la configuració existent i només cal importar o editar la informació anual (càrrega docent, canvis de professors, etc.).
