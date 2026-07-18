@@ -1,0 +1,1 @@
+# Evitem imports automàtics per evitar errors en cascada

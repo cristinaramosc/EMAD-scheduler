@@ -1,0 +1,394 @@
+diff --git a/backend/application/scheduler_use_cases.py b/backend/application/scheduler_use_cases.py
+index 8f84b95..78f33de 100644
+--- a/backend/application/scheduler_use_cases.py
++++ b/backend/application/scheduler_use_cases.py
+@@ -132,6 +132,7 @@ class SchedulerUseCases:
+             self._academic_data_repo.active_teacher_restrictions(),
+             self._academic_data_repo.active_group_restrictions(),
+         )
++        blocked_activities += self._load_fet_blocked_activities()
+ 
+         context = GenerationContext(
+             school_calendar=self._school_calendar,
+@@ -563,6 +564,169 @@ class SchedulerUseCases:
+             )
+         )
+ 
++    def _load_fet_blocked_activities(self) -> List[ScheduledActivity]:
++        """Llegeix directament del fitxer FET les franges no disponibles de
++        professors i grups (ConstraintTeacherNotAvailableTimes /
++        ConstraintStudentsSetNotAvailableTimes) i les retorna com a activitats
++        bloquejades, perquè es respectin també quan la generació parteix de
++        les dades acadèmiques (Excel) i no directament del FET."""
++        if self._fet_generation_inputs_fn is None or self._fet_file is None:
++            return []
++        try:
++            payload = self._fet_generation_inputs_fn(self._fet_file)
++        except Exception:
++            return []
++        return list(payload.get("blocked_activities", []))
++
++    def _collect_blocked_slots(self) -> Dict[tuple[str, str], set]:
++        """Retorna un mapa {(\"teacher\"|\"group\", nom): {(day_index, hour_index), ...}}
++        combinant restriccions de l'Excel acadèmic i del fitxer FET."""
++        teacher_restrictions = (
++            self._academic_data_repo.active_teacher_restrictions() if self._academic_data_repo else []
++        )
++        group_restrictions = (
++            self._academic_data_repo.active_group_restrictions() if self._academic_data_repo else []
++        )
++        blocked_activities = self._build_blocked_activities_from_restrictions(
++            teacher_restrictions, group_restrictions
++        )
++        blocked_activities += self._load_fet_blocked_activities()
++
++        blocked: Dict[tuple[str, str], set] = {}
++        for blocked_activity in blocked_activities:
++            if blocked_activity.teacher_id:
++                key = ("teacher", blocked_activity.teacher_id)
++            elif blocked_activity.group_id:
++                key = ("group", blocked_activity.group_id)
++            else:
++                continue
++            blocked.setdefault(key, set()).add(
++                (blocked_activity.day, blocked_activity.start_timeslot.period)
++            )
++        return blocked
++
++    def _compact_activities(self, activities: List[Activity]) -> tuple[List[Activity], List[int]]:
++        """Reubica les activitats de cada grup, dia a dia, el més aviat
++        possible dins la jornada per eliminar franges buides entre classes,
++        respectant les franges no disponibles de grups i professors."""
++        day_names = self._time_labels.get("day_names", [])
++        hour_names = self._time_labels.get("hour_names", [])
++        day_index = {name: index for index, name in enumerate(day_names)}
++        hour_index = {name: index for index, name in enumerate(hour_names)}
++
++        blocked_slots = self._collect_blocked_slots()
++
++        by_group_day: Dict[tuple[str, str], List[Activity]] = {}
++        untouched: List[Activity] = []
++
++        for activity in activities:
++            if activity.group and activity.day in day_index and activity.start in hour_index:
++                by_group_day.setdefault((activity.group, activity.day), []).append(activity)
++            else:
++                untouched.append(activity)
++
++        moved_ids: List[int] = []
++        result: List[Activity] = list(untouched)
++
++        for (group, day), group_activities in by_group_day.items():
++            day_idx = day_index[day]
++            group_blocked = blocked_slots.get(("group", group), set())
++            ordered = sorted(group_activities, key=lambda activity: hour_index[activity.start])
++
++            cursor = 0
++            position = 0
++            while position < len(ordered):
++                current = ordered[position]
++                same_slot = [current]
++                next_position = position + 1
++                while (
++                    next_position < len(ordered)
++                    and hour_index[ordered[next_position].start] == hour_index[current.start]
++                ):
++                    same_slot.append(ordered[next_position])
++                    next_position += 1
++
++                start_idx = cursor
++                while (day_idx, start_idx) in group_blocked and start_idx < len(hour_names):
++                    start_idx += 1
++
++                if start_idx < len(hour_names):
++                    new_start = hour_names[start_idx]
++                    for occupant in same_slot:
++                        if occupant.start != new_start:
++                            occupant.start = new_start
++                            moved_ids.append(occupant.id)
++
++                max_duration = max((occupant.duration or 1) for occupant in same_slot)
++                cursor = start_idx + max_duration
++                position = next_position
++
++            result.extend(ordered)
++
++        return result, moved_ids
++
++    def compact_active_schedule(self) -> Dict[str, Any]:
++        """Elimina els forats de l'horari actiu ('sense buits')."""
++        current_activities = list(self._scheduler_engine.state.all())
++        compacted_activities, moved_ids = self._compact_activities(current_activities)
++
++        candidate_schedule = self._build_schedule(compacted_activities)
++        conflicts = self._scheduler_engine.validate(candidate_schedule)
++        if conflicts:
++            return {
++                "ok": False,
++                "error": "compaction_conflict",
++                "conflicts": serialize_conflicts(conflicts),
++            }
++
++        self._scheduler_engine.load(candidate_schedule)
++        self._persist_active_schedule(clear_proposal=False)
++        return {
++            "ok": True,
++            "moved": moved_ids,
++            "activities": [serialize_activity(activity) for activity in compacted_activities],
++            "conflicts": [],
++        }
++
++    def compact_proposal(self, proposal_id: str) -> Dict[str, Any]:
++        """Elimina els forats d'una proposta generada ('sense buits')."""
++        proposal = self._proposal_store.get(proposal_id)
++        if proposal is None:
++            raise LookupError("proposal_not_found")
++
++        compacted_activities, moved_ids = self._compact_activities(list(proposal.activities))
++        candidate_schedule = self._build_schedule(compacted_activities)
++        conflicts = self._scheduler_engine.validate(candidate_schedule)
++        if conflicts:
++            return {
++                "ok": False,
++                "error": "compaction_conflict",
++                "conflicts": serialize_conflicts(conflicts),
++                "proposal": serialize_proposal(proposal),
++            }
++
++        updated_proposal = ScheduleProposal(
++            id=proposal.id,
++            activities=compacted_activities,
++            score=proposal.score,
++            conflicts=[],
++            warnings=proposal.warnings,
++            score_breakdown=getattr(proposal, "score_breakdown", None),
++            metadata=dict(proposal.metadata or {}),
++        )
++        self._proposal_store[proposal_id] = updated_proposal
++        self._persist_proposal_state(
++            updated_proposal,
++            self._load_snapshot().generation_stats,
++            list((updated_proposal.metadata or {}).get("unscheduled_activities", [])),
++        )
++        return {
++            "ok": True,
++            "moved": moved_ids,
++            "proposal": serialize_proposal(updated_proposal),
++            "conflicts": [],
++        }
++
+     def _persist_active_schedule(self, clear_proposal: bool) -> None:
+         if self._working_timetable_repo is None:
+             return
+diff --git a/backend/routes/scheduler.py b/backend/routes/scheduler.py
+index 24be1ce..3b58bf7 100644
+--- a/backend/routes/scheduler.py
++++ b/backend/routes/scheduler.py
+@@ -73,3 +73,21 @@ def move_proposal_activity(proposal_id: str, move_data: MoveDTO):
+         detail = "proposal_not_found" if str(exc) == "proposal_not_found" else "proposal_activity_not_found"
+         raise HTTPException(status_code=404, detail=detail)
+ 
++
++@router.post("/compact")
++def compact_active_schedule():
++    """Elimina els forats (franges buides) de l'horari actiu, reubicant les
++    activitats de cada grup el més aviat possible dins de cada dia."""
++    use_cases = get_scheduler_use_cases()
++    return use_cases.compact_active_schedule()
++
++
++@router.post("/proposal/{proposal_id}/compact")
++def compact_proposal(proposal_id: str):
++    """Elimina els forats d'una proposta generada."""
++    use_cases = get_scheduler_use_cases()
++    try:
++        return use_cases.compact_proposal(proposal_id)
++    except LookupError:
++        raise HTTPException(status_code=404, detail="proposal_not_found")
++
+diff --git a/backend/scheduler_engine/constraints/group_conflict.py b/backend/scheduler_engine/constraints/group_conflict.py
+index 70a904b..721ff9c 100644
+--- a/backend/scheduler_engine/constraints/group_conflict.py
++++ b/backend/scheduler_engine/constraints/group_conflict.py
+@@ -2,7 +2,33 @@ from scheduler_engine.constraints.base import Constraint
+ from scheduler_engine.models import Conflict
+ 
+ 
++def _quarter_suffix(subject):
++    """Retorna '1q' o '2q' si el nom de l'assignatura acaba amb aquest sufix
++    (independent de majúscules/minúscules i espais), o None en cas contrari."""
++    text = (subject or "").strip().lower()
++    if text.endswith("1q"):
++        return "1q"
++    if text.endswith("2q"):
++        return "2q"
++    return None
++
++
++def is_valid_quarter_pair(first_subject, second_subject):
++    """Dues assignatures poden compartir la mateixa cel·la horària només si
++    una acaba en '1Q' i l'altra en '2Q' (primer i segon quadrimestre)."""
++    first_quarter = _quarter_suffix(first_subject)
++    second_quarter = _quarter_suffix(second_subject)
++    return first_quarter is not None and second_quarter is not None and first_quarter != second_quarter
++
++
+ class GroupConflictConstraint(Constraint):
++    """Detecta si un grup té més d'una activitat a la mateixa cel·la horària.
++
++    Excepció: es permeten exactament dues activitats a la mateixa cel·la si
++    una assignatura acaba amb '1Q' i l'altra amb '2Q' (mateixa franja,
++    quadrimestres diferents).
++    """
++
+     def validate(self, schedule):
+         conflicts = []
+         slots = {}
+@@ -12,12 +38,17 @@ class GroupConflictConstraint(Constraint):
+                 continue
+ 
+             key = (activity.group, activity.day, activity.start)
++            occupants = slots.setdefault(key, [])
++
++            if not occupants:
++                occupants.append(activity)
++                continue
+ 
+-            if key not in slots:
+-                slots[key] = activity
++            if len(occupants) == 1 and is_valid_quarter_pair(occupants[0].subject, activity.subject):
++                occupants.append(activity)
+                 continue
+ 
+-            previous = slots[key]
++            previous = occupants[-1]
+             conflicts.append(
+                 Conflict(
+                     type="group_conflict",
+@@ -31,5 +62,6 @@ class GroupConflictConstraint(Constraint):
+                     data={"group": activity.group},
+                 )
+             )
++            occupants.append(activity)
+ 
+-        return conflicts
+\ No newline at end of file
++        return conflicts
+diff --git a/backend/scheduler_engine/placement_strategy.py b/backend/scheduler_engine/placement_strategy.py
+index f0eff61..8bb7f45 100644
+--- a/backend/scheduler_engine/placement_strategy.py
++++ b/backend/scheduler_engine/placement_strategy.py
+@@ -7,6 +7,7 @@ try:
+     from models.teaching_block import TeachingBlock
+ except ModuleNotFoundError:  # pragma: no cover
+     from backend.models.teaching_block import TeachingBlock
++from .constraints.group_conflict import is_valid_quarter_pair
+ from .models import GenerationContext, ScheduledActivity, TimeSlot
+ 
+ 
+@@ -110,6 +111,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
+             return False
+ 
+         required_slots = teaching_block.duration_blocks or 1
++        candidate_subject = (teaching_block.metadata or {}).get("subject")
+         for activity in activities:
+             if activity.day != start_slot.day:
+                 continue
+@@ -118,6 +120,15 @@ class GreedyPlacementStrategy(PlacementStrategy):
+             activity_end = activity.start_timeslot.period + activity.duration
+             candidate_end = start_slot.period + required_slots
+             if start_slot.period < activity_end and candidate_end > activity.start_timeslot.period:
++                # Exception: two activities in the exact same slot are allowed
++                # when one subject ends in "1Q" and the other in "2Q".
++                same_exact_slot = (
++                    start_slot.period == activity.start_timeslot.period
++                    and required_slots == activity.duration
++                )
++                existing_subject = (activity.metadata or {}).get("subject")
++                if same_exact_slot and is_valid_quarter_pair(candidate_subject, existing_subject):
++                    continue
+                 return True
+ 
+         return False
+diff --git a/frontend/src/App.jsx b/frontend/src/App.jsx
+index 17c9a88..d8d9c93 100644
+--- a/frontend/src/App.jsx
++++ b/frontend/src/App.jsx
+@@ -64,6 +64,7 @@ export default function App() {
+   const [isExportingTemplates, setIsExportingTemplates] = useState(false);
+   const [isImportingWorkbook, setIsImportingWorkbook] = useState(false);
+   const [isSaving, setIsSaving] = useState(false);
++  const [isCompacting, setIsCompacting] = useState(false);
+   const [isAccepting, setIsAccepting] = useState(false);
+   const [error, setError] = useState("");
+   const [successMessage, setSuccessMessage] = useState("");
+@@ -450,6 +451,53 @@ export default function App() {
+     setDraggedActivityId(activityId);
+   }
+ 
++  async function compactSchedule() {
++    setIsCompacting(true);
++    setError("");
++    setSuccessMessage("");
++
++    try {
++      const targetUrl = proposal?.id
++        ? `${API_URL}/scheduler/proposal/${proposal.id}/compact`
++        : `${API_URL}/scheduler/compact`;
++
++      const response = await fetch(targetUrl, { method: "POST" });
++      const data = await response.json();
++
++      if (!data.ok) {
++        setError(
++          data.error === "compaction_conflict"
++            ? "No s'han pogut eliminar tots els forats sense provocar conflictes."
++            : "No s'ha pogut compactar l'horari."
++        );
++        if (data.conflicts) {
++          setConflicts(data.conflicts);
++        }
++        return;
++      }
++
++      if (proposal?.id) {
++        setProposal(data.proposal || proposal);
++        setActivities(data.proposal?.activities || proposal.activities || []);
++        setConflicts(data.proposal?.conflicts || []);
++      } else {
++        setActivities(data.activities || []);
++        setConflicts([]);
++      }
++
++      const movedCount = data.moved?.length || 0;
++      setSuccessMessage(
++        movedCount > 0
++          ? `S'han reubicat ${movedCount} activitats per eliminar els forats.`
++          : "L'horari ja no tenia forats."
++      );
++    } catch {
++      setError("No s'ha pogut compactar l'horari.");
++    } finally {
++      setIsCompacting(false);
++    }
++  }
++
+   async function loadActivityExplanation(activityId) {
+     setIsLoadingExplanation(true);
+     setExplanationError("");
+@@ -602,6 +650,15 @@ export default function App() {
+           <button type="button" onClick={loadData} disabled={isLoading || isSaving || isGenerating}>
+             {isLoading ? "Carregant" : "Actualitza"}
+           </button>
++
++          <button
++            type="button"
++            onClick={compactSchedule}
++            disabled={isLoading || isSaving || isGenerating || isCompacting}
++            title="Reubica les activitats de cada grup el més aviat possible dins de cada dia, eliminant forats"
++          >
++            {isCompacting ? "Eliminant forats..." : "Sense buits"}
++          </button>
+         </div>
+       </header>
+ 
