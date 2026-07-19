@@ -43,6 +43,46 @@ class SchedulerUseCases:
             frozenset(conflict.activities or []),
         )
 
+    def _suggest_alternative_slots(
+        self,
+        base_activities: List["Activity"],
+        target_activity: "Activity",
+        exclude_pairs: set,
+        baseline_keys: set,
+        max_results: int = 3,
+    ) -> List[Dict[str, str]]:
+        """Try every (day, start) combo and return up to max_results where
+        target_activity would fit without introducing new conflicts."""
+        day_names = self._time_labels.get("day_names", [])
+        hour_names = self._time_labels.get("hour_names", [])
+        suggestions: List[Dict[str, str]] = []
+
+        for day in day_names:
+            for start in hour_names:
+                if (day, start) in exclude_pairs:
+                    continue
+
+                candidate = Activity(
+                    id=target_activity.id,
+                    teacher=target_activity.teacher,
+                    subject=target_activity.subject,
+                    group=target_activity.group,
+                    room=target_activity.room,
+                    day=day,
+                    start=start,
+                    duration=target_activity.duration,
+                )
+                schedule = self._build_schedule(base_activities + [candidate])
+                conflicts = self._scheduler_engine.validate(schedule)
+                new_conflicts = [c for c in conflicts if self._conflict_key(c) not in baseline_keys]
+
+                if not new_conflicts:
+                    suggestions.append({"day": day, "start": start})
+                    if len(suggestions) >= max_results:
+                        return suggestions
+
+        return suggestions
+
     def __init__(
         self,
         requirement_repo: Any,
@@ -424,16 +464,25 @@ class SchedulerUseCases:
         ]
 
         if new_conflicts:
-            if newly_placed:
-                current_activities.remove(target_activity)
-            else:
+            exclude_pairs = {(day, start)}
+            if not newly_placed:
+                exclude_pairs.add((previous_day, previous_start))
+                base_activities = [a for a in current_activities if a is not target_activity]
                 target_activity.day = previous_day
                 target_activity.start = previous_start
+            else:
+                current_activities.remove(target_activity)
+                base_activities = current_activities
+
+            suggestions = self._suggest_alternative_slots(
+                base_activities, target_activity, exclude_pairs, baseline_keys
+            )
 
             return {
                 "ok": False,
                 "error": "validation_failed",
                 "conflicts": serialize_conflicts(new_conflicts),
+                "suggested_slots": suggestions,
                 "proposal": serialize_proposal(proposal),
             }
 
@@ -462,6 +511,7 @@ class SchedulerUseCases:
         return {
             "ok": True,
             "proposal": serialize_proposal(updated_proposal),
+            "unscheduled_activities": updated_metadata.get("unscheduled_activities", []),
         }
 
     def _scheduled_to_activity(

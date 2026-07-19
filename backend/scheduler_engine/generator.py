@@ -214,9 +214,8 @@ class SchedulerGenerator:
                 if not label:
                     label = f"bloc {block.id}"
 
-                constraints = self._placement_strategy.explain_failure(
-                    block, context, scheduled_activities
-                )
+                explain_failure = getattr(self._placement_strategy, "explain_failure", None)
+                constraints = explain_failure(block, context, scheduled_activities) if callable(explain_failure) else []
                 if not constraints:
                     constraints = ["No s'ha trobat cap franja vàlida per col·locar aquesta activitat."]
 
