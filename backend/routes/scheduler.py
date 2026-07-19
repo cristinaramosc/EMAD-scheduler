@@ -5,10 +5,10 @@ from pydantic import BaseModel
 
 if __package__ and __package__.startswith("backend"):
     from backend.dependencies import get_proposal_store, get_scheduler_use_cases
-    from backend.schemas.scheduler import MoveDTO
+    from backend.schemas.scheduler import MoveDTO, SwapDTO
 else:  # pragma: no cover
     from dependencies import get_proposal_store, get_scheduler_use_cases
-    from schemas.scheduler import MoveDTO
+    from schemas.scheduler import MoveDTO, SwapDTO
 
 router = APIRouter(prefix="/scheduler", tags=["Scheduler"])
 proposal_store = get_proposal_store()
@@ -75,6 +75,19 @@ def move_proposal_activity(proposal_id: str, move_data: MoveDTO):
     except LookupError as exc:
         detail = "proposal_not_found" if str(exc) == "proposal_not_found" else "proposal_activity_not_found"
         raise HTTPException(status_code=404, detail=detail)
+
+
+@router.post("/proposal/{proposal_id}/swap")
+def swap_proposal_activities(proposal_id: str, swap_data: SwapDTO):
+    use_cases = get_scheduler_use_cases()
+    try:
+        return use_cases.swap_proposal_activities(
+            proposal_id,
+            swap_data.activity_id_a,
+            swap_data.activity_id_b,
+        )
+    except LookupError:
+        raise HTTPException(status_code=404, detail="proposal_not_found")
 
 
 @router.post("/compact")

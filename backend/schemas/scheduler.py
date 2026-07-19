@@ -19,6 +19,11 @@ class MoveDTO(BaseModel):
     start: str
 
 
+class SwapDTO(BaseModel):
+    activity_id_a: int
+    activity_id_b: int
+
+
 class ManualActivityDTO(BaseModel):
     subject: str
     day: str
