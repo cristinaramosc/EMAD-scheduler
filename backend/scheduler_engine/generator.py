@@ -222,6 +222,7 @@ class SchedulerGenerator:
 
                 warnings.append(
                     {
+                        "id": metadata.get("fet_id", block.id),
                         "label": f"No s'ha pogut col·locar {label}",
                         "subject": metadata.get("subject"),
                         "teacher": metadata.get("teacher"),
