@@ -105,6 +105,7 @@ class SchedulerUseCases:
         self._academic_data_repo = academic_data_repo
         self._working_timetable_repo = working_timetable_repo
         self._move_history: Dict[str, List[Any]] = {}
+        self._redo_history: Dict[str, List[Any]] = {}
 
     def validate(self, activities: List[Dict[str, Any]]) -> List[Any]:
         schedule = Schedule()
@@ -502,6 +503,7 @@ class SchedulerUseCases:
             score_breakdown=getattr(proposal, "score_breakdown", None),
             metadata=updated_metadata,
         )
+        self._redo_history.pop(proposal_id, None)
         self._move_history.setdefault(proposal_id, []).append(proposal)
         self._proposal_store[proposal_id] = updated_proposal
         self._persist_proposal_state(
@@ -583,6 +585,7 @@ class SchedulerUseCases:
             metadata=dict(proposal.metadata or {}),
         )
         self._move_history.setdefault(proposal_id, []).append(proposal)
+        self._redo_history.pop(proposal_id, None)
         self._proposal_store[proposal_id] = updated_proposal
         self._persist_proposal_state(
             updated_proposal,
@@ -604,7 +607,9 @@ class SchedulerUseCases:
         if not history:
             return {"ok": False, "error": "nothing_to_undo"}
 
+        current_proposal = self._proposal_store[proposal_id]
         previous_proposal = history.pop()
+        self._redo_history.setdefault(proposal_id, []).append(current_proposal)
         self._proposal_store[proposal_id] = previous_proposal
         self._persist_proposal_state(
             previous_proposal,
@@ -616,6 +621,31 @@ class SchedulerUseCases:
             "ok": True,
             "proposal": serialize_proposal(previous_proposal),
             "unscheduled_activities": list((previous_proposal.metadata or {}).get("unscheduled_activities", [])),
+        }
+
+    def redo_last_move(self, proposal_id: str) -> Dict[str, Any]:
+        """Re-apply the last move/swap that was undone."""
+        if proposal_id not in self._proposal_store:
+            raise LookupError("proposal_not_found")
+
+        redo_stack = self._redo_history.get(proposal_id)
+        if not redo_stack:
+            return {"ok": False, "error": "nothing_to_redo"}
+
+        current_proposal = self._proposal_store[proposal_id]
+        next_proposal = redo_stack.pop()
+        self._move_history.setdefault(proposal_id, []).append(current_proposal)
+        self._proposal_store[proposal_id] = next_proposal
+        self._persist_proposal_state(
+            next_proposal,
+            self._load_snapshot().generation_stats,
+            list((next_proposal.metadata or {}).get("unscheduled_activities", [])),
+        )
+
+        return {
+            "ok": True,
+            "proposal": serialize_proposal(next_proposal),
+            "unscheduled_activities": list((next_proposal.metadata or {}).get("unscheduled_activities", [])),
         }
 
     def suggest_slots_for_unscheduled(

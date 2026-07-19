@@ -1554,6 +1554,36 @@ export default function App() {
     }
   }
 
+  async function redoLastMove() {
+    if (!proposal?.id) return;
+    setIsSaving(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const response = await fetch(`${API_URL}/scheduler/proposal/${proposal.id}/redo`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok || data.ok !== true) {
+        setError(data.error === "nothing_to_redo" ? "No hi ha res per refer." : "No s'ha pogut refer el moviment.");
+        return;
+      }
+
+      setSuccessMessage("Moviment refet.");
+      const nextActivities = (data.proposal?.activities || []).map(normalizeTimetableActivity);
+      setProposal(data.proposal);
+      setActivities(nextActivities);
+      setConflicts(data.proposal?.conflicts || []);
+      setGeneratedUnscheduledActivities(data.unscheduled_activities || []);
+      setSelectedActivityId(null);
+    } catch (err) {
+      setError("No s'ha pogut refer el moviment.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function handleDragStart(event, activityId) {
     if (event?.dataTransfer) {
       event.dataTransfer.effectAllowed = "move";
@@ -1980,6 +2010,15 @@ export default function App() {
             title="Desfer l'últim moviment o intercanvi d'activitats"
           >
             ↩️ Desfer
+          </button>
+
+          <button
+            type="button"
+            onClick={redoLastMove}
+            disabled={isLoading || isSaving || isGenerating || !proposal?.id}
+            title="Refer el moviment desfet"
+          >
+            ↪️ Refer
           </button>
 
           <button type="button" onClick={openFetSelector} disabled={isLoading || isSaving || isGenerating}>
