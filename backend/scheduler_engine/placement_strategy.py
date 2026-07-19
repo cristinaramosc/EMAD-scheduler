@@ -156,6 +156,46 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         return reasons
 
+    def find_alternative_slots(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        current_scheduled_activities: Sequence[ScheduledActivity],
+        max_results: int = 3,
+    ) -> List[dict]:
+        """Return up to max_results slots where this block WOULD fit, given
+        the current schedule. Reuses the exact same checks as place(), just
+        collecting every valid slot instead of stopping at the first one."""
+        required_slots = teaching_block.duration_blocks or 1
+        existing_activities = list(context.existing_scheduled_activities) + list(context.fixed_activities)
+        all_activities = list(existing_activities) + list(current_scheduled_activities)
+        hour_names = context.configuration.get("hour_names") or []
+
+        suggestions: List[dict] = []
+
+        for day in context.school_calendar.days:
+            for slot in context.school_calendar.periods_for_day(day):
+                if len(suggestions) >= max_results:
+                    return suggestions
+
+                if self._is_blocked(slot, context.blocked_time_slots):
+                    continue
+                if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
+                    continue
+                if self._group_conflict_exists(teaching_block, slot, all_activities):
+                    continue
+                if self._teacher_conflict_exists(teaching_block, slot, all_activities):
+                    continue
+                if self._group_time_window_conflict_exists(teaching_block, slot, context):
+                    continue
+                if self._room_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+
+                start_label = hour_names[slot.period] if slot.period < len(hour_names) else f"Període {slot.period}"
+                suggestions.append({"day": self._day_name(day), "start": start_label})
+
+        return suggestions
+
     def _is_blocked(self, slot: TimeSlot, blocked_time_slots: Sequence[Tuple[int, int]]) -> bool:
         return (slot.day, slot.period) in blocked_time_slots
 
