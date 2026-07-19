@@ -90,6 +90,15 @@ def swap_proposal_activities(proposal_id: str, swap_data: SwapDTO):
         raise HTTPException(status_code=404, detail="proposal_not_found")
 
 
+@router.post("/proposal/{proposal_id}/undo")
+def undo_proposal_move(proposal_id: str):
+    use_cases = get_scheduler_use_cases()
+    try:
+        return use_cases.undo_last_move(proposal_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="proposal_not_found")
+
+
 @router.post("/compact")
 def compact_active_schedule():
     """Elimina els forats (franges buides) de l'horari actiu, reubicant les

@@ -104,6 +104,7 @@ class SchedulerUseCases:
         self._fet_file = fet_file
         self._academic_data_repo = academic_data_repo
         self._working_timetable_repo = working_timetable_repo
+        self._move_history: Dict[str, List[Any]] = {}
 
     def validate(self, activities: List[Dict[str, Any]]) -> List[Any]:
         schedule = Schedule()
@@ -501,6 +502,7 @@ class SchedulerUseCases:
             score_breakdown=getattr(proposal, "score_breakdown", None),
             metadata=updated_metadata,
         )
+        self._move_history.setdefault(proposal_id, []).append(proposal)
         self._proposal_store[proposal_id] = updated_proposal
         self._persist_proposal_state(
             updated_proposal,
@@ -580,6 +582,7 @@ class SchedulerUseCases:
             score_breakdown=getattr(proposal, "score_breakdown", None),
             metadata=dict(proposal.metadata or {}),
         )
+        self._move_history.setdefault(proposal_id, []).append(proposal)
         self._proposal_store[proposal_id] = updated_proposal
         self._persist_proposal_state(
             updated_proposal,
@@ -590,6 +593,29 @@ class SchedulerUseCases:
         return {
             "ok": True,
             "proposal": serialize_proposal(updated_proposal),
+        }
+
+    def undo_last_move(self, proposal_id: str) -> Dict[str, Any]:
+        """Revert the last move/swap applied to a proposal."""
+        if proposal_id not in self._proposal_store:
+            raise LookupError("proposal_not_found")
+
+        history = self._move_history.get(proposal_id)
+        if not history:
+            return {"ok": False, "error": "nothing_to_undo"}
+
+        previous_proposal = history.pop()
+        self._proposal_store[proposal_id] = previous_proposal
+        self._persist_proposal_state(
+            previous_proposal,
+            self._load_snapshot().generation_stats,
+            list((previous_proposal.metadata or {}).get("unscheduled_activities", [])),
+        )
+
+        return {
+            "ok": True,
+            "proposal": serialize_proposal(previous_proposal),
+            "unscheduled_activities": list((previous_proposal.metadata or {}).get("unscheduled_activities", [])),
         }
 
     def _scheduled_to_activity(
