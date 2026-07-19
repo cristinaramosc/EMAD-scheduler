@@ -99,6 +99,15 @@ def undo_proposal_move(proposal_id: str):
         raise HTTPException(status_code=404, detail="proposal_not_found")
 
 
+@router.post("/proposal/{proposal_id}/redo")
+def redo_proposal_move(proposal_id: str):
+    use_cases = get_scheduler_use_cases()
+    try:
+        return use_cases.redo_last_move(proposal_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="proposal_not_found")
+
+
 @router.get("/proposal/{proposal_id}/activity/{activity_id}/suggestions")
 def suggest_slots_for_unscheduled(proposal_id: str, activity_id: int):
     use_cases = get_scheduler_use_cases()
