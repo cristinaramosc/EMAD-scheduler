@@ -514,6 +514,84 @@ class SchedulerUseCases:
             "unscheduled_activities": updated_metadata.get("unscheduled_activities", []),
         }
 
+    def swap_proposal_activities(
+        self, proposal_id: str, activity_id_a: int, activity_id_b: int
+    ) -> Dict[str, Any]:
+        """Swap the day/start of two already-scheduled activities in a proposal."""
+        proposal = self._proposal_store.get(proposal_id)
+        if proposal is None:
+            raise LookupError("proposal_not_found")
+
+        current_activities = [
+            Activity(
+                id=activity.id,
+                teacher=activity.teacher,
+                subject=activity.subject,
+                group=activity.group,
+                room=activity.room,
+                day=activity.day,
+                start=activity.start,
+                duration=activity.duration,
+            )
+            for activity in proposal.activities
+        ]
+
+        baseline_schedule = self._build_schedule(current_activities)
+        baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
+        baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
+
+        activity_a = next((item for item in current_activities if item.id == activity_id_a), None)
+        activity_b = next((item for item in current_activities if item.id == activity_id_b), None)
+
+        if activity_a is None or activity_b is None:
+            return {
+                "ok": False,
+                "error": "activity_not_found",
+                "proposal": serialize_proposal(proposal),
+            }
+
+        activity_a.day, activity_b.day = activity_b.day, activity_a.day
+        activity_a.start, activity_b.start = activity_b.start, activity_a.start
+
+        candidate_schedule = self._build_schedule(current_activities)
+        conflicts = self._scheduler_engine.validate(candidate_schedule)
+        new_conflicts = [
+            conflict
+            for conflict in conflicts
+            if self._conflict_key(conflict) not in baseline_keys
+        ]
+
+        if new_conflicts:
+            activity_a.day, activity_b.day = activity_b.day, activity_a.day
+            activity_a.start, activity_b.start = activity_b.start, activity_a.start
+            return {
+                "ok": False,
+                "error": "validation_failed",
+                "conflicts": serialize_conflicts(new_conflicts),
+                "proposal": serialize_proposal(proposal),
+            }
+
+        updated_proposal = ScheduleProposal(
+            id=proposal.id,
+            activities=current_activities,
+            score=proposal.score,
+            conflicts=conflicts,
+            warnings=proposal.warnings,
+            score_breakdown=getattr(proposal, "score_breakdown", None),
+            metadata=dict(proposal.metadata or {}),
+        )
+        self._proposal_store[proposal_id] = updated_proposal
+        self._persist_proposal_state(
+            updated_proposal,
+            self._load_snapshot().generation_stats,
+            list((updated_proposal.metadata or {}).get("unscheduled_activities", [])),
+        )
+
+        return {
+            "ok": True,
+            "proposal": serialize_proposal(updated_proposal),
+        }
+
     def _scheduled_to_activity(
         self,
         scheduled_activity: Any,
