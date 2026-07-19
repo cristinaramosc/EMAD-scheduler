@@ -3074,6 +3074,40 @@ export default function App() {
             )}
           </div>
 
+          {activities.length > 0 && (
+            <div
+              className="group-color-legend"
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "10px",
+                padding: "8px 4px",
+                fontSize: "0.8rem",
+              }}
+            >
+              {Array.from(new Set(activities.map((activity) => activity.group).filter(Boolean)))
+                .sort()
+                .map((group) => {
+                  const color = getGroupColor(group);
+                  return (
+                    <div key={group} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                      <span
+                        style={{
+                          width: "10px",
+                          height: "10px",
+                          borderRadius: "50%",
+                          background: color.background,
+                          border: `1px solid ${color.border}`,
+                          display: "inline-block",
+                        }}
+                      />
+                      <span>{group}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+
           <div className="timetable" aria-label="Horari">
           <div className="corner-cell" style={{ gridColumn: 1, gridRow: 1 }} />
 
