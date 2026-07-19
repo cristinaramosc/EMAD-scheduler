@@ -326,6 +326,7 @@ export default function App() {
   const [isExportingTemplates, setIsExportingTemplates] = useState(false);
   const [isImportingWorkbook, setIsImportingWorkbook] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [suggestionsByActivity, setSuggestionsByActivity] = useState({});
   const [isTogglingBreak, setIsTogglingBreak] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState("");
@@ -1409,6 +1410,23 @@ export default function App() {
     const durationRaw = window.prompt("Durada en blocs de 30 min (2 = 1 hora):", "2");
     const duration = parseInt(durationRaw, 10) || 2;
     await addManualActivity({ subject: "Coordinació", day, start, duration, teacher });
+  }
+
+  async function fetchSuggestions(activityId) {
+    if (!proposal?.id) return;
+    setSuggestionsByActivity((prev) => ({ ...prev, [activityId]: { loading: true, slots: [] } }));
+    try {
+      const response = await fetch(
+        `${API_URL}/scheduler/proposal/${proposal.id}/activity/${activityId}/suggestions`
+      );
+      const data = await response.json();
+      setSuggestionsByActivity((prev) => ({
+        ...prev,
+        [activityId]: { loading: false, slots: data.suggested_slots || [] },
+      }));
+    } catch (err) {
+      setSuggestionsByActivity((prev) => ({ ...prev, [activityId]: { loading: false, slots: [] } }));
+    }
   }
 
   async function moveActivity(activityId, day, start) {
@@ -3331,6 +3349,55 @@ export default function App() {
                                 </ul>
                               </div>
                             )}
+
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => fetchSuggestions(warning.id)}
+                                disabled={suggestionsByActivity[warning.id]?.loading}
+                                style={{
+                                  fontSize: "0.8rem",
+                                  padding: "4px 10px",
+                                  borderRadius: "6px",
+                                  border: `1px solid ${style.border}`,
+                                  background: "white",
+                                  color: style.text,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {suggestionsByActivity[warning.id]?.loading ? "Cercant..." : "Suggereix franges"}
+                              </button>
+
+                              {suggestionsByActivity[warning.id]?.slots.length > 0 && (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
+                                  {suggestionsByActivity[warning.id].slots.map((slot, slotIndex) => (
+                                    <button
+                                      key={slotIndex}
+                                      type="button"
+                                      onClick={() => moveActivity(warning.id, slot.day, slot.start)}
+                                      style={{
+                                        fontSize: "0.8rem",
+                                        padding: "4px 10px",
+                                        borderRadius: "6px",
+                                        border: "1px solid #ccc",
+                                        background: "#f5f5f5",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      {slot.day} {slot.start}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {suggestionsByActivity[warning.id] &&
+                                !suggestionsByActivity[warning.id].loading &&
+                                suggestionsByActivity[warning.id].slots.length === 0 && (
+                                  <div style={{ fontSize: "0.8rem", marginTop: "6px", color: style.text }}>
+                                    Cap franja disponible.
+                                  </div>
+                                )}
+                            </div>
                           </article>
                         );
                       })}
