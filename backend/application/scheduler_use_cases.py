@@ -618,6 +618,55 @@ class SchedulerUseCases:
             "unscheduled_activities": list((previous_proposal.metadata or {}).get("unscheduled_activities", [])),
         }
 
+    def suggest_slots_for_unscheduled(
+        self, proposal_id: str, activity_id: int, max_results: int = 3
+    ) -> Dict[str, Any]:
+        """Suggest slots where a currently-unscheduled (pending) activity
+        could be placed, given the rest of the schedule already in place."""
+        proposal = self._proposal_store.get(proposal_id)
+        if proposal is None:
+            raise LookupError("proposal_not_found")
+
+        unscheduled = list((proposal.metadata or {}).get("unscheduled_activities", []))
+        pending = next((item for item in unscheduled if item.get("id") == activity_id), None)
+        if pending is None:
+            return {"ok": False, "error": "activity_not_found"}
+
+        current_activities = [
+            Activity(
+                id=activity.id,
+                teacher=activity.teacher,
+                subject=activity.subject,
+                group=activity.group,
+                room=activity.room,
+                day=activity.day,
+                start=activity.start,
+                duration=activity.duration,
+            )
+            for activity in proposal.activities
+        ]
+
+        baseline_schedule = self._build_schedule(current_activities)
+        baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
+        baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
+
+        target_activity = Activity(
+            id=pending["id"],
+            teacher=pending.get("teacher", ""),
+            subject=pending.get("subject", ""),
+            group=pending.get("group", ""),
+            room=pending.get("room", ""),
+            day="",
+            start="",
+            duration=pending.get("duration", 1),
+        )
+
+        suggestions = self._suggest_alternative_slots(
+            current_activities, target_activity, set(), baseline_keys, max_results=max_results
+        )
+
+        return {"ok": True, "suggested_slots": suggestions}
+
     def _scheduled_to_activity(
         self,
         scheduled_activity: Any,
