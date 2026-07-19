@@ -165,6 +165,33 @@ function conflictActivityIds(conflicts) {
   );
 }
 
+// Paleta de colors per identificar grups visualment al calendari (espec 01:
+// "Cada grup tindrà un color principal... els colors han de servir únicament
+// per identificar, no han de ser decoratius"). To muted/minimalista, no
+// gradients ni ombres marcades.
+const GROUP_COLOR_PALETTE = [
+  { background: "#2f6f73", border: "#245b5f" }, // teal (color original, per compatibilitat visual)
+  { background: "#3d5a80", border: "#2c4560" }, // blau pissarra
+  { background: "#5b5f97", border: "#43466f" }, // lavanda fosc
+  { background: "#6a8759", border: "#4f6642" }, // verd oliva
+  { background: "#8a5a44", border: "#6b4433" }, // terracota
+  { background: "#4a6670", border: "#374d55" }, // blau grisós
+  { background: "#7a5c7e", border: "#5c4560" }, // malva
+  { background: "#5a7d7c", border: "#436160" }, // verd maragda apagat
+  { background: "#6d6875", border: "#514d58" }, // gris violaci
+  { background: "#7c6a4d", border: "#5e503a" }, // marró daurat
+];
+
+function getGroupColor(groupName) {
+  const key = (groupName || "").trim().toLowerCase();
+  if (!key) return GROUP_COLOR_PALETTE[0];
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return GROUP_COLOR_PALETTE[hash % GROUP_COLOR_PALETTE.length];
+}
+
 function conflictMessagesByActivity(conflicts) {
   const map = new Map();
   for (const conflict of conflicts) {
@@ -1497,6 +1524,36 @@ export default function App() {
     }
   }
 
+  async function undoLastMove() {
+    if (!proposal?.id) return;
+    setIsSaving(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const response = await fetch(`${API_URL}/scheduler/proposal/${proposal.id}/undo`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok || data.ok !== true) {
+        setError(data.error === "nothing_to_undo" ? "No hi ha res per desfer." : "No s'ha pogut desfer el moviment.");
+        return;
+      }
+
+      setSuccessMessage("Últim moviment desfet.");
+      const nextActivities = (data.proposal?.activities || []).map(normalizeTimetableActivity);
+      setProposal(data.proposal);
+      setActivities(nextActivities);
+      setConflicts(data.proposal?.conflicts || []);
+      setGeneratedUnscheduledActivities(data.unscheduled_activities || []);
+      setSelectedActivityId(null);
+    } catch (err) {
+      setError("No s'ha pogut desfer el moviment.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function handleDragStart(event, activityId) {
     if (event?.dataTransfer) {
       event.dataTransfer.effectAllowed = "move";
@@ -1648,6 +1705,7 @@ export default function App() {
     const isSelected = selectedActivityId === activity.id;
     const normalizedSubject = (activity.subject || "").trim().toLowerCase();
     const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio";
+    const groupColor = !hasConflict && !isBreakOrCoordination ? getGroupColor(activity.group) : null;
 
     return (
       <article
@@ -1660,6 +1718,7 @@ export default function App() {
         ].filter(Boolean).join(" ")}
         draggable
         title={hasConflict ? conflictReasons.join("\n") : undefined}
+        style={groupColor ? { background: groupColor.background, borderColor: groupColor.border } : undefined}
         onClick={() => setSelectedActivityId(activity.id)}
         onDragStart={(event) => handleDragStart(event, activity.id)}
         onDragEnd={() => {
@@ -1912,6 +1971,15 @@ export default function App() {
 
           <button type="button" onClick={generateProposal} disabled={isLoading || isSaving || isGenerating}>
             {isGenerating ? "Generant..." : "Genera proposta"}
+          </button>
+
+          <button
+            type="button"
+            onClick={undoLastMove}
+            disabled={isLoading || isSaving || isGenerating || !proposal?.id}
+            title="Desfer l'últim moviment o intercanvi d'activitats"
+          >
+            ↩️ Desfer
           </button>
 
           <button type="button" onClick={openFetSelector} disabled={isLoading || isSaving || isGenerating}>
