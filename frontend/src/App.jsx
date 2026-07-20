@@ -3690,10 +3690,24 @@ export default function App() {
               <p className="muted">Selecciona "Info" en una activitat per veure el motiu de la seva ubicació.</p>
             ) : (
               <div className="explanation-panel">
-                <div className="proposal-metric">
-                  <span className="metric-label">Activitat</span>
-                  <strong>{selectedExplanation.activity_id}</strong>
-                </div>
+                {(() => {
+                  const explainedActivity = activities.find(
+                    (activity) => activity.id === selectedExplanation.activity_id
+                  );
+                  if (!explainedActivity) return null;
+                  return (
+                    <div style={{ marginBottom: 12 }}>
+                      <strong style={{ fontSize: "1.05rem" }}>{explainedActivity.subject}</strong>
+                      <div className="muted" style={{ fontSize: "0.85rem", marginTop: 4 }}>
+                        {explainedActivity.teacher || "Professor pendent"} · {explainedActivity.group || "Grup sense etiqueta"}
+                        {explainedActivity.room ? ` · ${explainedActivity.room}` : ""}
+                      </div>
+                      <div className="muted" style={{ fontSize: "0.85rem" }}>
+                        {explainedActivity.day} · {explainedActivity.start}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="proposal-metric">
                   <span className="metric-label">Contribució local</span>
                   <strong>{selectedExplanation.score_contribution ?? "-"}</strong>
