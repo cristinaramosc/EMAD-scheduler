@@ -1,9 +1,27 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { DataSheetGrid, textColumn, floatColumn, keyColumn } from "react-datasheet-grid";
+import "react-datasheet-grid/dist/style.css";
 import "./App.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
 const DAYS = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"];
+
+// Fase 2 (dades acadèmiques com a taula editable): columnes per a la graella
+// d'Assignatures, calcades dels camps reals que ja accepta AssignmentDTO al
+// backend (POST/PATCH /academic-data/assignments). Cap canvi de model.
+const ASSIGNMENT_SHEET_COLUMNS = [
+  { ...keyColumn("teacher", textColumn), title: "Professor" },
+  { ...keyColumn("subject", textColumn), title: "Assignatura" },
+  { ...keyColumn("group", textColumn), title: "Grup" },
+  { ...keyColumn("weekly_hours", floatColumn), title: "Hores setmanals" },
+  { ...keyColumn("preferred_room", textColumn), title: "Aula preferida" },
+  { ...keyColumn("max_session_days", textColumn), title: "Màx. dies" },
+  { ...keyColumn("fixed_day", textColumn), title: "Dia fix" },
+  { ...keyColumn("fixed_start", textColumn), title: "Hora fixa" },
+  { ...keyColumn("consecutive_group", textColumn), title: "Consecutiva amb" },
+  { ...keyColumn("notes", textColumn), title: "Notes" },
+];
 
 const HOURS = [
   "8:00",
@@ -349,6 +367,10 @@ export default function App() {
   const [groups, setGroups] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [teachingAssignments, setTeachingAssignments] = useState([]);
+  const [useSpreadsheetView, setUseSpreadsheetView] = useState(false);
+  const [spreadsheetRows, setSpreadsheetRows] = useState([]);
+  const [spreadsheetOriginalRows, setSpreadsheetOriginalRows] = useState([]);
+  const [isSavingSpreadsheet, setIsSavingSpreadsheet] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExportingTemplates, setIsExportingTemplates] = useState(false);
   const [isImportingWorkbook, setIsImportingWorkbook] = useState(false);
@@ -1940,6 +1962,120 @@ export default function App() {
     await loadTimetableEntities();
   }
 
+  // Fase 2: taula editable tipus Excel per a Assignatures. Reutilitza
+  // exactament els mateixos endpoints CRUD que ja fa servir la vista
+  // clàssica (/academic-data/assignments, /academic-data/subjects) — cap
+  // canvi al backend ni al model de dades.
+  function openSpreadsheetView() {
+    const rows = teachingAssignments.map((a) => ({
+      id: a.id,
+      teacher: a.teacher || "",
+      subject: a.subject || "",
+      group: a.group || "",
+      weekly_hours: typeof a.weekly_hours === "number" ? a.weekly_hours : parseFloat(a.weekly_hours) || 0,
+      preferred_room: a.preferred_room || "",
+      max_session_days: a.max_session_days || "",
+      fixed_day: a.fixed_day || "",
+      fixed_start: a.fixed_start || "",
+      consecutive_group: a.consecutive_group || "",
+      notes: a.notes || "",
+    }));
+    setSpreadsheetRows(rows);
+    setSpreadsheetOriginalRows(rows);
+    setUseSpreadsheetView(true);
+  }
+
+  async function saveSpreadsheetRows() {
+    setIsSavingSpreadsheet(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const originalById = new Map(spreadsheetOriginalRows.filter((r) => r.id).map((r) => [r.id, r]));
+      const currentIds = new Set(spreadsheetRows.filter((r) => r.id).map((r) => r.id));
+
+      // Files noves: sense id, i amb almenys assignatura+grup+professor omplerts.
+      const newRows = spreadsheetRows.filter(
+        (r) => !r.id && (r.subject || r.teacher || r.group)
+      );
+
+      // Files modificades: id existent i algun camp diferent de l'original.
+      const changedRows = spreadsheetRows.filter((r) => {
+        if (!r.id) return false;
+        const original = originalById.get(r.id);
+        if (!original) return false;
+        return ASSIGNMENT_SHEET_COLUMNS.some((col) => (original[col.id] ?? "") !== (r[col.id] ?? ""));
+      });
+
+      // Files esborrades: eren a l'original i ja no hi són a la taula actual.
+      const deletedIds = spreadsheetOriginalRows.filter((r) => r.id && !currentIds.has(r.id)).map((r) => r.id);
+
+      const existingSubjectNames = new Set(academicSubjects.map((s) => s.name));
+      const errors = [];
+
+      async function ensureSubjectExists(subjectName) {
+        if (!subjectName || existingSubjectNames.has(subjectName)) return;
+        const res = await apiJson("POST", "/academic-data/subjects", { name: subjectName });
+        if (res.ok) {
+          existingSubjectNames.add(subjectName);
+        }
+      }
+
+      for (const row of newRows) {
+        await ensureSubjectExists(row.subject);
+        const res = await apiJson("POST", "/academic-data/assignments", {
+          teacher: row.teacher,
+          subject: row.subject,
+          group: row.group,
+          weekly_hours: row.weekly_hours,
+          preferred_room: row.preferred_room,
+          notes: row.notes,
+          fixed_day: row.fixed_day,
+          fixed_start: row.fixed_start,
+          max_session_days: row.max_session_days,
+          consecutive_group: row.consecutive_group,
+        });
+        if (!res.ok) errors.push(`${row.subject || "(nova fila)"}: ${res.data?.detail || "error en crear"}`);
+      }
+
+      for (const row of changedRows) {
+        await ensureSubjectExists(row.subject);
+        const res = await apiJson("PATCH", `/academic-data/assignments/${encodeURIComponent(row.id)}`, {
+          teacher: row.teacher,
+          subject: row.subject,
+          group: row.group,
+          weekly_hours: row.weekly_hours,
+          preferred_room: row.preferred_room,
+          notes: row.notes,
+          fixed_day: row.fixed_day,
+          fixed_start: row.fixed_start,
+          max_session_days: row.max_session_days,
+          consecutive_group: row.consecutive_group,
+        });
+        if (!res.ok) errors.push(`${row.subject || row.id}: ${res.data?.detail || "error en desar"}`);
+      }
+
+      for (const id of deletedIds) {
+        const res = await apiJson("DELETE", `/academic-data/assignments/${encodeURIComponent(id)}`);
+        if (!res.ok) errors.push(`Esborrar ${id}: ${res.data?.detail || "error"}`);
+      }
+
+      await refreshAcademicLists();
+
+      if (errors.length > 0) {
+        setError(`Alguns canvis no s'han pogut desar: ${errors.join(" · ")}`);
+      } else {
+        setSuccessMessage(
+          `Desat: ${newRows.length} noves, ${changedRows.length} modificades, ${deletedIds.length} esborrades.`
+        );
+        setUseSpreadsheetView(false);
+      }
+    } catch (err) {
+      setError("No s'han pogut desar tots els canvis de la taula.");
+    } finally {
+      setIsSavingSpreadsheet(false);
+    }
+  }
+
   // More CRUD helpers
   async function createGroup(payload) {
     return apiJson("POST", "/academic-data/groups", payload);
@@ -2685,6 +2821,47 @@ export default function App() {
             {academicTab === "assignments" && (
               <div>
                 <h2>Assignacions docents</h2>
+
+                <div style={{ marginBottom: 12 }}>
+                  {!useSpreadsheetView ? (
+                    <button type="button" onClick={openSpreadsheetView}>
+                      📊 Vista taula (edició ràpida tipus Excel)
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setUseSpreadsheetView(false)} disabled={isSavingSpreadsheet}>
+                      ← Torna a la vista clàssica
+                    </button>
+                  )}
+                </div>
+
+                {useSpreadsheetView ? (
+                  <div>
+                    <div className="muted" style={{ marginBottom: 8 }}>
+                      Doble clic per editar una cel·la. Navega amb el teclat. Selecciona un rang i copia/enganxa
+                      amb Ctrl/Cmd+C i Ctrl/Cmd+V, també des d'Excel o Google Sheets. Afegeix files noves des del
+                      final de la taula; esborra-les seleccionant-les i prement Suprimir.
+                    </div>
+                    <DataSheetGrid
+                      value={spreadsheetRows}
+                      onChange={setSpreadsheetRows}
+                      columns={ASSIGNMENT_SHEET_COLUMNS}
+                      height={480}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button type="button" onClick={saveSpreadsheetRows} disabled={isSavingSpreadsheet}>
+                        {isSavingSpreadsheet ? "Desant..." : "Desa els canvis"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUseSpreadsheetView(false)}
+                        disabled={isSavingSpreadsheet}
+                      >
+                        Cancel·la
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                <>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <button
                     type="button"
@@ -3055,6 +3232,8 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+                </>
+                )}
               </div>
             )}
           </div>
