@@ -748,6 +748,12 @@ export default function App() {
         <div style={{ marginBottom: 16 }}>
           <h4 style={{ marginBottom: 6 }}>Franges no disponibles</h4>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <button type="button" onClick={() => applyUnavailablePreset("no-abans-10", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No abans de les 10:00</button>
+            <button type="button" onClick={() => applyUnavailablePreset("no-abans-15", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No abans de les 15:00</button>
+            <button type="button" onClick={() => applyUnavailablePreset("no-despres-17", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No després de les 17:00</button>
+            <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Entre les 10:00 i les 14:00</button>
+            <button type="button" onClick={() => applyUnavailablePreset("nomes-matins", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Només matins</button>
+            <button type="button" onClick={() => applyUnavailablePreset("nomes-tardes", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Només tardes</button>
             <button type="button" onClick={() => clearAvailabilitySelection(teacherRestrictionDraft, setTeacherRestrictionDraft, "unavailable_slots", setUnavailableSelectionAnchor)}>Neteja selecció</button>
           </div>
           <div className="muted">Clic simple per marcar/desmarcar una franja no disponible manualment (vermell). Maj + clic per seleccionar un rang. Les caselles taronges venen del fitxer FET i no s'editen aquí.</div>
@@ -1852,6 +1858,36 @@ export default function App() {
       ...draft,
       [field]: [],
     });
+    setAnchor(null);
+  }
+
+  // Fase 1 (edició web de dades acadèmiques): botons ràpids que marquen en
+  // bloc franges com a "no disponibles", reutilitzant la graella clicable
+  // que ja existeix. No cal cap canvi al motor: segueix sent la mateixa
+  // llista `unavailable_slots` que ja consumeix el generador.
+  function applyUnavailablePreset(preset, draft, setDraft, field = "unavailable_slots", setAnchor = setUnavailableSelectionAnchor) {
+    const hourIndex = (hour) => HOURS.indexOf(hour);
+    const matchers = {
+      "no-abans-10": (hour) => hourIndex(hour) < hourIndex("10:00"),
+      "no-abans-15": (hour) => hourIndex(hour) < hourIndex("15:00"),
+      "no-despres-17": (hour) => hourIndex(hour) >= hourIndex("17:00"),
+      "entre-10-14": (hour) => hourIndex(hour) >= hourIndex("10:00") && hourIndex(hour) < hourIndex("14:00"),
+      "nomes-matins": (hour) => hourIndex(hour) >= 8,
+      "nomes-tardes": (hour) => hourIndex(hour) < 8,
+    };
+    const matcher = matchers[preset];
+    if (!matcher) return;
+
+    const currentSlots = new Set(draft[field] || []);
+    DAYS.forEach((day) => {
+      HOURS.forEach((hour) => {
+        if (matcher(hour)) {
+          currentSlots.add(`${day}-${hour}`);
+        }
+      });
+    });
+
+    setDraft({ ...draft, [field]: Array.from(currentSlots).sort() });
     setAnchor(null);
   }
 
@@ -3258,6 +3294,12 @@ export default function App() {
                 <div style={{ marginBottom: 12 }}>
                   <h3>Franges no disponibles</h3>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                    <button type="button" onClick={() => applyUnavailablePreset("no-abans-10", groupRestrictionDraft, setGroupRestrictionDraft)}>No abans de les 10:00</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("no-abans-15", groupRestrictionDraft, setGroupRestrictionDraft)}>No abans de les 15:00</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("no-despres-17", groupRestrictionDraft, setGroupRestrictionDraft)}>No després de les 17:00</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", groupRestrictionDraft, setGroupRestrictionDraft)}>Entre les 10:00 i les 14:00</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("nomes-matins", groupRestrictionDraft, setGroupRestrictionDraft)}>Només matins</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("nomes-tardes", groupRestrictionDraft, setGroupRestrictionDraft)}>Només tardes</button>
                     <button type="button" onClick={() => clearAvailabilitySelection(groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setUnavailableSelectionAnchor)}>Neteja selecció</button>
                   </div>
                   <div className="muted">Clic simple per marcar/desmarcar una franja no disponible manualment (vermell). Maj + clic per seleccionar un rang. Les caselles taronges venen del fitxer FET i no s'editen aquí.</div>
