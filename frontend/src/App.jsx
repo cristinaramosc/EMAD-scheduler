@@ -1622,6 +1622,65 @@ export default function App() {
     }
   }
 
+  async function swapActivity(activityIdA, activityIdB) {
+    if (!proposal?.id) return;
+    const prevActivities = activities ? activities.slice() : [];
+    const prevConflicts = conflicts ? conflicts.slice() : [];
+    const prevSelectedActivityId = selectedActivityId;
+    setIsSaving(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/scheduler/proposal/${proposal.id}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activity_id_a: activityIdA, activity_id_b: activityIdB }),
+      });
+
+      const data = await response.json();
+      console.log("SWAP RESPONSE", data);
+
+      const rawConflicts = data.conflicts || data.proposal?.conflicts || [];
+
+      if (!response.ok || data.ok !== true) {
+        setActivities(prevActivities);
+        setConflicts(prevConflicts);
+        setSelectedActivityId(prevSelectedActivityId);
+
+        if (data.error === "validation_failed") {
+          const reasons = (data.conflicts || []).map((c) => c.message).filter(Boolean);
+          let message = "L'intercanvi no és vàlid.";
+          if (reasons.length) {
+            message += " " + reasons.join(" · ");
+          }
+          setError(message);
+        } else if (data.error === "activity_not_found") {
+          setError("No s'ha trobat una de les dues activitats a intercanviar.");
+        } else {
+          setError("No s'ha pogut intercanviar les activitats.");
+        }
+        return;
+      }
+
+      setSuccessMessage("Activitats intercanviades.");
+      const nextActivities = (data.proposal?.activities || []).map(normalizeTimetableActivity);
+      setProposal(data.proposal);
+      setActivities(nextActivities);
+      setConflicts(rawConflicts);
+      setSelectedActivityId(null);
+    } catch (err) {
+      setActivities(prevActivities);
+      setConflicts(prevConflicts);
+      setSelectedActivityId(prevSelectedActivityId);
+      setError("No s'ha pogut desar l'intercanvi.");
+    } finally {
+      setIsSaving(false);
+      setDraggedActivityId(null);
+      setDropTarget(null);
+    }
+  }
+
   async function undoLastMove() {
     if (!proposal?.id) return;
     setIsSaving(true);
@@ -1812,6 +1871,18 @@ export default function App() {
       // nothing to do; clear transient highlights
       setDropTarget(null);
       setDraggedActivityId(null);
+      return;
+    }
+
+    // If the target slot is already occupied by a single different activity,
+    // swap the two instead of attempting a move (which would just conflict).
+    const occupyingActivities = (activities || []).filter(
+      (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
+    );
+    if (occupyingActivities.length === 1) {
+      setDropTarget(null);
+      setDraggedActivityId(null);
+      swapActivity(activityId, occupyingActivities[0].id);
       return;
     }
 
