@@ -1577,7 +1577,21 @@ export default function App() {
         setActivities(prevActivities);
         setConflicts(prevConflicts);
         setSelectedActivityId(prevSelectedActivityId);
-        setError(data.error === "validation_failed" ? "El moviment no és vàlid." : "No s'ha pogut moure l'activitat.");
+
+        if (data.error === "validation_failed") {
+          const reasons = (data.conflicts || []).map((c) => c.message).filter(Boolean);
+          const suggestions = (data.suggested_slots || []).map((s) => `${s.day} ${s.start}`);
+          let message = "El moviment no és vàlid.";
+          if (reasons.length) {
+            message += " " + reasons.join(" · ");
+          }
+          if (suggestions.length) {
+            message += ` Prova: ${suggestions.join(", ")}.`;
+          }
+          setError(message);
+        } else {
+          setError("No s'ha pogut moure l'activitat.");
+        }
         return;
       }
 
