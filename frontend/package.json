@@ -23,5 +23,9 @@
     "@vitejs/plugin-react": "^6.0.3",
     "oxlint": "^1.71.0",
     "vite": "^8.1.1"
+  },
+  "overrides": {
+    "react-dom": "$react-dom",
+    "react": "$react"
   }
 }

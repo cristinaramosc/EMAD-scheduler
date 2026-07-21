@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import zlib
 from typing import Any, Dict, List
 
 try:
@@ -705,7 +706,14 @@ class SchedulerUseCases:
     ) -> Activity:
         metadata = scheduled_activity.teaching_block.metadata or {}
         return Activity(
-            id=metadata.get("fet_id", hash((scheduled_activity.teaching_block.id, scheduled_activity.day, scheduled_activity.start_timeslot.period))),
+            id=metadata.get(
+                "fet_id",
+                zlib.crc32(
+                    f"{scheduled_activity.teaching_block.id}|{scheduled_activity.day}|{scheduled_activity.start_timeslot.period}".encode(
+                        "utf-8"
+                    )
+                ),
+            ),
             teacher=scheduled_activity.teacher_id or metadata.get("teacher", ""),
             subject=metadata.get("subject") or metadata.get("subject_id") or scheduled_activity.teaching_block.id,
             group=scheduled_activity.group_id or metadata.get("group", ""),

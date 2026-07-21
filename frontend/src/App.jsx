@@ -233,6 +233,33 @@ function matchesSearch(query, fields) {
   return fields.some((field) => String(field || "").toLowerCase().includes(q));
 }
 
+// Fase 4 (ordenar per columna): clicar una capçalera ordena per aquell
+// camp; tornar-hi a clicar inverteix la direcció.
+function applyAcademicSort(rows, sortState) {
+  if (!sortState.key) return rows;
+  const sorted = [...rows].sort((a, b) => {
+    const va = a[sortState.key];
+    const vb = b[sortState.key];
+    if (typeof va === "number" || typeof vb === "number") {
+      return (parseFloat(va) || 0) - (parseFloat(vb) || 0);
+    }
+    return String(va || "").localeCompare(String(vb || ""), "ca", { sensitivity: "base" });
+  });
+  return sortState.direction === "desc" ? sorted.reverse() : sorted;
+}
+
+function toggleAcademicSort(key, setSortState) {
+  setSortState((prev) => ({
+    key,
+    direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+  }));
+}
+
+function sortIndicator(key, sortState) {
+  if (sortState.key !== key) return "";
+  return sortState.direction === "asc" ? " ▲" : " ▼";
+}
+
 function conflictMessagesByActivity(conflicts) {
   const map = new Map();
   for (const conflict of conflicts) {
@@ -396,6 +423,7 @@ export default function App() {
   const [isSavingSpreadsheet, setIsSavingSpreadsheet] = useState(false);
   const [entitySheetOpen, setEntitySheetOpen] = useState({ teachers: false, groups: false, rooms: false });
   const [academicSearch, setAcademicSearch] = useState("");
+  const [academicSort, setAcademicSort] = useState({ key: null, direction: "asc" });
   const [entitySheetRows, setEntitySheetRows] = useState({ teachers: [], groups: [], rooms: [] });
   const [entitySheetOriginal, setEntitySheetOriginal] = useState({ teachers: [], groups: [], rooms: [] });
   const [isSavingEntitySheet, setIsSavingEntitySheet] = useState({ teachers: false, groups: false, rooms: false });
@@ -2473,15 +2501,15 @@ export default function App() {
                 <table className="academic-table">
                   <thead>
                     <tr>
-                      <th>Nom</th>
-                      <th>Nom curt</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("short_name", setAcademicSort)}>Nom curt{sortIndicator("short_name", academicSort)}</th>
                       <th>Actiu</th>
                       <th>Restriccions</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {teachers.filter((t) => matchesSearch(academicSearch, [t.name, t.short_name])).map((t) => {
+                    {applyAcademicSort(teachers.filter((t) => matchesSearch(academicSearch, [t.name, t.short_name])), academicSort).map((t) => {
                       const restriction = teacherRestrictions.find((item) => item.teacher === t.name);
                       const manualCount = (restriction?.unavailable_slots || []).length;
                       const fetCount = (restriction?.fet_unavailable_slots || []).length;
@@ -2675,14 +2703,14 @@ export default function App() {
                 <table className="academic-table">
                   <thead>
                     <tr>
-                      <th>Nom</th>
-                      <th>Curs</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("course", setAcademicSort)}>Curs{sortIndicator("course", academicSort)}</th>
                       <th>Actiu</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {groups.filter((g) => matchesSearch(academicSearch, [g.name, g.course])).map((g) => (
+                    {applyAcademicSort(groups.filter((g) => matchesSearch(academicSearch, [g.name, g.course])), academicSort).map((g) => (
                       <tr key={g.name}>
                         <td>
                           {groupEdit === g.name ? (
@@ -2982,13 +3010,13 @@ export default function App() {
                 <table className="academic-table">
                   <thead>
                     <tr>
-                      <th>Nom</th>
-                      <th>Capacitat</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("capacity", setAcademicSort)}>Capacitat{sortIndicator("capacity", academicSort)}</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rooms.filter((r) => matchesSearch(academicSearch, [r.name])).map((r) => (
+                    {applyAcademicSort(rooms.filter((r) => matchesSearch(academicSearch, [r.name])), academicSort).map((r) => (
                       <tr key={r.name}>
                         <td>
                           {roomEdit === r.name ? (
@@ -3163,10 +3191,10 @@ export default function App() {
                   <thead>
                     <tr>
                       <th></th>
-                      <th>Professor</th>
-                      <th>Grup d'alumnes</th>
-                      <th>Assignatura</th>
-                      <th>Hores setmanals</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("teacher", setAcademicSort)}>Professor{sortIndicator("teacher", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("group", setAcademicSort)}>Grup d'alumnes{sortIndicator("group", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("subject", setAcademicSort)}>Assignatura{sortIndicator("subject", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("weekly_hours", setAcademicSort)}>Hores setmanals{sortIndicator("weekly_hours", academicSort)}</th>
                       <th>Durades de sessió permeses</th>
                       <th>Màx. dies per repartir</th>
                       <th>Consecutiva amb (etiqueta)</th>
@@ -3175,8 +3203,10 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {teachingAssignments
-                      .filter((a) => matchesSearch(academicSearch, [a.teacher, a.subject, a.group]))
+                    {applyAcademicSort(
+                      teachingAssignments.filter((a) => matchesSearch(academicSearch, [a.teacher, a.subject, a.group])),
+                      academicSort
+                    )
                       .map((a) => (
                       <tr key={a.id}>
                         <td>
