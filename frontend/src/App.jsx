@@ -23,6 +23,21 @@ const ASSIGNMENT_SHEET_COLUMNS = [
   { ...keyColumn("notes", textColumn), title: "Notes" },
 ];
 
+const TEACHER_SHEET_COLUMNS = [
+  { ...keyColumn("name", textColumn), title: "Nom" },
+  { ...keyColumn("short_name", textColumn), title: "Nom curt" },
+];
+
+const GROUP_SHEET_COLUMNS = [
+  { ...keyColumn("name", textColumn), title: "Nom del grup" },
+  { ...keyColumn("course", textColumn), title: "Curs" },
+];
+
+const ROOM_SHEET_COLUMNS = [
+  { ...keyColumn("name", textColumn), title: "Nom de l'aula" },
+  { ...keyColumn("capacity", floatColumn), title: "Capacitat" },
+];
+
 const HOURS = [
   "8:00",
   "8:30",
@@ -210,6 +225,14 @@ function getGroupColor(groupName) {
   return GROUP_COLOR_PALETTE[hash % GROUP_COLOR_PALETTE.length];
 }
 
+// Fase 4 (cerca instantània): coincidència simple, sense distingir
+// majúscules/minúscules, contra qualsevol dels camps rellevants d'una fila.
+function matchesSearch(query, fields) {
+  if (!query || !query.trim()) return true;
+  const q = query.trim().toLowerCase();
+  return fields.some((field) => String(field || "").toLowerCase().includes(q));
+}
+
 function conflictMessagesByActivity(conflicts) {
   const map = new Map();
   for (const conflict of conflicts) {
@@ -371,6 +394,11 @@ export default function App() {
   const [spreadsheetRows, setSpreadsheetRows] = useState([]);
   const [spreadsheetOriginalRows, setSpreadsheetOriginalRows] = useState([]);
   const [isSavingSpreadsheet, setIsSavingSpreadsheet] = useState(false);
+  const [entitySheetOpen, setEntitySheetOpen] = useState({ teachers: false, groups: false, rooms: false });
+  const [academicSearch, setAcademicSearch] = useState("");
+  const [entitySheetRows, setEntitySheetRows] = useState({ teachers: [], groups: [], rooms: [] });
+  const [entitySheetOriginal, setEntitySheetOriginal] = useState({ teachers: [], groups: [], rooms: [] });
+  const [isSavingEntitySheet, setIsSavingEntitySheet] = useState({ teachers: false, groups: false, rooms: false });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExportingTemplates, setIsExportingTemplates] = useState(false);
   const [isImportingWorkbook, setIsImportingWorkbook] = useState(false);
@@ -2076,6 +2104,97 @@ export default function App() {
     }
   }
 
+  // Fase 3: la mateixa idea de taula editable, generalitzada per a
+  // Professors / Grups / Aules (identificats per "name", no per "id").
+  // Reaprofita els mateixos endpoints CRUD que ja feia servir cada vista
+  // clàssica.
+  const ENTITY_SHEET_CONFIG = {
+    teachers: {
+      columns: TEACHER_SHEET_COLUMNS,
+      source: () => teachers,
+      normalize: (t) => ({ name: t.name || "", short_name: t.short_name || "" }),
+      create: (row) => apiJson("POST", "/academic-data/teachers", { name: row.name, short_name: row.short_name }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, { short_name: row.short_name }),
+      remove: (name) => apiJson("DELETE", `/academic-data/teachers/${encodeURIComponent(name)}`),
+    },
+    groups: {
+      columns: GROUP_SHEET_COLUMNS,
+      source: () => groups,
+      normalize: (g) => ({ name: g.name || "", course: g.course || "" }),
+      create: (row) => apiJson("POST", "/academic-data/groups", { name: row.name, course: row.course }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/groups/${encodeURIComponent(name)}`, { course: row.course }),
+      remove: (name) => apiJson("DELETE", `/academic-data/groups/${encodeURIComponent(name)}`),
+    },
+    rooms: {
+      columns: ROOM_SHEET_COLUMNS,
+      source: () => rooms,
+      normalize: (r) => ({ name: r.name || "", capacity: typeof r.capacity === "number" ? r.capacity : parseFloat(r.capacity) || 0 }),
+      create: (row) => apiJson("POST", "/academic-data/rooms", { name: row.name, capacity: Math.round(row.capacity || 0) }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/rooms/${encodeURIComponent(name)}`, { capacity: Math.round(row.capacity || 0) }),
+      remove: (name) => apiJson("DELETE", `/academic-data/rooms/${encodeURIComponent(name)}`),
+    },
+  };
+
+  function openEntitySheet(entityKey) {
+    const config = ENTITY_SHEET_CONFIG[entityKey];
+    const rows = config.source().map(config.normalize);
+    setEntitySheetRows((prev) => ({ ...prev, [entityKey]: rows }));
+    setEntitySheetOriginal((prev) => ({ ...prev, [entityKey]: rows }));
+    setEntitySheetOpen((prev) => ({ ...prev, [entityKey]: true }));
+  }
+
+  async function saveEntitySheet(entityKey) {
+    const config = ENTITY_SHEET_CONFIG[entityKey];
+    const rows = entitySheetRows[entityKey];
+    const originalRows = entitySheetOriginal[entityKey];
+
+    setIsSavingEntitySheet((prev) => ({ ...prev, [entityKey]: true }));
+    setError("");
+    setSuccessMessage("");
+    try {
+      const originalByName = new Map(originalRows.filter((r) => r.name).map((r) => [r.name, r]));
+      const currentNames = new Set(rows.filter((r) => r.name).map((r) => r.name));
+
+      const newRows = rows.filter((r) => r.name && !originalByName.has(r.name));
+      const changedRows = rows.filter((r) => {
+        if (!r.name || !originalByName.has(r.name)) return false;
+        const original = originalByName.get(r.name);
+        return config.columns.some((col) => (original[col.id] ?? "") !== (r[col.id] ?? ""));
+      });
+      const deletedNames = originalRows.filter((r) => r.name && !currentNames.has(r.name)).map((r) => r.name);
+
+      const errors = [];
+
+      for (const row of newRows) {
+        const res = await config.create(row);
+        if (!res.ok) errors.push(`${row.name}: ${res.data?.detail || "error en crear"}`);
+      }
+      for (const row of changedRows) {
+        const res = await config.update(row.name, row);
+        if (!res.ok) errors.push(`${row.name}: ${res.data?.detail || "error en desar"}`);
+      }
+      for (const name of deletedNames) {
+        const res = await config.remove(name);
+        if (!res.ok) errors.push(`Esborrar ${name}: ${res.data?.detail || "error"}`);
+      }
+
+      await refreshAcademicLists();
+
+      if (errors.length > 0) {
+        setError(`Alguns canvis no s'han pogut desar: ${errors.join(" · ")}`);
+      } else {
+        setSuccessMessage(
+          `Desat: ${newRows.length} noves, ${changedRows.length} modificades, ${deletedNames.length} esborrades.`
+        );
+        setEntitySheetOpen((prev) => ({ ...prev, [entityKey]: false }));
+      }
+    } catch (err) {
+      setError("No s'han pogut desar tots els canvis de la taula.");
+    } finally {
+      setIsSavingEntitySheet((prev) => ({ ...prev, [entityKey]: false }));
+    }
+  }
+
   // More CRUD helpers
   async function createGroup(payload) {
     return apiJson("POST", "/academic-data/groups", payload);
@@ -2302,6 +2421,55 @@ export default function App() {
               <div className="teachers-layout">
                 <div className="teachers-list">
                 <h2>Professors</h2>
+                <div style={{ marginBottom: 12 }}>
+                  {!entitySheetOpen.teachers ? (
+                    <button type="button" onClick={() => openEntitySheet("teachers")}>
+                      📊 Vista taula (edició ràpida tipus Excel)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEntitySheetOpen((prev) => ({ ...prev, teachers: false }))}
+                      disabled={isSavingEntitySheet.teachers}
+                    >
+                      ← Torna a la vista clàssica
+                    </button>
+                  )}
+                </div>
+                {entitySheetOpen.teachers ? (
+                  <div>
+                    <div className="muted" style={{ marginBottom: 8 }}>
+                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. Les restriccions
+                      horàries es continuen editant des del panell de la dreta.
+                    </div>
+                    <DataSheetGrid
+                      value={entitySheetRows.teachers}
+                      onChange={(rows) => setEntitySheetRows((prev) => ({ ...prev, teachers: rows }))}
+                      columns={TEACHER_SHEET_COLUMNS}
+                      height={480}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button type="button" onClick={() => saveEntitySheet("teachers")} disabled={isSavingEntitySheet.teachers}>
+                        {isSavingEntitySheet.teachers ? "Desant..." : "Desa els canvis"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEntitySheetOpen((prev) => ({ ...prev, teachers: false }))}
+                        disabled={isSavingEntitySheet.teachers}
+                      >
+                        Cancel·la
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                <>
+                <input
+                  type="text"
+                  placeholder="Cerca professors..."
+                  value={academicSearch}
+                  onChange={(event) => setAcademicSearch(event.target.value)}
+                  style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
+                />
                 <table className="academic-table">
                   <thead>
                     <tr>
@@ -2313,7 +2481,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {teachers.map((t) => {
+                    {teachers.filter((t) => matchesSearch(academicSearch, [t.name, t.short_name])).map((t) => {
                       const restriction = teacherRestrictions.find((item) => item.teacher === t.name);
                       const manualCount = (restriction?.unavailable_slots || []).length;
                       const fetCount = (restriction?.fet_unavailable_slots || []).length;
@@ -2442,6 +2610,8 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+                </>
+                )}
                 </div>
                 <div className="teachers-restrictions-panel">
                   <h2>Hores disponibles i restriccions</h2>
@@ -2453,6 +2623,55 @@ export default function App() {
             {academicTab === "groups" && (
               <div>
                 <h2>Grups d'alumnes</h2>
+                <div style={{ marginBottom: 12 }}>
+                  {!entitySheetOpen.groups ? (
+                    <button type="button" onClick={() => openEntitySheet("groups")}>
+                      📊 Vista taula (edició ràpida tipus Excel)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEntitySheetOpen((prev) => ({ ...prev, groups: false }))}
+                      disabled={isSavingEntitySheet.groups}
+                    >
+                      ← Torna a la vista clàssica
+                    </button>
+                  )}
+                </div>
+                {entitySheetOpen.groups ? (
+                  <div>
+                    <div className="muted" style={{ marginBottom: 8 }}>
+                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. Les restriccions
+                      horàries es continuen editant des del panell corresponent.
+                    </div>
+                    <DataSheetGrid
+                      value={entitySheetRows.groups}
+                      onChange={(rows) => setEntitySheetRows((prev) => ({ ...prev, groups: rows }))}
+                      columns={GROUP_SHEET_COLUMNS}
+                      height={480}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button type="button" onClick={() => saveEntitySheet("groups")} disabled={isSavingEntitySheet.groups}>
+                        {isSavingEntitySheet.groups ? "Desant..." : "Desa els canvis"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEntitySheetOpen((prev) => ({ ...prev, groups: false }))}
+                        disabled={isSavingEntitySheet.groups}
+                      >
+                        Cancel·la
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                <>
+                <input
+                  type="text"
+                  placeholder="Cerca grups..."
+                  value={academicSearch}
+                  onChange={(event) => setAcademicSearch(event.target.value)}
+                  style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
+                />
                 <table className="academic-table">
                   <thead>
                     <tr>
@@ -2463,7 +2682,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {groups.map((g) => (
+                    {groups.filter((g) => matchesSearch(academicSearch, [g.name, g.course])).map((g) => (
                       <tr key={g.name}>
                         <td>
                           {groupEdit === g.name ? (
@@ -2570,6 +2789,8 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+                </>
+                )}
               </div>
             )}
 
@@ -2710,6 +2931,54 @@ export default function App() {
             {academicTab === "rooms" && (
               <div>
                 <h2>Aules</h2>
+                <div style={{ marginBottom: 12 }}>
+                  {!entitySheetOpen.rooms ? (
+                    <button type="button" onClick={() => openEntitySheet("rooms")}>
+                      📊 Vista taula (edició ràpida tipus Excel)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEntitySheetOpen((prev) => ({ ...prev, rooms: false }))}
+                      disabled={isSavingEntitySheet.rooms}
+                    >
+                      ← Torna a la vista clàssica
+                    </button>
+                  )}
+                </div>
+                {entitySheetOpen.rooms ? (
+                  <div>
+                    <div className="muted" style={{ marginBottom: 8 }}>
+                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets.
+                    </div>
+                    <DataSheetGrid
+                      value={entitySheetRows.rooms}
+                      onChange={(rows) => setEntitySheetRows((prev) => ({ ...prev, rooms: rows }))}
+                      columns={ROOM_SHEET_COLUMNS}
+                      height={480}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button type="button" onClick={() => saveEntitySheet("rooms")} disabled={isSavingEntitySheet.rooms}>
+                        {isSavingEntitySheet.rooms ? "Desant..." : "Desa els canvis"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEntitySheetOpen((prev) => ({ ...prev, rooms: false }))}
+                        disabled={isSavingEntitySheet.rooms}
+                      >
+                        Cancel·la
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                <>
+                <input
+                  type="text"
+                  placeholder="Cerca aules..."
+                  value={academicSearch}
+                  onChange={(event) => setAcademicSearch(event.target.value)}
+                  style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
+                />
                 <table className="academic-table">
                   <thead>
                     <tr>
@@ -2719,7 +2988,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rooms.map((r) => (
+                    {rooms.filter((r) => matchesSearch(academicSearch, [r.name])).map((r) => (
                       <tr key={r.name}>
                         <td>
                           {roomEdit === r.name ? (
@@ -2815,6 +3084,8 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+                </>
+                )}
               </div>
             )}
 
@@ -2881,6 +3152,13 @@ export default function App() {
                   </button>
                   <span className="muted">Selecciona 2 files amb la casella per activar-ho.</span>
                 </div>
+                <input
+                  type="text"
+                  placeholder="Cerca assignacions..."
+                  value={academicSearch}
+                  onChange={(event) => setAcademicSearch(event.target.value)}
+                  style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
+                />
                 <table className="academic-table">
                   <thead>
                     <tr>
@@ -2897,7 +3175,9 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {teachingAssignments.map((a) => (
+                    {teachingAssignments
+                      .filter((a) => matchesSearch(academicSearch, [a.teacher, a.subject, a.group]))
+                      .map((a) => (
                       <tr key={a.id}>
                         <td>
                           <input
