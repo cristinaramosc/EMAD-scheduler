@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import random
 import time
+import zlib
 from typing import List, Optional, Sequence, Union
 
 try:
@@ -221,7 +222,7 @@ class SchedulerGenerator:
 
                 warnings.append(
                     {
-                        "id": metadata.get("fet_id", block.id),
+                        "id": metadata.get("fet_id", zlib.crc32(str(block.id).encode("utf-8"))),
                         "label": f"No s'ha pogut col·locar {label}",
                         "subject": metadata.get("subject"),
                         "teacher": metadata.get("teacher"),

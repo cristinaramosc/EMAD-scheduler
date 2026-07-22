@@ -251,6 +251,26 @@ class SchedulerUseCases:
             self._proposal_store[proposal.id] = proposal
 
         best_proposal = proposals[0]
+
+        # Unifica "Incidències de generació" i "Sense franja": totes dues
+        # han de mostrar exactament les mateixes activitats no col·locades.
+        # Abans es calculaven per vies separades (aquí sempre quedava buit).
+        unscheduled_from_warnings = [
+            {
+                "id": warning.get("id"),
+                "teacher": warning.get("teacher", ""),
+                "subject": warning.get("subject", ""),
+                "group": warning.get("group", ""),
+                "room": "",
+                "duration": warning.get("duration", 1),
+                "reason": warning.get("reason", ""),
+            }
+            for warning in (best_proposal.warnings or [])
+            if isinstance(warning, dict) and warning.get("id") is not None
+        ]
+        for proposal in proposals:
+            proposal.metadata = {**(proposal.metadata or {}), "unscheduled_activities": unscheduled_from_warnings}
+
         self._persist_proposal_state(
             best_proposal,
             {
@@ -258,7 +278,7 @@ class SchedulerUseCases:
                 "source": "academic_workbook",
                 "fixed_activities_total": len(fixed_activities),
             },
-            [],
+            unscheduled_from_warnings,
         )
 
         return {
@@ -275,7 +295,7 @@ class SchedulerUseCases:
                 "source": "academic_workbook",
                 "fixed_activities_total": len(fixed_activities),
             },
-            "unscheduled_activities": [],
+            "unscheduled_activities": unscheduled_from_warnings,
         }
 
     def generate_proposals_from_fet(self) -> Dict[str, Any]:

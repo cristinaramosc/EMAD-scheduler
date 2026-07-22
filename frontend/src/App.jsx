@@ -2370,6 +2370,24 @@ export default function App() {
             <p>
               {filteredActivities.length} activitats visibles · {conflicts.length} conflictes
             </p>
+            {displayedUnscheduledActivities.length > 0 && (
+              <button
+                type="button"
+                onClick={() => document.getElementById("incidents-panel")?.scrollIntoView({ behavior: "smooth" })}
+                style={{
+                  marginTop: 6,
+                  padding: "4px 12px",
+                  borderRadius: 999,
+                  border: "1px solid #b71c1c",
+                  background: "#fdecea",
+                  color: "#b71c1c",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ⚠️ {displayedUnscheduledActivities.length} activitats sense franja — veure incidències
+              </button>
+            )}
           </div>
         </div>
 
@@ -4006,7 +4024,7 @@ export default function App() {
                   <strong>{generationStats?.unscheduled_activities_total ?? 0}</strong>
                 </div>
                 {proposal.warnings?.length ? (
-                  <div className="proposal-warning-box">
+                  <div className="proposal-warning-box" id="incidents-panel">
                     <strong>⚠️ Incidències de generació ({proposal.warnings.length})</strong>
                     <div
                       className="incidents-grid"
