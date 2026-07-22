@@ -440,6 +440,8 @@ export default function App() {
   const [proposals, setProposals] = useState([]);
   const [selectedProposalId, setSelectedProposalId] = useState(null);
   const [selectedActivityId, setSelectedActivityId] = useState(null);
+  const [activityRestrictionDraft, setActivityRestrictionDraft] = useState(null);
+  const [isSavingActivityRestriction, setIsSavingActivityRestriction] = useState(false);
   const [selectedExplanation, setSelectedExplanation] = useState(null);
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
   const [explanationError, setExplanationError] = useState("");
@@ -1898,6 +1900,53 @@ export default function App() {
     moveActivity(activityId, day, start);
   }
 
+  // Doble clic sobre una activitat -> popup amb la info b\u00e0sica i les
+  // restriccions pr\u00f2pies de l'assignaci\u00f3 (dia/hora fixa, m\u00e0xim de dies).
+  function openActivityRestrictionPopup(activity) {
+    const match = teachingAssignments.find(
+      (a) => a.teacher === activity.teacher && a.subject === activity.subject && a.group === activity.group
+    );
+    if (!match) {
+      setError("No s'ha trobat cap assignació d'aquesta activitat a Dades acadèmiques.");
+      return;
+    }
+    setActivityRestrictionDraft({
+      id: match.id,
+      subject: match.subject || "",
+      teacher: match.teacher || "",
+      group: match.group || "",
+      weekly_hours: match.weekly_hours,
+      max_session_days: match.max_session_days || "",
+      fixed_day: match.fixed_day || "",
+      fixed_start: match.fixed_start || "",
+    });
+  }
+
+  async function saveActivityRestrictionPopup() {
+    if (!activityRestrictionDraft) return;
+    setIsSavingActivityRestriction(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const res = await apiJson("PATCH", `/academic-data/assignments/${encodeURIComponent(activityRestrictionDraft.id)}`, {
+        max_session_days: activityRestrictionDraft.max_session_days,
+        fixed_day: activityRestrictionDraft.fixed_day,
+        fixed_start: activityRestrictionDraft.fixed_start,
+      });
+      if (!res.ok) {
+        setError(res.data?.detail || "No s'han pogut desar les restriccions.");
+        return;
+      }
+      await refreshAcademicLists();
+      setSuccessMessage("Restriccions desades.");
+      setActivityRestrictionDraft(null);
+    } catch (err) {
+      setError("No s'han pogut desar les restriccions.");
+    } finally {
+      setIsSavingActivityRestriction(false);
+    }
+  }
+
   function renderActivity(activity) {
     const hasConflict = conflictIds.has(activity.id);
     const conflictReasons = conflictMessages.get(activity.id) || [];
@@ -1919,6 +1968,7 @@ export default function App() {
         title={hasConflict ? conflictReasons.join("\n") : undefined}
         style={groupColor ? { background: groupColor.background, borderColor: groupColor.border } : undefined}
         onClick={() => setSelectedActivityId(activity.id)}
+        onDoubleClick={() => openActivityRestrictionPopup(activity)}
         onDragStart={(event) => handleDragStart(event, activity.id)}
         onDragEnd={() => {
           setDraggedActivityId(null);
@@ -4380,6 +4430,89 @@ export default function App() {
           </section>
         </aside>
       </section>
+      )}
+
+      {activityRestrictionDraft && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setActivityRestrictionDraft(null)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: 10,
+              padding: 24,
+              minWidth: 320,
+              maxWidth: 420,
+              boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0 }}>{activityRestrictionDraft.subject}</h3>
+            <div className="muted" style={{ marginBottom: 12 }}>
+              {activityRestrictionDraft.teacher || "Professor pendent"} · {activityRestrictionDraft.group || "Grup sense etiqueta"}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <span className="metric-label">Hores setmanals</span>
+              <div><strong>{activityRestrictionDraft.weekly_hours}</strong></div>
+            </div>
+
+            <label style={{ display: "block", marginBottom: 10 }}>
+              Màxim de dies per repartir
+              <input
+                type="text"
+                value={activityRestrictionDraft.max_session_days}
+                onChange={(event) =>
+                  setActivityRestrictionDraft({ ...activityRestrictionDraft, max_session_days: event.target.value })
+                }
+                style={{ display: "block", width: "100%", marginTop: 4, padding: "6px 8px" }}
+              />
+            </label>
+
+            <label style={{ display: "block", marginBottom: 10 }}>
+              Dia fix
+              <input
+                type="text"
+                placeholder="p. ex. Dilluns"
+                value={activityRestrictionDraft.fixed_day}
+                onChange={(event) =>
+                  setActivityRestrictionDraft({ ...activityRestrictionDraft, fixed_day: event.target.value })
+                }
+                style={{ display: "block", width: "100%", marginTop: 4, padding: "6px 8px" }}
+              />
+            </label>
+
+            <label style={{ display: "block", marginBottom: 16 }}>
+              Hora fixa
+              <input
+                type="text"
+                placeholder="p. ex. 9:00"
+                value={activityRestrictionDraft.fixed_start}
+                onChange={(event) =>
+                  setActivityRestrictionDraft({ ...activityRestrictionDraft, fixed_start: event.target.value })
+                }
+                style={{ display: "block", width: "100%", marginTop: 4, padding: "6px 8px" }}
+              />
+            </label>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={saveActivityRestrictionPopup} disabled={isSavingActivityRestriction}>
+                {isSavingActivityRestriction ? "Desant..." : "Desa"}
+              </button>
+              <button type="button" onClick={() => setActivityRestrictionDraft(null)} disabled={isSavingActivityRestriction}>
+                Cancel·la
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
