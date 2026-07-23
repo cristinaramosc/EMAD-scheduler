@@ -62,6 +62,10 @@ def get_explanation_use_cases() -> ExplanationUseCases:
     return get_dependencies().explanation_use_cases
 
 
+def get_assistant_use_cases():
+    return get_dependencies().assistant_use_cases
+
+
 def get_proposal_store() -> dict:
     return get_dependencies().proposal_store
 

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 if __package__ and __package__.startswith("backend"):
+    from backend.application.assistant_use_cases import AssistantUseCases
     from backend.application.explanation_use_cases import ExplanationUseCases
     from backend.application.live_schedule_use_cases import LiveScheduleUseCases
     from backend.application.scheduler_use_cases import SchedulerUseCases
@@ -27,6 +28,7 @@ if __package__ and __package__.startswith("backend"):
     )
     from backend.services.requirement_service import RequirementService
 else:  # pragma: no cover
+    from application.assistant_use_cases import AssistantUseCases
     from application.explanation_use_cases import ExplanationUseCases
     from application.live_schedule_use_cases import LiveScheduleUseCases
     from application.scheduler_use_cases import SchedulerUseCases
@@ -62,6 +64,7 @@ class AppDependencies:
     scheduler_use_cases: Optional[SchedulerUseCases] = None
     live_schedule_use_cases: Optional[LiveScheduleUseCases] = None
     explanation_use_cases: Optional[ExplanationUseCases] = None
+    assistant_use_cases: Optional[AssistantUseCases] = None
 
 
 _APP_DEPS: AppDependencies | None = None
@@ -114,6 +117,7 @@ def build_dependencies() -> AppDependencies:
         academic_data_repo=academic_data_repo,
     )
     explanation_use_cases = ExplanationUseCases(DecisionExplainer(scheduler_engine))
+    assistant_use_cases = AssistantUseCases(proposal_store=proposal_store)
 
     return AppDependencies(
         requirement_repo=requirement_repo,
@@ -127,6 +131,7 @@ def build_dependencies() -> AppDependencies:
         scheduler_use_cases=scheduler_use_cases,
         live_schedule_use_cases=live_schedule_use_cases,
         explanation_use_cases=explanation_use_cases,
+        assistant_use_cases=assistant_use_cases,
     )
 
 
