@@ -4,3 +4,4 @@ sqlalchemy
 lxml
 pytest
 openpyxl
+anthropic

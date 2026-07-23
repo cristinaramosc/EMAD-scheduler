@@ -13,6 +13,7 @@ try:
     from backend.routes.scheduler_live import router as scheduler_live_router
     from backend.routes.requirements import router as requirements_router
     from backend.routes.schedule_explanations import router as schedule_explanations_router
+    from backend.routes.assistant import router as assistant_router
 except ModuleNotFoundError:
     from routes.teachers import router as teachers_router
     from routes.activities import router as activities_router
@@ -25,6 +26,7 @@ except ModuleNotFoundError:
     from routes.scheduler_live import router as scheduler_live_router
     from routes.requirements import router as requirements_router
     from routes.schedule_explanations import router as schedule_explanations_router
+    from routes.assistant import router as assistant_router
 
 
 app = FastAPI()
@@ -48,6 +50,7 @@ app.include_router(scheduler_router)
 app.include_router(scheduler_live_router)
 app.include_router(requirements_router)
 app.include_router(schedule_explanations_router)
+app.include_router(assistant_router)
 
 
 @app.get("/")
