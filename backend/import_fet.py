@@ -15,14 +15,19 @@ activities = load_activities("../EMAD_2627_.fet")
 teacher_names = set()
 
 for a in activities:
-
-    if a["teacher"]:
-        teacher_names.add(a["teacher"])
+    # Millora: suport per múltiples professors
+    if a.get("teachers"):                    # nova llista
+        for teacher_name in a["teachers"]:
+            if teacher_name:
+                teacher_names.add(teacher_name)
+    elif a.get("teacher"):                   # compatibilitat antiga
+        if a["teacher"]:
+            teacher_names.add(a["teacher"])
 
     db.add(
         Activity(
             fet_id=a["fet_id"],
-            teacher=a["teacher"],
+            teacher=a.get("teacher") or "",   # mantenim el camp actual
             subject=a["subject"],
             group_name=a["group_name"],
             duration=a["duration"],
@@ -32,7 +37,7 @@ for a in activities:
         )
     )
 
-# Creem els professors
+# Creem els professors únics
 for name in sorted(teacher_names):
     db.add(Teacher(name=name))
 
