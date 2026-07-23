@@ -431,6 +431,10 @@ export default function App() {
   const [isExportingTemplates, setIsExportingTemplates] = useState(false);
   const [isImportingWorkbook, setIsImportingWorkbook] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showAssistantChat, setShowAssistantChat] = useState(false);
+  const [assistantMessages, setAssistantMessages] = useState([]);
+  const [assistantInput, setAssistantInput] = useState("");
+  const [isAssistantThinking, setIsAssistantThinking] = useState(false);
   const [suggestionsByActivity, setSuggestionsByActivity] = useState({});
   const [isTogglingBreak, setIsTogglingBreak] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
@@ -1683,6 +1687,40 @@ export default function App() {
     }
   }
 
+  async function sendAssistantMessage() {
+    const text = assistantInput.trim();
+    if (!text || !proposal?.id || isAssistantThinking) return;
+
+    const userMessage = { role: "user", text };
+    setAssistantMessages((prev) => [...prev, userMessage]);
+    setAssistantInput("");
+    setIsAssistantThinking(true);
+
+    try {
+      const response = await fetch(`${API_URL}/assistant/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proposal_id: proposal.id, message: text }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || data.ok !== true) {
+        const detail = data.detail || "No s'ha pogut contactar l'assistent.";
+        setAssistantMessages((prev) => [...prev, { role: "assistant", text: detail, isError: true }]);
+        return;
+      }
+
+      setAssistantMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+    } catch (err) {
+      setAssistantMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "No s'ha pogut contactar l'assistent.", isError: true },
+      ]);
+    } finally {
+      setIsAssistantThinking(false);
+    }
+  }
+
   async function undoLastMove() {
     if (!proposal?.id) return;
     setIsSaving(true);
@@ -2491,6 +2529,15 @@ export default function App() {
             title="Refer el moviment desfet"
           >
             ↪️ Refer
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowAssistantChat((prev) => !prev)}
+            disabled={!proposal?.id}
+            title="Assistent de resolució: pregunta sobre les incidències de la proposta actual"
+          >
+            🤖 Assistent
           </button>
 
           <button type="button" onClick={openFetSelector} disabled={isLoading || isSaving || isGenerating}>
@@ -4511,6 +4558,93 @@ export default function App() {
                 Cancel·la
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showAssistantChat && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            width: 340,
+            maxHeight: "70vh",
+            display: "flex",
+            flexDirection: "column",
+            background: "white",
+            borderRadius: 10,
+            boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+            zIndex: 900,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "#263447",
+              color: "white",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <strong>🤖 Assistent de resolució</strong>
+            <button
+              type="button"
+              onClick={() => setShowAssistantChat(false)}
+              style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "1rem" }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            {assistantMessages.length === 0 && (
+              <p className="muted" style={{ fontSize: "0.85rem" }}>
+                Pregunta'm sobre les incidències o conflictes d'aquesta proposta. Per exemple: "Per què no s'ha
+                pogut col·locar X?" o "Com puc millorar aquest horari?"
+              </p>
+            )}
+            {assistantMessages.map((msg, index) => (
+              <div
+                key={index}
+                style={{
+                  alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                  background: msg.role === "user" ? "#263447" : msg.isError ? "#fdecea" : "#f0f0f0",
+                  color: msg.role === "user" ? "white" : msg.isError ? "#b71c1c" : "black",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  maxWidth: "85%",
+                  fontSize: "0.85rem",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {msg.text}
+              </div>
+            ))}
+            {isAssistantThinking && (
+              <div className="muted" style={{ fontSize: "0.85rem" }}>
+                Pensant...
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: 6, padding: 10, borderTop: "1px solid #eee" }}>
+            <input
+              type="text"
+              value={assistantInput}
+              onChange={(event) => setAssistantInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") sendAssistantMessage();
+              }}
+              placeholder="Escriu la teva pregunta..."
+              disabled={isAssistantThinking}
+              style={{ flex: 1, padding: "6px 8px" }}
+            />
+            <button type="button" onClick={sendAssistantMessage} disabled={isAssistantThinking || !assistantInput.trim()}>
+              Envia
+            </button>
           </div>
         </div>
       )}
