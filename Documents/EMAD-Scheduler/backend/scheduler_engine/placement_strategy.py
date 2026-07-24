@@ -26,9 +26,24 @@ class PlacementStrategy(ABC):
         """Return a scheduled activity or None when no placement is possible."""
         raise NotImplementedError
 
+    def explain_failure(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        current_scheduled_activities: Sequence[ScheduledActivity],
+    ) -> List[str]:
+        """Return every distinct reason placement failed, in Catalan.
+
+        Optional to override. Strategies that don't implement this simply
+        provide no explanation, keeping the base contract backward compatible.
+        """
+        return []
+
 
 class GreedyPlacementStrategy(PlacementStrategy):
     """A deterministic first-valid-slot placement strategy."""
+
+    _DAY_NAMES_CA = ["dilluns", "dimarts", "dimecres", "dijous", "divendres", "dissabte", "diumenge"]
 
     def place(
         self,
@@ -48,7 +63,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
                     continue
 
-                if self._group_conflict_exists(teaching_block, slot, all_activities):
+                if self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
 
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
@@ -76,6 +91,110 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 )
 
         return None
+
+    def _day_name(self, day: int) -> str:
+        if 0 <= day < len(self._DAY_NAMES_CA):
+            return self._DAY_NAMES_CA[day]
+        return f"el dia {day}"
+
+    def explain_failure(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        current_scheduled_activities: Sequence[ScheduledActivity],
+    ) -> List[str]:
+        """Re-run the same slot scan as place(), but instead of stopping at
+        the first valid slot, record every distinct constraint that rejected
+        a candidate slot, so an incidence can explain all of its causes."""
+        required_slots = teaching_block.duration_blocks or 1
+        existing_activities = list(context.existing_scheduled_activities) + list(context.fixed_activities)
+        all_activities = list(existing_activities) + list(current_scheduled_activities)
+
+        metadata = teaching_block.metadata or {}
+        teacher_label = metadata.get("teacher") or teaching_block.preferred_teacher_id or "El professor"
+        group_label = metadata.get("group") or metadata.get("group_id") or "El grup"
+        room_label = teaching_block.preferred_room_id or metadata.get("room")
+
+        reasons: List[str] = []
+        seen: set = set()
+
+        def add(reason: str) -> None:
+            if reason not in seen:
+                seen.add(reason)
+                reasons.append(reason)
+
+        any_calendar_slot = False
+
+        for day in context.school_calendar.days:
+            for slot in context.school_calendar.periods_for_day(day):
+                if self._is_blocked(slot, context.blocked_time_slots):
+                    continue
+
+                if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
+                    continue
+
+                any_calendar_slot = True
+                day_name = self._day_name(day)
+
+                if self._group_conflict_exists(teaching_block, slot, all_activities, context):
+                    add(f"El grup {group_label} ja té una altra activitat {day_name} en aquesta franja.")
+
+                if self._teacher_conflict_exists(teaching_block, slot, all_activities):
+                    add(f"El professor {teacher_label} no està disponible {day_name}.")
+
+                if self._group_time_window_conflict_exists(teaching_block, slot, context):
+                    add(f"El grup {group_label} supera la franja horària permesa {day_name}.")
+
+                if room_label and self._room_conflict_exists(teaching_block, slot, all_activities, context):
+                    add(f"L'aula {room_label} està ocupada {day_name} en aquesta franja.")
+
+        if not reasons:
+            if not any_calendar_slot:
+                add("No hi ha cap franja horària amb prou durada disponible per a aquesta activitat.")
+            else:
+                add("No s'ha trobat cap franja vàlida per col·locar aquesta activitat.")
+
+        return reasons
+
+    def find_alternative_slots(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        current_scheduled_activities: Sequence[ScheduledActivity],
+        max_results: int = 3,
+    ) -> List[dict]:
+        """Return up to max_results slots where this block WOULD fit, given
+        the current schedule. Reuses the exact same checks as place(), just
+        collecting every valid slot instead of stopping at the first one."""
+        required_slots = teaching_block.duration_blocks or 1
+        existing_activities = list(context.existing_scheduled_activities) + list(context.fixed_activities)
+        all_activities = list(existing_activities) + list(current_scheduled_activities)
+        hour_names = context.configuration.get("hour_names") or []
+
+        suggestions: List[dict] = []
+
+        for day in context.school_calendar.days:
+            for slot in context.school_calendar.periods_for_day(day):
+                if len(suggestions) >= max_results:
+                    return suggestions
+
+                if self._is_blocked(slot, context.blocked_time_slots):
+                    continue
+                if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
+                    continue
+                if self._group_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+                if self._teacher_conflict_exists(teaching_block, slot, all_activities):
+                    continue
+                if self._group_time_window_conflict_exists(teaching_block, slot, context):
+                    continue
+                if self._room_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+
+                start_label = hour_names[slot.period] if slot.period < len(hour_names) else f"Període {slot.period}"
+                suggestions.append({"day": self._day_name(day), "start": start_label})
+
+        return suggestions
 
     def _is_blocked(self, slot: TimeSlot, blocked_time_slots: Sequence[Tuple[int, int]]) -> bool:
         return (slot.day, slot.period) in blocked_time_slots
@@ -110,6 +229,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
         teaching_block: TeachingBlock,
         start_slot: TimeSlot,
         activities: Sequence[ScheduledActivity],
+        context: Optional[GenerationContext] = None,
     ) -> bool:
         group_id = None
         if teaching_block.metadata:
@@ -120,6 +240,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
         required_slots = teaching_block.duration_blocks or 1
         candidate_subject = (teaching_block.metadata or {}).get("subject")
         candidate_parent, _ = _parent_and_quarter(group_id, candidate_subject)
+        split_groups = (context.configuration.get("split_groups") or set()) if context is not None else set()
+        group_is_split = candidate_parent in split_groups or group_id in split_groups
 
         for activity in activities:
             if activity.day != start_slot.day:
@@ -131,9 +253,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
             activity_end = activity.start_timeslot.period + activity.duration
             candidate_end = start_slot.period + required_slots
             if start_slot.period < activity_end and candidate_end > activity.start_timeslot.period:
-                # Exception: two activities of the same parent group are allowed
-                # to overlap in the same slot when one subject/group ends in
-                # "1Q" and the other in "2Q".
+                # Exception 1: two activities of the same parent group are
+                # allowed to overlap in the same slot when one subject/group
+                # ends in "1Q" and the other in "2Q".
                 same_exact_slot = (
                     start_slot.period == activity.start_timeslot.period
                     and required_slots == activity.duration
@@ -142,6 +264,19 @@ class GreedyPlacementStrategy(PlacementStrategy):
                     group_id, candidate_subject, activity.group_id, existing_subject
                 ):
                     continue
+
+                # Exception 2: a group marked as "desdoblat" (split) can have
+                # two simultaneous activities as long as the teacher and the
+                # room are both different (each subgroup goes its own way).
+                if group_is_split:
+                    candidate_teacher = teaching_block.preferred_teacher_id
+                    candidate_room = teaching_block.preferred_room_id
+                    different_teacher = (
+                        candidate_teacher and activity.teacher_id and candidate_teacher != activity.teacher_id
+                    )
+                    different_room = candidate_room and activity.room_id and candidate_room != activity.room_id
+                    if different_teacher and different_room:
+                        continue
                 return True
 
         return False

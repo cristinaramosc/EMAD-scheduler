@@ -113,7 +113,8 @@ def test_scheduler_generator_uses_the_strategy():
     result = generator.generate([TeachingBlock(id="block-1", duration=2.0, order=1)], context)
 
     assert result.valid is False
-    assert result.warnings == ["No s'ha pogut col·locar: bloc block-1 (4 blocs)"]
+    assert result.warnings[0]["label"] == "No s'ha pogut col·locar bloc block-1"
+    assert result.warnings[0]["duration"] == 4
 
 
 def test_scheduler_generator_runs_phase_one_generation():
@@ -412,7 +413,7 @@ def test_scheduler_generator_marks_impossible_placement():
 
     assert result.valid is False
     assert result.generated_scheduled_activities == []
-    assert any("No s'ha pogut col·locar" in warning for warning in result.warnings)
+    assert any("No s'ha pogut col·locar" in warning.get("label", "") for warning in result.warnings)
 
 
 def test_group_no_gaps_restriction_blocks_non_contiguous_placement():

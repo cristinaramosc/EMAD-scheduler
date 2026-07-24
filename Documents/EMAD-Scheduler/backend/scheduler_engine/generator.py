@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import random
 import time
+import zlib
 from typing import List, Optional, Sequence, Union
 
 try:
@@ -38,7 +39,7 @@ class SchedulerGenerator:
     ) -> GenerationResult:
         started_at = time.perf_counter()
         proposals: List[ScheduleProposal] = []
-        warnings: List[str] = []
+        warnings: List[dict] = []
         generated_scheduled_activities: List[ScheduledActivity] = []
 
         if teaching_blocks and isinstance(teaching_blocks[0], TeachingRequirement):
@@ -99,18 +100,27 @@ class SchedulerGenerator:
         block_generator = BlockGenerator()
         blocks: List[TeachingBlock] = []
         for requirement in requirements:
-            for distribution in block_generator.generate(requirement):
-                for block in distribution:
-                    blocks.append(
-                        TeachingBlock(
-                            id=block.id,
-                            duration=block.duration,
-                            order=block.order,
-                            duration_blocks=block.duration_blocks,
-                            preferred_room_id=None,
-                            preferred_teacher_id=requirement.teacher_id,
-                            fixed=False,
-                            metadata={
+            distributions = block_generator.generate(requirement)
+            if not distributions:
+                continue
+
+            # generate() returns every valid way to split the weekly hours
+            # across days; only one of them should become real teaching
+            # blocks. Distributions are pre-sorted by (fewest days, block
+            # sizes), so the first one is the most concentrated valid option.
+            distribution = distributions[0]
+
+            for block in distribution:
+                blocks.append(
+                    TeachingBlock(
+                        id=block.id,
+                        duration=block.duration,
+                        order=block.order,
+                        duration_blocks=block.duration_blocks,
+                        preferred_room_id=None,
+                        preferred_teacher_id=requirement.teacher_id,
+                        fixed=False,
+                        metadata={
     "requirement_id": requirement.id,
 
     "group_id": requirement.group_id,
@@ -121,8 +131,8 @@ class SchedulerGenerator:
     "subject": str(requirement.subject_id),
     "teacher": str(requirement.teacher_id),
 },
-                        )
                     )
+                )
         return blocks
 
     def _detect_conflicts(self, proposal: ScheduleProposal) -> List[Conflict]:
@@ -178,9 +188,9 @@ class SchedulerGenerator:
         self,
         ordering: Sequence[TeachingBlock],
         context: GenerationContext,
-    ) -> tuple[List[ScheduledActivity], List[str]]:
+    ) -> tuple[List[ScheduledActivity], List[dict]]:
         scheduled_activities: List[ScheduledActivity] = []
-        warnings: List[str] = []
+        warnings: List[dict] = []
 
         for block in ordering:
             placement = self._placement_strategy.place(
@@ -205,8 +215,22 @@ class SchedulerGenerator:
                 if not label:
                     label = f"bloc {block.id}"
 
+                explain_failure = getattr(self._placement_strategy, "explain_failure", None)
+                constraints = explain_failure(block, context, scheduled_activities) if callable(explain_failure) else []
+                if not constraints:
+                    constraints = ["No s'ha trobat cap franja vàlida per col·locar aquesta activitat."]
+
                 warnings.append(
-                    f"No s'ha pogut col·locar {label}"
+                    {
+                        "id": metadata.get("fet_id", zlib.crc32(str(block.id).encode("utf-8"))),
+                        "label": f"No s'ha pogut col·locar {label}",
+                        "subject": metadata.get("subject"),
+                        "teacher": metadata.get("teacher"),
+                        "group": metadata.get("group"),
+                        "duration": block.duration_blocks or block.duration,
+                        "reason": "No s'ha pogut col·locar.",
+                        "constraints": constraints,
+                    }
                 )
 
             else:

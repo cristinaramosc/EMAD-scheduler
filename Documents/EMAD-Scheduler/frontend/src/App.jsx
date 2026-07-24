@@ -1,9 +1,41 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { DataSheetGrid, textColumn, floatColumn, keyColumn } from "react-datasheet-grid";
+import "react-datasheet-grid/dist/style.css";
 import "./App.css";
 
 const API_URL = "http://127.0.0.1:8000";
 
 const DAYS = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"];
+
+// Fase 2 (dades acadèmiques com a taula editable): columnes per a la graella
+// d'Assignatures, calcades dels camps reals que ja accepta AssignmentDTO al
+// backend (POST/PATCH /academic-data/assignments). Cap canvi de model.
+const ASSIGNMENT_SHEET_COLUMNS = [
+  { ...keyColumn("teacher", textColumn), title: "Professor" },
+  { ...keyColumn("subject", textColumn), title: "Assignatura" },
+  { ...keyColumn("group", textColumn), title: "Grup" },
+  { ...keyColumn("weekly_hours", floatColumn), title: "Hores setmanals" },
+  { ...keyColumn("preferred_room", textColumn), title: "Aula preferida" },
+  { ...keyColumn("max_session_days", textColumn), title: "Màx. dies" },
+  { ...keyColumn("fixed_day", textColumn), title: "Dia fix" },
+  { ...keyColumn("fixed_start", textColumn), title: "Hora fixa" },
+  { ...keyColumn("consecutive_group", textColumn), title: "Consecutiva amb" },
+  { ...keyColumn("notes", textColumn), title: "Notes" },
+];
+
+const TEACHER_SHEET_COLUMNS = [
+  { ...keyColumn("name", textColumn), title: "Nom" },
+];
+
+const GROUP_SHEET_COLUMNS = [
+  { ...keyColumn("name", textColumn), title: "Nom del grup" },
+  { ...keyColumn("course", textColumn), title: "Curs" },
+];
+
+const ROOM_SHEET_COLUMNS = [
+  { ...keyColumn("name", textColumn), title: "Nom de l'aula" },
+  { ...keyColumn("capacity", floatColumn), title: "Capacitat" },
+];
 
 const HOURS = [
   "8:00",
@@ -165,6 +197,68 @@ function conflictActivityIds(conflicts) {
   );
 }
 
+// Paleta de colors per identificar grups visualment al calendari (espec 01:
+// "Cada grup tindrà un color principal... els colors han de servir únicament
+// per identificar, no han de ser decoratius"). To muted/minimalista, no
+// gradients ni ombres marcades.
+const GROUP_COLOR_PALETTE = [
+  { background: "#2f6f73", border: "#245b5f" }, // teal (color original, per compatibilitat visual)
+  { background: "#3d5a80", border: "#2c4560" }, // blau pissarra
+  { background: "#5b5f97", border: "#43466f" }, // lavanda fosc
+  { background: "#6a8759", border: "#4f6642" }, // verd oliva
+  { background: "#8a5a44", border: "#6b4433" }, // terracota
+  { background: "#4a6670", border: "#374d55" }, // blau grisós
+  { background: "#7a5c7e", border: "#5c4560" }, // malva
+  { background: "#5a7d7c", border: "#436160" }, // verd maragda apagat
+  { background: "#6d6875", border: "#514d58" }, // gris violaci
+  { background: "#7c6a4d", border: "#5e503a" }, // marró daurat
+];
+
+function getGroupColor(groupName) {
+  const key = (groupName || "").trim().toLowerCase();
+  if (!key) return GROUP_COLOR_PALETTE[0];
+  let hash = 0;
+  for (let i = 0; i < key.length; i += 1) {
+    hash = (hash * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  return GROUP_COLOR_PALETTE[hash % GROUP_COLOR_PALETTE.length];
+}
+
+// Fase 4 (cerca instantània): coincidència simple, sense distingir
+// majúscules/minúscules, contra qualsevol dels camps rellevants d'una fila.
+function matchesSearch(query, fields) {
+  if (!query || !query.trim()) return true;
+  const q = query.trim().toLowerCase();
+  return fields.some((field) => String(field || "").toLowerCase().includes(q));
+}
+
+// Fase 4 (ordenar per columna): clicar una capçalera ordena per aquell
+// camp; tornar-hi a clicar inverteix la direcció.
+function applyAcademicSort(rows, sortState) {
+  if (!sortState.key) return rows;
+  const sorted = [...rows].sort((a, b) => {
+    const va = a[sortState.key];
+    const vb = b[sortState.key];
+    if (typeof va === "number" || typeof vb === "number") {
+      return (parseFloat(va) || 0) - (parseFloat(vb) || 0);
+    }
+    return String(va || "").localeCompare(String(vb || ""), "ca", { sensitivity: "base" });
+  });
+  return sortState.direction === "desc" ? sorted.reverse() : sorted;
+}
+
+function toggleAcademicSort(key, setSortState) {
+  setSortState((prev) => ({
+    key,
+    direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+  }));
+}
+
+function sortIndicator(key, sortState) {
+  if (sortState.key !== key) return "";
+  return sortState.direction === "asc" ? " ▲" : " ▼";
+}
+
 function conflictMessagesByActivity(conflicts) {
   const map = new Map();
   for (const conflict of conflicts) {
@@ -176,6 +270,58 @@ function conflictMessagesByActivity(conflicts) {
     }
   }
   return map;
+}
+
+// El backend encara no envia un camp de severitat explícit a les incidències
+// (veure serialize_conflict a scheduler_use_cases.py: type, message, teacher,
+// day, start, activities). Mentre no s'afegeixi, es dedueix a partir de
+// `conflict.type` amb aquesta classificació. Si en algun moment el backend
+// envia `conflict.severity`, es fa servir directament i es respecta.
+const INCIDENT_SEVERITY_STYLES = {
+  error: {
+    label: "Error bloquejant",
+    background: "#fdecea",
+    border: "#e53935",
+    text: "#b71c1c",
+  },
+  warning: {
+    label: "Advertència",
+    background: "#fff4e5",
+    border: "#fb8c00",
+    text: "#8a4b00",
+  },
+  info: {
+    label: "Informació",
+    background: "#e8f1fd",
+    border: "#1e88e5",
+    text: "#0d47a1",
+  },
+};
+
+function classifyConflictSeverity(conflict) {
+  if (conflict.severity && INCIDENT_SEVERITY_STYLES[conflict.severity]) {
+    return conflict.severity;
+  }
+  const type = String(conflict.type || "").toLowerCase();
+  if (/(overlap|double|solap|xoc|clash|duplicat|room_conflict|teacher_conflict|group_conflict)/.test(type)) {
+    return "error";
+  }
+  if (/(prefer|soft|advert|warn|gap|consecutiu)/.test(type)) {
+    return "warning";
+  }
+  return "info";
+}
+
+function resolveConflictActivities(conflict, allActivities) {
+  const ids = conflict.activities || conflict.data?.activities || [];
+  return ids
+    .map((id) => allActivities.find((activity) => activity.id === id))
+    .filter(Boolean);
+}
+
+function formatConflictField(values) {
+  const unique = Array.from(new Set(values.filter(Boolean)));
+  return unique.length > 0 ? unique.join(" / ") : "";
 }
 
 function getGroupParentName(groupName) {
@@ -270,10 +416,25 @@ export default function App() {
   const [groups, setGroups] = useState([]);
   const [rooms, setRooms] = useState([]);
   const [teachingAssignments, setTeachingAssignments] = useState([]);
+  const [useSpreadsheetView, setUseSpreadsheetView] = useState(false);
+  const [spreadsheetRows, setSpreadsheetRows] = useState([]);
+  const [spreadsheetOriginalRows, setSpreadsheetOriginalRows] = useState([]);
+  const [isSavingSpreadsheet, setIsSavingSpreadsheet] = useState(false);
+  const [entitySheetOpen, setEntitySheetOpen] = useState({ teachers: false, groups: false, rooms: false });
+  const [academicSearch, setAcademicSearch] = useState("");
+  const [academicSort, setAcademicSort] = useState({ key: null, direction: "asc" });
+  const [entitySheetRows, setEntitySheetRows] = useState({ teachers: [], groups: [], rooms: [] });
+  const [entitySheetOriginal, setEntitySheetOriginal] = useState({ teachers: [], groups: [], rooms: [] });
+  const [isSavingEntitySheet, setIsSavingEntitySheet] = useState({ teachers: false, groups: false, rooms: false });
   const [isGenerating, setIsGenerating] = useState(false);
   const [isExportingTemplates, setIsExportingTemplates] = useState(false);
   const [isImportingWorkbook, setIsImportingWorkbook] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showAssistantChat, setShowAssistantChat] = useState(false);
+  const [assistantMessages, setAssistantMessages] = useState([]);
+  const [assistantInput, setAssistantInput] = useState("");
+  const [isAssistantThinking, setIsAssistantThinking] = useState(false);
+  const [suggestionsByActivity, setSuggestionsByActivity] = useState({});
   const [isTogglingBreak, setIsTogglingBreak] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState("");
@@ -282,6 +443,8 @@ export default function App() {
   const [proposals, setProposals] = useState([]);
   const [selectedProposalId, setSelectedProposalId] = useState(null);
   const [selectedActivityId, setSelectedActivityId] = useState(null);
+  const [activityRestrictionDraft, setActivityRestrictionDraft] = useState(null);
+  const [isSavingActivityRestriction, setIsSavingActivityRestriction] = useState(false);
   const [selectedExplanation, setSelectedExplanation] = useState(null);
   const [isLoadingExplanation, setIsLoadingExplanation] = useState(false);
   const [explanationError, setExplanationError] = useState("");
@@ -292,9 +455,9 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState("timetable");
   const [academicTab, setAcademicTab] = useState("teachers");
 
-  const [teacherDraft, setTeacherDraft] = useState({ name: "", short_name: "", active: true });
+  const [teacherDraft, setTeacherDraft] = useState({ name: "", active: true });
   const [teacherEdit, setTeacherEdit] = useState(null);
-  const [teacherEditValues, setTeacherEditValues] = useState({ name: "", short_name: "", active: true });
+  const [teacherEditValues, setTeacherEditValues] = useState({ name: "", active: true });
   const [teacherRestrictions, setTeacherRestrictions] = useState([]);
   const [teacherRestrictionEditor, setTeacherRestrictionEditor] = useState("");
   const [teacherRestrictionDraft, setTeacherRestrictionDraft] = useState(createTeacherRestrictionDraft(""));
@@ -668,6 +831,12 @@ export default function App() {
         <div style={{ marginBottom: 16 }}>
           <h4 style={{ marginBottom: 6 }}>Franges no disponibles</h4>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <button type="button" onClick={() => applyUnavailablePreset("no-abans-10", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No abans de les 10:00</button>
+            <button type="button" onClick={() => applyUnavailablePreset("no-abans-15", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No abans de les 15:00</button>
+            <button type="button" onClick={() => applyUnavailablePreset("no-despres-17", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No després de les 17:00</button>
+            <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Entre les 10:00 i les 14:00</button>
+            <button type="button" onClick={() => applyUnavailablePreset("nomes-matins", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Només matins</button>
+            <button type="button" onClick={() => applyUnavailablePreset("nomes-tardes", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Només tardes</button>
             <button type="button" onClick={() => clearAvailabilitySelection(teacherRestrictionDraft, setTeacherRestrictionDraft, "unavailable_slots", setUnavailableSelectionAnchor)}>Neteja selecció</button>
           </div>
           <div className="muted">Clic simple per marcar/desmarcar una franja no disponible manualment (vermell). Maj + clic per seleccionar un rang. Les caselles taronges venen del fitxer FET i no s'editen aquí.</div>
@@ -1359,6 +1528,23 @@ export default function App() {
     await addManualActivity({ subject: "Coordinació", day, start, duration, teacher });
   }
 
+  async function fetchSuggestions(activityId) {
+    if (!proposal?.id) return;
+    setSuggestionsByActivity((prev) => ({ ...prev, [activityId]: { loading: true, slots: [] } }));
+    try {
+      const response = await fetch(
+        `${API_URL}/scheduler/proposal/${proposal.id}/activity/${activityId}/suggestions`
+      );
+      const data = await response.json();
+      setSuggestionsByActivity((prev) => ({
+        ...prev,
+        [activityId]: { loading: false, slots: data.suggested_slots || [] },
+      }));
+    } catch (err) {
+      setSuggestionsByActivity((prev) => ({ ...prev, [activityId]: { loading: false, slots: [] } }));
+    }
+  }
+
   async function moveActivity(activityId, day, start) {
     const prevActivities = activities ? activities.slice() : [];
     const prevConflicts = conflicts ? conflicts.slice() : [];
@@ -1396,7 +1582,21 @@ export default function App() {
         setActivities(prevActivities);
         setConflicts(prevConflicts);
         setSelectedActivityId(prevSelectedActivityId);
-        setError(data.error === "validation_failed" ? "El moviment no és vàlid." : "No s'ha pogut moure l'activitat.");
+
+        if (data.error === "validation_failed") {
+          const reasons = (data.conflicts || []).map((c) => c.message).filter(Boolean);
+          const suggestions = (data.suggested_slots || []).map((s) => `${s.day} ${s.start}`);
+          let message = "El moviment no és vàlid.";
+          if (reasons.length) {
+            message += " " + reasons.join(" · ");
+          }
+          if (suggestions.length) {
+            message += ` Prova: ${suggestions.join(", ")}.`;
+          }
+          setError(message);
+        } else {
+          setError("No s'ha pogut moure l'activitat.");
+        }
         return;
       }
 
@@ -1424,6 +1624,159 @@ export default function App() {
       setIsSaving(false);
       setDraggedActivityId(null);
       setDropTarget(null);
+    }
+  }
+
+  async function swapActivity(activityIdA, activityIdB) {
+    if (!proposal?.id) return;
+    const prevActivities = activities ? activities.slice() : [];
+    const prevConflicts = conflicts ? conflicts.slice() : [];
+    const prevSelectedActivityId = selectedActivityId;
+    setIsSaving(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/scheduler/proposal/${proposal.id}/swap`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ activity_id_a: activityIdA, activity_id_b: activityIdB }),
+      });
+
+      const data = await response.json();
+      console.log("SWAP RESPONSE", data);
+
+      const rawConflicts = data.conflicts || data.proposal?.conflicts || [];
+
+      if (!response.ok || data.ok !== true) {
+        setActivities(prevActivities);
+        setConflicts(prevConflicts);
+        setSelectedActivityId(prevSelectedActivityId);
+
+        if (data.error === "validation_failed") {
+          const reasons = (data.conflicts || []).map((c) => c.message).filter(Boolean);
+          let message = "L'intercanvi no és vàlid.";
+          if (reasons.length) {
+            message += " " + reasons.join(" · ");
+          }
+          setError(message);
+        } else if (data.error === "activity_not_found") {
+          setError("No s'ha trobat una de les dues activitats a intercanviar.");
+        } else {
+          setError("No s'ha pogut intercanviar les activitats.");
+        }
+        return;
+      }
+
+      setSuccessMessage("Activitats intercanviades.");
+      const nextActivities = (data.proposal?.activities || []).map(normalizeTimetableActivity);
+      setProposal(data.proposal);
+      setActivities(nextActivities);
+      setConflicts(rawConflicts);
+      setSelectedActivityId(null);
+    } catch (err) {
+      setActivities(prevActivities);
+      setConflicts(prevConflicts);
+      setSelectedActivityId(prevSelectedActivityId);
+      setError("No s'ha pogut desar l'intercanvi.");
+    } finally {
+      setIsSaving(false);
+      setDraggedActivityId(null);
+      setDropTarget(null);
+    }
+  }
+
+  async function sendAssistantMessage() {
+    const text = assistantInput.trim();
+    if (!text || !proposal?.id || isAssistantThinking) return;
+
+    const userMessage = { role: "user", text };
+    setAssistantMessages((prev) => [...prev, userMessage]);
+    setAssistantInput("");
+    setIsAssistantThinking(true);
+
+    try {
+      const response = await fetch(`${API_URL}/assistant/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ proposal_id: proposal.id, message: text }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || data.ok !== true) {
+        const detail = data.detail || "No s'ha pogut contactar l'assistent.";
+        setAssistantMessages((prev) => [...prev, { role: "assistant", text: detail, isError: true }]);
+        return;
+      }
+
+      setAssistantMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+    } catch (err) {
+      setAssistantMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: "No s'ha pogut contactar l'assistent.", isError: true },
+      ]);
+    } finally {
+      setIsAssistantThinking(false);
+    }
+  }
+
+  async function undoLastMove() {
+    if (!proposal?.id) return;
+    setIsSaving(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const response = await fetch(`${API_URL}/scheduler/proposal/${proposal.id}/undo`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok || data.ok !== true) {
+        setError(data.error === "nothing_to_undo" ? "No hi ha res per desfer." : "No s'ha pogut desfer el moviment.");
+        return;
+      }
+
+      setSuccessMessage("Últim moviment desfet.");
+      const nextActivities = (data.proposal?.activities || []).map(normalizeTimetableActivity);
+      setProposal(data.proposal);
+      setActivities(nextActivities);
+      setConflicts(data.proposal?.conflicts || []);
+      setGeneratedUnscheduledActivities(data.unscheduled_activities || []);
+      setSelectedActivityId(null);
+    } catch (err) {
+      setError("No s'ha pogut desfer el moviment.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function redoLastMove() {
+    if (!proposal?.id) return;
+    setIsSaving(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const response = await fetch(`${API_URL}/scheduler/proposal/${proposal.id}/redo`, {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok || data.ok !== true) {
+        setError(data.error === "nothing_to_redo" ? "No hi ha res per refer." : "No s'ha pogut refer el moviment.");
+        return;
+      }
+
+      setSuccessMessage("Moviment refet.");
+      const nextActivities = (data.proposal?.activities || []).map(normalizeTimetableActivity);
+      setProposal(data.proposal);
+      setActivities(nextActivities);
+      setConflicts(data.proposal?.conflicts || []);
+      setGeneratedUnscheduledActivities(data.unscheduled_activities || []);
+      setSelectedActivityId(null);
+    } catch (err) {
+      setError("No s'ha pogut refer el moviment.");
+    } finally {
+      setIsSaving(false);
     }
   }
 
@@ -1560,6 +1913,18 @@ export default function App() {
       return;
     }
 
+    // If the target slot is already occupied by a single different activity,
+    // swap the two instead of attempting a move (which would just conflict).
+    const occupyingActivities = (activities || []).filter(
+      (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
+    );
+    if (occupyingActivities.length === 1) {
+      setDropTarget(null);
+      setDraggedActivityId(null);
+      swapActivity(activityId, occupyingActivities[0].id);
+      return;
+    }
+
     // client-side validation: prevent different subjects in same slot for same parent-group
     if (!canMoveActivityToSlot(activityId, day, start)) {
       // clear transient highlights and keep state consistent
@@ -1572,12 +1937,60 @@ export default function App() {
     moveActivity(activityId, day, start);
   }
 
+  // Doble clic sobre una activitat -> popup amb la info b\u00e0sica i les
+  // restriccions pr\u00f2pies de l'assignaci\u00f3 (dia/hora fixa, m\u00e0xim de dies).
+  function openActivityRestrictionPopup(activity) {
+    const match = teachingAssignments.find(
+      (a) => a.teacher === activity.teacher && a.subject === activity.subject && a.group === activity.group
+    );
+    if (!match) {
+      setError("No s'ha trobat cap assignació d'aquesta activitat a Dades acadèmiques.");
+      return;
+    }
+    setActivityRestrictionDraft({
+      id: match.id,
+      subject: match.subject || "",
+      teacher: match.teacher || "",
+      group: match.group || "",
+      weekly_hours: match.weekly_hours,
+      max_session_days: match.max_session_days || "",
+      fixed_day: match.fixed_day || "",
+      fixed_start: match.fixed_start || "",
+    });
+  }
+
+  async function saveActivityRestrictionPopup() {
+    if (!activityRestrictionDraft) return;
+    setIsSavingActivityRestriction(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const res = await apiJson("PATCH", `/academic-data/assignments/${encodeURIComponent(activityRestrictionDraft.id)}`, {
+        max_session_days: activityRestrictionDraft.max_session_days,
+        fixed_day: activityRestrictionDraft.fixed_day,
+        fixed_start: activityRestrictionDraft.fixed_start,
+      });
+      if (!res.ok) {
+        setError(res.data?.detail || "No s'han pogut desar les restriccions.");
+        return;
+      }
+      await refreshAcademicLists();
+      setSuccessMessage("Restriccions desades.");
+      setActivityRestrictionDraft(null);
+    } catch (err) {
+      setError("No s'han pogut desar les restriccions.");
+    } finally {
+      setIsSavingActivityRestriction(false);
+    }
+  }
+
   function renderActivity(activity) {
     const hasConflict = conflictIds.has(activity.id);
     const conflictReasons = conflictMessages.get(activity.id) || [];
     const isSelected = selectedActivityId === activity.id;
     const normalizedSubject = (activity.subject || "").trim().toLowerCase();
     const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio";
+    const groupColor = !hasConflict && !isBreakOrCoordination ? getGroupColor(activity.group) : null;
 
     return (
       <article
@@ -1590,7 +2003,9 @@ export default function App() {
         ].filter(Boolean).join(" ")}
         draggable
         title={hasConflict ? conflictReasons.join("\n") : undefined}
+        style={groupColor ? { background: groupColor.background, borderColor: groupColor.border } : undefined}
         onClick={() => setSelectedActivityId(activity.id)}
+        onDoubleClick={() => openActivityRestrictionPopup(activity)}
         onDragStart={(event) => handleDragStart(event, activity.id)}
         onDragEnd={() => {
           setDraggedActivityId(null);
@@ -1696,6 +2111,36 @@ export default function App() {
     setAnchor(null);
   }
 
+  // Fase 1 (edició web de dades acadèmiques): botons ràpids que marquen en
+  // bloc franges com a "no disponibles", reutilitzant la graella clicable
+  // que ja existeix. No cal cap canvi al motor: segueix sent la mateixa
+  // llista `unavailable_slots` que ja consumeix el generador.
+  function applyUnavailablePreset(preset, draft, setDraft, field = "unavailable_slots", setAnchor = setUnavailableSelectionAnchor) {
+    const hourIndex = (hour) => HOURS.indexOf(hour);
+    const matchers = {
+      "no-abans-10": (hour) => hourIndex(hour) < hourIndex("10:00"),
+      "no-abans-15": (hour) => hourIndex(hour) < hourIndex("15:00"),
+      "no-despres-17": (hour) => hourIndex(hour) >= hourIndex("17:00"),
+      "entre-10-14": (hour) => hourIndex(hour) >= hourIndex("10:00") && hourIndex(hour) < hourIndex("14:00"),
+      "nomes-matins": (hour) => hourIndex(hour) >= 8,
+      "nomes-tardes": (hour) => hourIndex(hour) < 8,
+    };
+    const matcher = matchers[preset];
+    if (!matcher) return;
+
+    const currentSlots = new Set(draft[field] || []);
+    DAYS.forEach((day) => {
+      HOURS.forEach((hour) => {
+        if (matcher(hour)) {
+          currentSlots.add(`${day}-${hour}`);
+        }
+      });
+    });
+
+    setDraft({ ...draft, [field]: Array.from(currentSlots).sort() });
+    setAnchor(null);
+  }
+
   function getCurrentEntityOptions() {
     if (timetableView === "teacher") {
       return teachers;
@@ -1743,6 +2188,211 @@ export default function App() {
   async function refreshAcademicLists() {
     await loadAcademicSummary();
     await loadTimetableEntities();
+  }
+
+  // Fase 2: taula editable tipus Excel per a Assignatures. Reutilitza
+  // exactament els mateixos endpoints CRUD que ja fa servir la vista
+  // clàssica (/academic-data/assignments, /academic-data/subjects) — cap
+  // canvi al backend ni al model de dades.
+  function openSpreadsheetView() {
+    const rows = teachingAssignments.map((a) => ({
+      id: a.id,
+      teacher: a.teacher || "",
+      subject: a.subject || "",
+      group: a.group || "",
+      weekly_hours: typeof a.weekly_hours === "number" ? a.weekly_hours : parseFloat(a.weekly_hours) || 0,
+      preferred_room: a.preferred_room || "",
+      max_session_days: a.max_session_days || "",
+      fixed_day: a.fixed_day || "",
+      fixed_start: a.fixed_start || "",
+      consecutive_group: a.consecutive_group || "",
+      notes: a.notes || "",
+    }));
+    setSpreadsheetRows(rows);
+    setSpreadsheetOriginalRows(rows);
+    setUseSpreadsheetView(true);
+  }
+
+  async function saveSpreadsheetRows() {
+    setIsSavingSpreadsheet(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const originalById = new Map(spreadsheetOriginalRows.filter((r) => r.id).map((r) => [r.id, r]));
+      const currentIds = new Set(spreadsheetRows.filter((r) => r.id).map((r) => r.id));
+
+      // Files noves: sense id, i amb almenys assignatura+grup+professor omplerts.
+      const newRows = spreadsheetRows.filter(
+        (r) => !r.id && (r.subject || r.teacher || r.group)
+      );
+
+      // Files modificades: id existent i algun camp diferent de l'original.
+      const changedRows = spreadsheetRows.filter((r) => {
+        if (!r.id) return false;
+        const original = originalById.get(r.id);
+        if (!original) return false;
+        return ASSIGNMENT_SHEET_COLUMNS.some((col) => (original[col.id] ?? "") !== (r[col.id] ?? ""));
+      });
+
+      // Files esborrades: eren a l'original i ja no hi són a la taula actual.
+      const deletedIds = spreadsheetOriginalRows.filter((r) => r.id && !currentIds.has(r.id)).map((r) => r.id);
+
+      const existingSubjectNames = new Set(academicSubjects.map((s) => s.name));
+      const errors = [];
+
+      async function ensureSubjectExists(subjectName) {
+        if (!subjectName || existingSubjectNames.has(subjectName)) return;
+        const res = await apiJson("POST", "/academic-data/subjects", { name: subjectName });
+        if (res.ok) {
+          existingSubjectNames.add(subjectName);
+        }
+      }
+
+      for (const row of newRows) {
+        await ensureSubjectExists(row.subject);
+        const res = await apiJson("POST", "/academic-data/assignments", {
+          teacher: row.teacher,
+          subject: row.subject,
+          group: row.group,
+          weekly_hours: row.weekly_hours,
+          preferred_room: row.preferred_room,
+          notes: row.notes,
+          fixed_day: row.fixed_day,
+          fixed_start: row.fixed_start,
+          max_session_days: row.max_session_days,
+          consecutive_group: row.consecutive_group,
+        });
+        if (!res.ok) errors.push(`${row.subject || "(nova fila)"}: ${res.data?.detail || "error en crear"}`);
+      }
+
+      for (const row of changedRows) {
+        await ensureSubjectExists(row.subject);
+        const res = await apiJson("PATCH", `/academic-data/assignments/${encodeURIComponent(row.id)}`, {
+          teacher: row.teacher,
+          subject: row.subject,
+          group: row.group,
+          weekly_hours: row.weekly_hours,
+          preferred_room: row.preferred_room,
+          notes: row.notes,
+          fixed_day: row.fixed_day,
+          fixed_start: row.fixed_start,
+          max_session_days: row.max_session_days,
+          consecutive_group: row.consecutive_group,
+        });
+        if (!res.ok) errors.push(`${row.subject || row.id}: ${res.data?.detail || "error en desar"}`);
+      }
+
+      for (const id of deletedIds) {
+        const res = await apiJson("DELETE", `/academic-data/assignments/${encodeURIComponent(id)}`);
+        if (!res.ok) errors.push(`Esborrar ${id}: ${res.data?.detail || "error"}`);
+      }
+
+      await refreshAcademicLists();
+
+      if (errors.length > 0) {
+        setError(`Alguns canvis no s'han pogut desar: ${errors.join(" · ")}`);
+      } else {
+        setSuccessMessage(
+          `Desat: ${newRows.length} noves, ${changedRows.length} modificades, ${deletedIds.length} esborrades.`
+        );
+        setUseSpreadsheetView(false);
+      }
+    } catch (err) {
+      setError("No s'han pogut desar tots els canvis de la taula.");
+    } finally {
+      setIsSavingSpreadsheet(false);
+    }
+  }
+
+  // Fase 3: la mateixa idea de taula editable, generalitzada per a
+  // Professors / Grups / Aules (identificats per "name", no per "id").
+  // Reaprofita els mateixos endpoints CRUD que ja feia servir cada vista
+  // clàssica.
+  const ENTITY_SHEET_CONFIG = {
+    teachers: {
+      columns: TEACHER_SHEET_COLUMNS,
+      source: () => teachers,
+      normalize: (t) => ({ name: t.name || "" }),
+      create: (row) => apiJson("POST", "/academic-data/teachers", { name: row.name }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, {}),
+      remove: (name) => apiJson("DELETE", `/academic-data/teachers/${encodeURIComponent(name)}`),
+    },
+    groups: {
+      columns: GROUP_SHEET_COLUMNS,
+      source: () => groups,
+      normalize: (g) => ({ name: g.name || "", course: g.course || "" }),
+      create: (row) => apiJson("POST", "/academic-data/groups", { name: row.name, course: row.course }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/groups/${encodeURIComponent(name)}`, { course: row.course }),
+      remove: (name) => apiJson("DELETE", `/academic-data/groups/${encodeURIComponent(name)}`),
+    },
+    rooms: {
+      columns: ROOM_SHEET_COLUMNS,
+      source: () => rooms,
+      normalize: (r) => ({ name: r.name || "", capacity: typeof r.capacity === "number" ? r.capacity : parseFloat(r.capacity) || 0 }),
+      create: (row) => apiJson("POST", "/academic-data/rooms", { name: row.name, capacity: Math.round(row.capacity || 0) }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/rooms/${encodeURIComponent(name)}`, { capacity: Math.round(row.capacity || 0) }),
+      remove: (name) => apiJson("DELETE", `/academic-data/rooms/${encodeURIComponent(name)}`),
+    },
+  };
+
+  function openEntitySheet(entityKey) {
+    const config = ENTITY_SHEET_CONFIG[entityKey];
+    const rows = config.source().map(config.normalize);
+    setEntitySheetRows((prev) => ({ ...prev, [entityKey]: rows }));
+    setEntitySheetOriginal((prev) => ({ ...prev, [entityKey]: rows }));
+    setEntitySheetOpen((prev) => ({ ...prev, [entityKey]: true }));
+  }
+
+  async function saveEntitySheet(entityKey) {
+    const config = ENTITY_SHEET_CONFIG[entityKey];
+    const rows = entitySheetRows[entityKey];
+    const originalRows = entitySheetOriginal[entityKey];
+
+    setIsSavingEntitySheet((prev) => ({ ...prev, [entityKey]: true }));
+    setError("");
+    setSuccessMessage("");
+    try {
+      const originalByName = new Map(originalRows.filter((r) => r.name).map((r) => [r.name, r]));
+      const currentNames = new Set(rows.filter((r) => r.name).map((r) => r.name));
+
+      const newRows = rows.filter((r) => r.name && !originalByName.has(r.name));
+      const changedRows = rows.filter((r) => {
+        if (!r.name || !originalByName.has(r.name)) return false;
+        const original = originalByName.get(r.name);
+        return config.columns.some((col) => (original[col.id] ?? "") !== (r[col.id] ?? ""));
+      });
+      const deletedNames = originalRows.filter((r) => r.name && !currentNames.has(r.name)).map((r) => r.name);
+
+      const errors = [];
+
+      for (const row of newRows) {
+        const res = await config.create(row);
+        if (!res.ok) errors.push(`${row.name}: ${res.data?.detail || "error en crear"}`);
+      }
+      for (const row of changedRows) {
+        const res = await config.update(row.name, row);
+        if (!res.ok) errors.push(`${row.name}: ${res.data?.detail || "error en desar"}`);
+      }
+      for (const name of deletedNames) {
+        const res = await config.remove(name);
+        if (!res.ok) errors.push(`Esborrar ${name}: ${res.data?.detail || "error"}`);
+      }
+
+      await refreshAcademicLists();
+
+      if (errors.length > 0) {
+        setError(`Alguns canvis no s'han pogut desar: ${errors.join(" · ")}`);
+      } else {
+        setSuccessMessage(
+          `Desat: ${newRows.length} noves, ${changedRows.length} modificades, ${deletedNames.length} esborrades.`
+        );
+        setEntitySheetOpen((prev) => ({ ...prev, [entityKey]: false }));
+      }
+    } catch (err) {
+      setError("No s'han pogut desar tots els canvis de la taula.");
+    } finally {
+      setIsSavingEntitySheet((prev) => ({ ...prev, [entityKey]: false }));
+    }
   }
 
   // More CRUD helpers
@@ -1807,6 +2457,24 @@ export default function App() {
             <p>
               {filteredActivities.length} activitats visibles · {conflicts.length} conflictes
             </p>
+            {displayedUnscheduledActivities.length > 0 && (
+              <button
+                type="button"
+                onClick={() => document.getElementById("incidents-panel")?.scrollIntoView({ behavior: "smooth" })}
+                style={{
+                  marginTop: 6,
+                  padding: "4px 12px",
+                  borderRadius: 999,
+                  border: "1px solid #b71c1c",
+                  background: "#fdecea",
+                  color: "#b71c1c",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                ⚠️ {displayedUnscheduledActivities.length} activitats sense franja — veure incidències
+              </button>
+            )}
           </div>
         </div>
 
@@ -1842,6 +2510,33 @@ export default function App() {
 
           <button type="button" onClick={generateProposal} disabled={isLoading || isSaving || isGenerating}>
             {isGenerating ? "Generant..." : "Genera proposta"}
+          </button>
+
+          <button
+            type="button"
+            onClick={undoLastMove}
+            disabled={isLoading || isSaving || isGenerating || !proposal?.id}
+            title="Desfer l'últim moviment o intercanvi d'activitats"
+          >
+            ↩️ Desfer
+          </button>
+
+          <button
+            type="button"
+            onClick={redoLastMove}
+            disabled={isLoading || isSaving || isGenerating || !proposal?.id}
+            title="Refer el moviment desfet"
+          >
+            ↪️ Refer
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowAssistantChat((prev) => !prev)}
+            disabled={!proposal?.id}
+            title="Assistent de resolució: pregunta sobre les incidències de la proposta actual"
+          >
+            🤖 Assistent
           </button>
 
           <button type="button" onClick={openFetSelector} disabled={isLoading || isSaving || isGenerating}>
@@ -1953,18 +2648,66 @@ export default function App() {
               <div className="teachers-layout">
                 <div className="teachers-list">
                 <h2>Professors</h2>
+                <div style={{ marginBottom: 12 }}>
+                  {!entitySheetOpen.teachers ? (
+                    <button type="button" onClick={() => openEntitySheet("teachers")}>
+                      📊 Vista taula (edició ràpida tipus Excel)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEntitySheetOpen((prev) => ({ ...prev, teachers: false }))}
+                      disabled={isSavingEntitySheet.teachers}
+                    >
+                      ← Torna a la vista clàssica
+                    </button>
+                  )}
+                </div>
+                {entitySheetOpen.teachers ? (
+                  <div>
+                    <div className="muted" style={{ marginBottom: 8 }}>
+                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. Les restriccions
+                      horàries es continuen editant des del panell de la dreta.
+                    </div>
+                    <DataSheetGrid
+                      value={entitySheetRows.teachers}
+                      onChange={(rows) => setEntitySheetRows((prev) => ({ ...prev, teachers: rows }))}
+                      columns={TEACHER_SHEET_COLUMNS}
+                      height={480}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button type="button" onClick={() => saveEntitySheet("teachers")} disabled={isSavingEntitySheet.teachers}>
+                        {isSavingEntitySheet.teachers ? "Desant..." : "Desa els canvis"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEntitySheetOpen((prev) => ({ ...prev, teachers: false }))}
+                        disabled={isSavingEntitySheet.teachers}
+                      >
+                        Cancel·la
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                <>
+                <input
+                  type="text"
+                  placeholder="Cerca professors..."
+                  value={academicSearch}
+                  onChange={(event) => setAcademicSearch(event.target.value)}
+                  style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
+                />
                 <table className="academic-table">
                   <thead>
                     <tr>
-                      <th>Nom</th>
-                      <th>Nom curt</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
                       <th>Actiu</th>
                       <th>Restriccions</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {teachers.map((t) => {
+                    {applyAcademicSort(teachers.filter((t) => matchesSearch(academicSearch, [t.name])), academicSort).map((t) => {
                       const restriction = teacherRestrictions.find((item) => item.teacher === t.name);
                       const manualCount = (restriction?.unavailable_slots || []).length;
                       const fetCount = (restriction?.fet_unavailable_slots || []).length;
@@ -1978,16 +2721,6 @@ export default function App() {
                             />
                           ) : (
                             t.name
-                          )}
-                        </td>
-                        <td>
-                          {teacherEdit === t.name ? (
-                            <input
-                              value={teacherEditValues.short_name}
-                              onChange={(event) => setTeacherEditValues({ ...teacherEditValues, short_name: event.target.value })}
-                            />
-                          ) : (
-                            t.short_name || "-"
                           )}
                         </td>
                         <td>
@@ -2024,7 +2757,6 @@ export default function App() {
                               <button onClick={async () => {
                                 const payload = {
                                   name: teacherEditValues.name,
-                                  short_name: teacherEditValues.short_name,
                                   active: teacherEditValues.active,
                                 };
                                 const res = await updateTeacher(t.name, payload);
@@ -2041,7 +2773,7 @@ export default function App() {
                             <>
                               <button onClick={() => {
                                 setTeacherEdit(t.name);
-                                setTeacherEditValues({ name: t.name, short_name: t.short_name || "", active: t.active !== false });
+                                setTeacherEditValues({ name: t.name, active: t.active !== false });
                               }}>Edita</button>
                               <button onClick={async () => {
                                 const res = await deleteTeacher(t.name);
@@ -2063,13 +2795,6 @@ export default function App() {
                       </td>
                       <td>
                         <input
-                          value={teacherDraft.short_name}
-                          placeholder="Nom curt"
-                          onChange={(event) => setTeacherDraft({ ...teacherDraft, short_name: event.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <input
                           type="checkbox"
                           checked={teacherDraft.active}
                           onChange={(event) => setTeacherDraft({ ...teacherDraft, active: event.target.checked })}
@@ -2083,7 +2808,7 @@ export default function App() {
                           }
                           const res = await createTeacher(teacherDraft);
                           if (res.ok) {
-                            setTeacherDraft({ name: "", short_name: "", active: true });
+                            setTeacherDraft({ name: "", active: true });
                             await refreshAcademicLists();
                           } else {
                             alert("No s'ha pogut crear el professor.");
@@ -2093,6 +2818,8 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+                </>
+                )}
                 </div>
                 <div className="teachers-restrictions-panel">
                   <h2>Hores disponibles i restriccions</h2>
@@ -2104,17 +2831,66 @@ export default function App() {
             {academicTab === "groups" && (
               <div>
                 <h2>Grups d'alumnes</h2>
+                <div style={{ marginBottom: 12 }}>
+                  {!entitySheetOpen.groups ? (
+                    <button type="button" onClick={() => openEntitySheet("groups")}>
+                      📊 Vista taula (edició ràpida tipus Excel)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEntitySheetOpen((prev) => ({ ...prev, groups: false }))}
+                      disabled={isSavingEntitySheet.groups}
+                    >
+                      ← Torna a la vista clàssica
+                    </button>
+                  )}
+                </div>
+                {entitySheetOpen.groups ? (
+                  <div>
+                    <div className="muted" style={{ marginBottom: 8 }}>
+                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. Les restriccions
+                      horàries es continuen editant des del panell corresponent.
+                    </div>
+                    <DataSheetGrid
+                      value={entitySheetRows.groups}
+                      onChange={(rows) => setEntitySheetRows((prev) => ({ ...prev, groups: rows }))}
+                      columns={GROUP_SHEET_COLUMNS}
+                      height={480}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button type="button" onClick={() => saveEntitySheet("groups")} disabled={isSavingEntitySheet.groups}>
+                        {isSavingEntitySheet.groups ? "Desant..." : "Desa els canvis"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEntitySheetOpen((prev) => ({ ...prev, groups: false }))}
+                        disabled={isSavingEntitySheet.groups}
+                      >
+                        Cancel·la
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                <>
+                <input
+                  type="text"
+                  placeholder="Cerca grups..."
+                  value={academicSearch}
+                  onChange={(event) => setAcademicSearch(event.target.value)}
+                  style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
+                />
                 <table className="academic-table">
                   <thead>
                     <tr>
-                      <th>Nom</th>
-                      <th>Curs</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("course", setAcademicSort)}>Curs{sortIndicator("course", academicSort)}</th>
                       <th>Actiu</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {groups.map((g) => (
+                    {applyAcademicSort(groups.filter((g) => matchesSearch(academicSearch, [g.name, g.course])), academicSort).map((g) => (
                       <tr key={g.name}>
                         <td>
                           {groupEdit === g.name ? (
@@ -2221,6 +2997,8 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+                </>
+                )}
               </div>
             )}
 
@@ -2361,16 +3139,64 @@ export default function App() {
             {academicTab === "rooms" && (
               <div>
                 <h2>Aules</h2>
+                <div style={{ marginBottom: 12 }}>
+                  {!entitySheetOpen.rooms ? (
+                    <button type="button" onClick={() => openEntitySheet("rooms")}>
+                      📊 Vista taula (edició ràpida tipus Excel)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEntitySheetOpen((prev) => ({ ...prev, rooms: false }))}
+                      disabled={isSavingEntitySheet.rooms}
+                    >
+                      ← Torna a la vista clàssica
+                    </button>
+                  )}
+                </div>
+                {entitySheetOpen.rooms ? (
+                  <div>
+                    <div className="muted" style={{ marginBottom: 8 }}>
+                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets.
+                    </div>
+                    <DataSheetGrid
+                      value={entitySheetRows.rooms}
+                      onChange={(rows) => setEntitySheetRows((prev) => ({ ...prev, rooms: rows }))}
+                      columns={ROOM_SHEET_COLUMNS}
+                      height={480}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button type="button" onClick={() => saveEntitySheet("rooms")} disabled={isSavingEntitySheet.rooms}>
+                        {isSavingEntitySheet.rooms ? "Desant..." : "Desa els canvis"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEntitySheetOpen((prev) => ({ ...prev, rooms: false }))}
+                        disabled={isSavingEntitySheet.rooms}
+                      >
+                        Cancel·la
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                <>
+                <input
+                  type="text"
+                  placeholder="Cerca aules..."
+                  value={academicSearch}
+                  onChange={(event) => setAcademicSearch(event.target.value)}
+                  style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
+                />
                 <table className="academic-table">
                   <thead>
                     <tr>
-                      <th>Nom</th>
-                      <th>Capacitat</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("capacity", setAcademicSort)}>Capacitat{sortIndicator("capacity", academicSort)}</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rooms.map((r) => (
+                    {applyAcademicSort(rooms.filter((r) => matchesSearch(academicSearch, [r.name])), academicSort).map((r) => (
                       <tr key={r.name}>
                         <td>
                           {roomEdit === r.name ? (
@@ -2466,12 +3292,55 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+                </>
+                )}
               </div>
             )}
 
             {academicTab === "assignments" && (
               <div>
                 <h2>Assignacions docents</h2>
+
+                <div style={{ marginBottom: 12 }}>
+                  {!useSpreadsheetView ? (
+                    <button type="button" onClick={openSpreadsheetView}>
+                      📊 Vista taula (edició ràpida tipus Excel)
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => setUseSpreadsheetView(false)} disabled={isSavingSpreadsheet}>
+                      ← Torna a la vista clàssica
+                    </button>
+                  )}
+                </div>
+
+                {useSpreadsheetView ? (
+                  <div>
+                    <div className="muted" style={{ marginBottom: 8 }}>
+                      Doble clic per editar una cel·la. Navega amb el teclat. Selecciona un rang i copia/enganxa
+                      amb Ctrl/Cmd+C i Ctrl/Cmd+V, també des d'Excel o Google Sheets. Afegeix files noves des del
+                      final de la taula; esborra-les seleccionant-les i prement Suprimir.
+                    </div>
+                    <DataSheetGrid
+                      value={spreadsheetRows}
+                      onChange={setSpreadsheetRows}
+                      columns={ASSIGNMENT_SHEET_COLUMNS}
+                      height={480}
+                    />
+                    <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                      <button type="button" onClick={saveSpreadsheetRows} disabled={isSavingSpreadsheet}>
+                        {isSavingSpreadsheet ? "Desant..." : "Desa els canvis"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUseSpreadsheetView(false)}
+                        disabled={isSavingSpreadsheet}
+                      >
+                        Cancel·la
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                <>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
                   <button
                     type="button"
@@ -2491,14 +3360,21 @@ export default function App() {
                   </button>
                   <span className="muted">Selecciona 2 files amb la casella per activar-ho.</span>
                 </div>
+                <input
+                  type="text"
+                  placeholder="Cerca assignacions..."
+                  value={academicSearch}
+                  onChange={(event) => setAcademicSearch(event.target.value)}
+                  style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
+                />
                 <table className="academic-table">
                   <thead>
                     <tr>
                       <th></th>
-                      <th>Professor</th>
-                      <th>Grup d'alumnes</th>
-                      <th>Assignatura</th>
-                      <th>Hores setmanals</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("teacher", setAcademicSort)}>Professor{sortIndicator("teacher", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("group", setAcademicSort)}>Grup d'alumnes{sortIndicator("group", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("subject", setAcademicSort)}>Assignatura{sortIndicator("subject", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("weekly_hours", setAcademicSort)}>Hores setmanals{sortIndicator("weekly_hours", academicSort)}</th>
                       <th>Durades de sessió permeses</th>
                       <th>Màx. dies per repartir</th>
                       <th>Consecutiva amb (etiqueta)</th>
@@ -2507,7 +3383,11 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {teachingAssignments.map((a) => (
+                    {applyAcademicSort(
+                      teachingAssignments.filter((a) => matchesSearch(academicSearch, [a.teacher, a.subject, a.group])),
+                      academicSort
+                    )
+                      .map((a) => (
                       <tr key={a.id}>
                         <td>
                           <input
@@ -2842,6 +3722,8 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+                </>
+                )}
               </div>
             )}
           </div>
@@ -2896,6 +3778,40 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {activities.length > 0 && (
+            <div
+              className="group-color-legend"
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "10px",
+                padding: "8px 4px",
+                fontSize: "0.8rem",
+              }}
+            >
+              {Array.from(new Set(activities.map((activity) => activity.group).filter(Boolean)))
+                .sort()
+                .map((group) => {
+                  const color = getGroupColor(group);
+                  return (
+                    <div key={group} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+                      <span
+                        style={{
+                          width: "10px",
+                          height: "10px",
+                          borderRadius: "50%",
+                          background: color.background,
+                          border: `1px solid ${color.border}`,
+                          display: "inline-block",
+                        }}
+                      />
+                      <span>{group}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
 
           <div className="timetable" aria-label="Horari">
           <div className="corner-cell" style={{ gridColumn: 1, gridRow: 1 }} />
@@ -3047,6 +3963,12 @@ export default function App() {
                 <div style={{ marginBottom: 12 }}>
                   <h3>Franges no disponibles</h3>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                    <button type="button" onClick={() => applyUnavailablePreset("no-abans-10", groupRestrictionDraft, setGroupRestrictionDraft)}>No abans de les 10:00</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("no-abans-15", groupRestrictionDraft, setGroupRestrictionDraft)}>No abans de les 15:00</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("no-despres-17", groupRestrictionDraft, setGroupRestrictionDraft)}>No després de les 17:00</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", groupRestrictionDraft, setGroupRestrictionDraft)}>Entre les 10:00 i les 14:00</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("nomes-matins", groupRestrictionDraft, setGroupRestrictionDraft)}>Només matins</button>
+                    <button type="button" onClick={() => applyUnavailablePreset("nomes-tardes", groupRestrictionDraft, setGroupRestrictionDraft)}>Només tardes</button>
                     <button type="button" onClick={() => clearAvailabilitySelection(groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setUnavailableSelectionAnchor)}>Neteja selecció</button>
                   </div>
                   <div className="muted">Clic simple per marcar/desmarcar una franja no disponible manualment (vermell). Maj + clic per seleccionar un rang. Les caselles taronges venen del fitxer FET i no s'editen aquí.</div>
@@ -3179,67 +4101,260 @@ export default function App() {
                   <strong>{generationStats?.unscheduled_activities_total ?? 0}</strong>
                 </div>
                 {proposal.warnings?.length ? (
-                  <div className="proposal-warning-box">
+                  <div className="proposal-warning-box" id="incidents-panel">
                     <strong>⚠️ Incidències de generació ({proposal.warnings.length})</strong>
-<ul className="warning-list">
-  {proposal.warnings.map((warning, index) => {
-    if (typeof warning === "string") {
-      return <li key={index}>{warning}</li>;
-    }
+                    <div
+                      className="incidents-grid"
+                      style={{
+                        display: "grid",
+                        gap: "12px",
+                        gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                        marginTop: "10px",
+                      }}
+                    >
+                      {proposal.warnings.map((warning, index) => {
+                        if (typeof warning === "string") {
+                          const style = INCIDENT_SEVERITY_STYLES.error;
+                          return (
+                            <article
+                              key={index}
+                              className="incident-card"
+                              style={{
+                                background: style.background,
+                                borderLeft: `4px solid ${style.border}`,
+                                borderRadius: "8px",
+                                padding: "12px 14px",
+                              }}
+                            >
+                              <span style={{ color: style.text }}>{warning}</span>
+                            </article>
+                          );
+                        }
 
-    return (
-      <li key={index} className="warning-card">
-        <strong>❌ {warning.subject || "Assignatura desconeguda"}</strong>
+                        // "No s'ha pogut col·locar" és sempre un bloqueig de generació,
+                        // per això es classifica com a error. Si en el futur el backend
+                        // distingeix bloquejants d'advertències toves, es pot fer servir
+                        // classifyConflictSeverity(warning) igual que a les incidències.
+                        const style = INCIDENT_SEVERITY_STYLES.error;
 
-        <div>Professor: {warning.teacher || "-"}</div>
+                        return (
+                          <article
+                            key={index}
+                            className="incident-card"
+                            style={{
+                              background: style.background,
+                              borderLeft: `4px solid ${style.border}`,
+                              borderRadius: "8px",
+                              padding: "12px 14px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+                              <strong style={{ color: style.text }}>
+                                {warning.subject || "Assignatura desconeguda"}
+                              </strong>
+                              <span
+                                style={{
+                                  fontSize: "0.75rem",
+                                  fontWeight: 600,
+                                  color: style.text,
+                                  background: "rgba(255,255,255,0.65)",
+                                  borderRadius: "999px",
+                                  padding: "2px 10px",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {style.label}
+                              </span>
+                            </div>
 
-        <div>Grup: {warning.group || "-"}</div>
+                            <div
+                              style={{
+                                fontSize: "0.85rem",
+                                color: "#333",
+                                display: "grid",
+                                gridTemplateColumns: "auto 1fr",
+                                gap: "2px 8px",
+                              }}
+                            >
+                              <span className="muted">Professor</span>
+                              <span>{warning.teacher || "—"}</span>
+                              <span className="muted">Grup</span>
+                              <span>{warning.group || "—"}</span>
+                              <span className="muted">Durada</span>
+                              <span>{warning.duration} blocs</span>
+                            </div>
 
-        <div>Durada: {warning.duration} blocs</div>
+                            {warning.reason && (
+                              <span style={{ color: style.text }}>{warning.reason}</span>
+                            )}
 
-        <div style={{ marginTop: 6 }}>
-          {warning.reason}
-        </div>
+                            {warning.constraints?.length > 0 && (
+                              <div style={{ fontSize: "0.8rem" }}>
+                                <span className="muted">Tipus de restricció</span>
+                                <ul style={{ margin: "2px 0 0", paddingLeft: "18px" }}>
+                                  {warning.constraints.map((c) => (
+                                    <li key={c}>{c}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
 
-        {warning.constraints?.length > 0 && (
-          <ul>
-            {warning.constraints.map((c) => (
-              <li key={c}>• {c}</li>
-            ))}
-          </ul>
-        )}
-      </li>
-    );
-  })}
-</ul>
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => fetchSuggestions(warning.id)}
+                                disabled={suggestionsByActivity[warning.id]?.loading}
+                                style={{
+                                  fontSize: "0.8rem",
+                                  padding: "4px 10px",
+                                  borderRadius: "6px",
+                                  border: `1px solid ${style.border}`,
+                                  background: "white",
+                                  color: style.text,
+                                  cursor: "pointer",
+                                }}
+                              >
+                                {suggestionsByActivity[warning.id]?.loading ? "Cercant..." : "Suggereix franges"}
+                              </button>
+
+                              {suggestionsByActivity[warning.id]?.slots.length > 0 && (
+                                <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginTop: "8px" }}>
+                                  {suggestionsByActivity[warning.id].slots.map((slot, slotIndex) => (
+                                    <button
+                                      key={slotIndex}
+                                      type="button"
+                                      onClick={() => moveActivity(warning.id, slot.day, slot.start)}
+                                      style={{
+                                        fontSize: "0.8rem",
+                                        padding: "4px 10px",
+                                        borderRadius: "6px",
+                                        border: "1px solid #ccc",
+                                        background: "#f5f5f5",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      {slot.day} {slot.start}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+
+                              {suggestionsByActivity[warning.id] &&
+                                !suggestionsByActivity[warning.id].loading &&
+                                suggestionsByActivity[warning.id].slots.length === 0 && (
+                                  <div style={{ fontSize: "0.8rem", marginTop: "6px", color: style.text }}>
+                                    Cap franja disponible.
+                                  </div>
+                                )}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
                   </div>
                 ) : null}
-                <ul className="activity-list">
-                  {(proposal.activities || []).map((activity) => (
-                    <li key={activity.id}>
-                      <strong>{activity.subject}</strong>
-                      <span>{activity.teacher} · {activity.day} · {activity.start}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
             )}
           </section>
 
           <section>
-            <h2>⚠️ Conflictes {conflicts.length > 0 ? `(${conflicts.length})` : ""}</h2>
+            <h2>⚠️ Incidències {conflicts.length > 0 ? `(${conflicts.length})` : ""}</h2>
 
             {conflicts.length === 0 ? (
-              <p className="muted">Cap conflicte detectat.</p>
+              <p className="muted">Cap incidència detectada.</p>
             ) : (
-              <ul className="conflict-list">
-                {conflicts.map((conflict, index) => (
-                  <li key={`${conflict.type}-${index}`}>
-                    <strong>{conflict.type}</strong>
-                    <span>{conflict.message}</span>
-                  </li>
-                ))}
-              </ul>
+              <div
+                className="incidents-grid"
+                style={{
+                  display: "grid",
+                  gap: "12px",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+                }}
+              >
+                {conflicts.map((conflict, index) => {
+                  const severity = classifyConflictSeverity(conflict);
+                  const style = INCIDENT_SEVERITY_STYLES[severity];
+                  const relatedActivities = resolveConflictActivities(conflict, activities);
+                  const subjectLabel = formatConflictField(relatedActivities.map((activity) => activity.subject));
+                  const groupLabel = formatConflictField(relatedActivities.map((activity) => activity.group));
+                  const roomLabel = formatConflictField(relatedActivities.map((activity) => activity.room));
+                  const teacherLabel =
+                    conflict.teacher || formatConflictField(relatedActivities.map((activity) => activity.teacher));
+
+                  return (
+                    <article
+                      key={`${conflict.type}-${index}`}
+                      className="incident-card"
+                      style={{
+                        background: style.background,
+                        borderLeft: `4px solid ${style.border}`,
+                        borderRadius: "8px",
+                        padding: "12px 14px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "6px",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+                        <strong style={{ color: style.text }}>{conflict.type}</strong>
+                        <span
+                          style={{
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            color: style.text,
+                            background: "rgba(255,255,255,0.65)",
+                            borderRadius: "999px",
+                            padding: "2px 10px",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {style.label}
+                        </span>
+                      </div>
+
+                      <span>{conflict.message}</span>
+
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: "#333",
+                          display: "grid",
+                          gridTemplateColumns: "auto 1fr",
+                          gap: "2px 8px",
+                        }}
+                      >
+                        {subjectLabel && (
+                          <>
+                            <span className="muted">Assignatura</span>
+                            <span>{subjectLabel}</span>
+                          </>
+                        )}
+                        {teacherLabel && (
+                          <>
+                            <span className="muted">Professor</span>
+                            <span>{teacherLabel}</span>
+                          </>
+                        )}
+                        {groupLabel && (
+                          <>
+                            <span className="muted">Grup</span>
+                            <span>{groupLabel}</span>
+                          </>
+                        )}
+                        {roomLabel && (
+                          <>
+                            <span className="muted">Aula</span>
+                            <span>{roomLabel}</span>
+                          </>
+                        )}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             )}
           </section>
 
@@ -3286,10 +4401,24 @@ export default function App() {
               <p className="muted">Selecciona "Info" en una activitat per veure el motiu de la seva ubicació.</p>
             ) : (
               <div className="explanation-panel">
-                <div className="proposal-metric">
-                  <span className="metric-label">Activitat</span>
-                  <strong>{selectedExplanation.activity_id}</strong>
-                </div>
+                {(() => {
+                  const explainedActivity = activities.find(
+                    (activity) => activity.id === selectedExplanation.activity_id
+                  );
+                  if (!explainedActivity) return null;
+                  return (
+                    <div style={{ marginBottom: 12 }}>
+                      <strong style={{ fontSize: "1.05rem" }}>{explainedActivity.subject}</strong>
+                      <div className="muted" style={{ fontSize: "0.85rem", marginTop: 4 }}>
+                        {explainedActivity.teacher || "Professor pendent"} · {explainedActivity.group || "Grup sense etiqueta"}
+                        {explainedActivity.room ? ` · ${explainedActivity.room}` : ""}
+                      </div>
+                      <div className="muted" style={{ fontSize: "0.85rem" }}>
+                        {explainedActivity.day} · {explainedActivity.start}
+                      </div>
+                    </div>
+                  );
+                })()}
                 <div className="proposal-metric">
                   <span className="metric-label">Contribució local</span>
                   <strong>{selectedExplanation.score_contribution ?? "-"}</strong>
@@ -3328,6 +4457,176 @@ export default function App() {
           </section>
         </aside>
       </section>
+      )}
+
+      {activityRestrictionDraft && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+          }}
+          onClick={() => setActivityRestrictionDraft(null)}
+        >
+          <div
+            style={{
+              background: "white",
+              borderRadius: 10,
+              padding: 24,
+              minWidth: 320,
+              maxWidth: 420,
+              boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+            }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 style={{ marginTop: 0 }}>{activityRestrictionDraft.subject}</h3>
+            <div className="muted" style={{ marginBottom: 12 }}>
+              {activityRestrictionDraft.teacher || "Professor pendent"} · {activityRestrictionDraft.group || "Grup sense etiqueta"}
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <span className="metric-label">Hores setmanals</span>
+              <div><strong>{activityRestrictionDraft.weekly_hours}</strong></div>
+            </div>
+
+            <label style={{ display: "block", marginBottom: 10 }}>
+              Màxim de dies per repartir
+              <input
+                type="text"
+                value={activityRestrictionDraft.max_session_days}
+                onChange={(event) =>
+                  setActivityRestrictionDraft({ ...activityRestrictionDraft, max_session_days: event.target.value })
+                }
+                style={{ display: "block", width: "100%", marginTop: 4, padding: "6px 8px" }}
+              />
+            </label>
+
+            <label style={{ display: "block", marginBottom: 10 }}>
+              Dia fix
+              <input
+                type="text"
+                placeholder="p. ex. Dilluns"
+                value={activityRestrictionDraft.fixed_day}
+                onChange={(event) =>
+                  setActivityRestrictionDraft({ ...activityRestrictionDraft, fixed_day: event.target.value })
+                }
+                style={{ display: "block", width: "100%", marginTop: 4, padding: "6px 8px" }}
+              />
+            </label>
+
+            <label style={{ display: "block", marginBottom: 16 }}>
+              Hora fixa
+              <input
+                type="text"
+                placeholder="p. ex. 9:00"
+                value={activityRestrictionDraft.fixed_start}
+                onChange={(event) =>
+                  setActivityRestrictionDraft({ ...activityRestrictionDraft, fixed_start: event.target.value })
+                }
+                style={{ display: "block", width: "100%", marginTop: 4, padding: "6px 8px" }}
+              />
+            </label>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="button" onClick={saveActivityRestrictionPopup} disabled={isSavingActivityRestriction}>
+                {isSavingActivityRestriction ? "Desant..." : "Desa"}
+              </button>
+              <button type="button" onClick={() => setActivityRestrictionDraft(null)} disabled={isSavingActivityRestriction}>
+                Cancel·la
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAssistantChat && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: 20,
+            right: 20,
+            width: 340,
+            maxHeight: "70vh",
+            display: "flex",
+            flexDirection: "column",
+            background: "white",
+            borderRadius: 10,
+            boxShadow: "0 12px 32px rgba(0,0,0,0.25)",
+            zIndex: 900,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "10px 14px",
+              background: "#263447",
+              color: "white",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <strong>🤖 Assistent de resolució</strong>
+            <button
+              type="button"
+              onClick={() => setShowAssistantChat(false)}
+              style={{ background: "none", border: "none", color: "white", cursor: "pointer", fontSize: "1rem" }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+            {assistantMessages.length === 0 && (
+              <p className="muted" style={{ fontSize: "0.85rem" }}>
+                Pregunta'm sobre les incidències o conflictes d'aquesta proposta. Per exemple: "Per què no s'ha
+                pogut col·locar X?" o "Com puc millorar aquest horari?"
+              </p>
+            )}
+            {assistantMessages.map((msg, index) => (
+              <div
+                key={index}
+                style={{
+                  alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                  background: msg.role === "user" ? "#263447" : msg.isError ? "#fdecea" : "#f0f0f0",
+                  color: msg.role === "user" ? "white" : msg.isError ? "#b71c1c" : "black",
+                  borderRadius: 8,
+                  padding: "8px 12px",
+                  maxWidth: "85%",
+                  fontSize: "0.85rem",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
+                {msg.text}
+              </div>
+            ))}
+            {isAssistantThinking && (
+              <div className="muted" style={{ fontSize: "0.85rem" }}>
+                Pensant...
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", gap: 6, padding: 10, borderTop: "1px solid #eee" }}>
+            <input
+              type="text"
+              value={assistantInput}
+              onChange={(event) => setAssistantInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") sendAssistantMessage();
+              }}
+              placeholder="Escriu la teva pregunta..."
+              disabled={isAssistantThinking}
+              style={{ flex: 1, padding: "6px 8px" }}
+            />
+            <button type="button" onClick={sendAssistantMessage} disabled={isAssistantThinking || !assistantInput.trim()}>
+              Envia
+            </button>
+          </div>
+        </div>
       )}
     </main>
   );

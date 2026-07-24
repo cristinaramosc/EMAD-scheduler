@@ -14,7 +14,7 @@ class GenerationResult:
     """
 
     generated_scheduled_activities: List[ScheduledActivity]
-    warnings: List[str] = field(default_factory=list)
+    warnings: List[dict] = field(default_factory=list)
     statistics: Dict[str, Any] = field(default_factory=dict)
     elapsed_time_ms: float = 0.0
     proposal_score: Optional[float] = None

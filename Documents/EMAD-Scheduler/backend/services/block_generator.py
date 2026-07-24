@@ -13,7 +13,9 @@ except ModuleNotFoundError:  # pragma: no cover
 
 def _generate_block_distributions(requirement: TeachingRequirement) -> List[List[int]]:
     total_blocks = requirement.weekly_blocks
-    min_block_size = requirement.min_block_duration_blocks
+    # Un bloc de classe mai pot durar menys d'una hora (2 blocs de 30 min),
+    # encara que les dades acadèmiques indiquin un min_block_duration inferior.
+    min_block_size = max(requirement.min_block_duration_blocks, 2)
     max_block_size = requirement.max_consecutive_blocks
     min_distribution_days = requirement.min_distribution_days
     max_distribution_days = requirement.max_distribution_days

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import zlib
 from typing import Any, Dict, List
 
 try:
@@ -43,6 +44,67 @@ class SchedulerUseCases:
             frozenset(conflict.activities or []),
         )
 
+    def _restricted_slots_for(self, teacher: str, group: str) -> set:
+        """Franges (dia, hora) marcades com a no disponibles per aquest
+        professor o grup a les seves restriccions (independent dels
+        conflictes d'activitat contra activitat que ja comprova validate())."""
+        restricted: set = set()
+        for record in self._academic_data_repo.active_teacher_restrictions():
+            if teacher and record.get("teacher") == teacher:
+                for slot in record.get("unavailable_slots", []):
+                    parts = str(slot).split(" ", 1)
+                    if len(parts) == 2:
+                        restricted.add((parts[0], parts[1]))
+        for record in self._academic_data_repo.active_group_restrictions():
+            if group and record.get("group") == group:
+                for slot in record.get("unavailable_slots", []):
+                    parts = str(slot).split(" ", 1)
+                    if len(parts) == 2:
+                        restricted.add((parts[0], parts[1]))
+        return restricted
+
+    def _suggest_alternative_slots(
+        self,
+        base_activities: List["Activity"],
+        target_activity: "Activity",
+        exclude_pairs: set,
+        baseline_keys: set,
+        max_results: int = 3,
+    ) -> List[Dict[str, str]]:
+        """Try every (day, start) combo and return up to max_results where
+        target_activity would fit without introducing new conflicts, and
+        that aren't marked as unavailable for this teacher/group."""
+        day_names = self._time_labels.get("day_names", [])
+        hour_names = self._time_labels.get("hour_names", [])
+        suggestions: List[Dict[str, str]] = []
+        restricted_slots = self._restricted_slots_for(target_activity.teacher, target_activity.group)
+
+        for day in day_names:
+            for start in hour_names:
+                if (day, start) in exclude_pairs or (day, start) in restricted_slots:
+                    continue
+
+                candidate = Activity(
+                    id=target_activity.id,
+                    teacher=target_activity.teacher,
+                    subject=target_activity.subject,
+                    group=target_activity.group,
+                    room=target_activity.room,
+                    day=day,
+                    start=start,
+                    duration=target_activity.duration,
+                )
+                schedule = self._build_schedule(base_activities + [candidate])
+                conflicts = self._scheduler_engine.validate(schedule)
+                new_conflicts = [c for c in conflicts if self._conflict_key(c) not in baseline_keys]
+
+                if not new_conflicts:
+                    suggestions.append({"day": day, "start": start})
+                    if len(suggestions) >= max_results:
+                        return suggestions
+
+        return suggestions
+
     def __init__(
         self,
         requirement_repo: Any,
@@ -64,6 +126,8 @@ class SchedulerUseCases:
         self._fet_file = fet_file
         self._academic_data_repo = academic_data_repo
         self._working_timetable_repo = working_timetable_repo
+        self._move_history: Dict[str, List[Any]] = {}
+        self._redo_history: Dict[str, List[Any]] = {}
 
     def validate(self, activities: List[Dict[str, Any]]) -> List[Any]:
         schedule = Schedule()
@@ -167,6 +231,12 @@ class SchedulerUseCases:
         blocked_activities += self._load_fet_blocked_activities()
         blocked_activities += fixed_scheduled_activities
 
+        split_groups = {
+            (group.get("name") or "").strip()
+            for group in self._academic_data_repo.list_groups()
+            if group.get("is_split")
+        }
+
         context = GenerationContext(
             school_calendar=self._school_calendar,
             existing_scheduled_activities=tuple(blocked_activities),
@@ -176,6 +246,7 @@ class SchedulerUseCases:
                 "room_constraints_enabled": True,
                 "day_names": day_names,
                 "hour_names": hour_names,
+                "split_groups": split_groups,
             },
         )
 
@@ -208,6 +279,26 @@ class SchedulerUseCases:
             self._proposal_store[proposal.id] = proposal
 
         best_proposal = proposals[0]
+
+        # Unifica "Incidències de generació" i "Sense franja": totes dues
+        # han de mostrar exactament les mateixes activitats no col·locades.
+        # Abans es calculaven per vies separades (aquí sempre quedava buit).
+        unscheduled_from_warnings = [
+            {
+                "id": warning.get("id"),
+                "teacher": warning.get("teacher", ""),
+                "subject": warning.get("subject", ""),
+                "group": warning.get("group", ""),
+                "room": "",
+                "duration": warning.get("duration", 1),
+                "reason": warning.get("reason", ""),
+            }
+            for warning in (best_proposal.warnings or [])
+            if isinstance(warning, dict) and warning.get("id") is not None
+        ]
+        for proposal in proposals:
+            proposal.metadata = {**(proposal.metadata or {}), "unscheduled_activities": unscheduled_from_warnings}
+
         self._persist_proposal_state(
             best_proposal,
             {
@@ -215,7 +306,7 @@ class SchedulerUseCases:
                 "source": "academic_workbook",
                 "fixed_activities_total": len(fixed_activities),
             },
-            [],
+            unscheduled_from_warnings,
         )
 
         return {
@@ -232,7 +323,7 @@ class SchedulerUseCases:
                 "source": "academic_workbook",
                 "fixed_activities_total": len(fixed_activities),
             },
-            "unscheduled_activities": [],
+            "unscheduled_activities": unscheduled_from_warnings,
         }
 
     def generate_proposals_from_fet(self) -> Dict[str, Any]:
@@ -240,6 +331,11 @@ class SchedulerUseCases:
             raise ValueError("missing_requirement_ids")
 
         payload = self._fet_generation_inputs_fn(self._fet_file)
+        split_groups = {
+            (group.get("name") or "").strip()
+            for group in self._academic_data_repo.list_groups()
+            if group.get("is_split")
+        }
         context = GenerationContext(
             school_calendar=payload["school_calendar"],
             existing_scheduled_activities=tuple(payload["blocked_activities"]),
@@ -249,6 +345,7 @@ class SchedulerUseCases:
                 "room_constraints_enabled": True,
                 "day_names": payload["day_names"],
                 "hour_names": payload["hour_names"],
+                "split_groups": split_groups,
             },
         )
         generator = SchedulerGenerator()
@@ -331,7 +428,155 @@ class SchedulerUseCases:
             "message": "Proposal accepted",
         }
 
-    def move_proposal_activity(self, proposal_id: str, activity_id: int, day: str, start: str) -> Dict[str, Any]:
+    def move_proposal_activity(
+        self,
+        proposal_id: str,
+        activity_id: int,
+        day: str,
+        start: str,
+    ) -> Dict[str, Any]:
+
+        print("\n========== MOVE ==========")
+        print("Proposal rebuda:", proposal_id)
+
+        print("Proposal store:")
+
+        for key in self._proposal_store.keys():
+            print(" -", key)
+
+        print("==========================\n")
+
+        proposal = self._proposal_store.get(proposal_id)
+
+        if proposal is None:
+            raise LookupError("proposal_not_found")
+
+        current_activities = [
+            Activity(
+                id=activity.id,
+                teacher=activity.teacher,
+                subject=activity.subject,
+                group=activity.group,
+                room=activity.room,
+                day=activity.day,
+                start=activity.start,
+                duration=activity.duration,
+            )
+            for activity in proposal.activities
+        ]
+
+        baseline_schedule = self._build_schedule(current_activities)
+        baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
+        baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
+
+        target_activity = next(
+            (item for item in current_activities if item.id == activity_id),
+            None,
+        )
+
+        unscheduled_activities = list((proposal.metadata or {}).get("unscheduled_activities", []))
+        newly_placed = False
+        previous_day = previous_start = None
+
+        if target_activity is None:
+            # Not yet on the schedule: it may be one of the "unscheduled"
+            # activities shown as incidences, which the user is placing
+            # manually via drag & drop.
+            pending_activity = next(
+                (item for item in unscheduled_activities if item.get("id") == activity_id),
+                None,
+            )
+            if pending_activity is None:
+                return {
+                    "ok": False,
+                    "error": "activity_not_found",
+                    "proposal": serialize_proposal(proposal),
+                }
+
+            target_activity = Activity(
+                id=pending_activity["id"],
+                teacher=pending_activity.get("teacher", ""),
+                subject=pending_activity.get("subject", ""),
+                group=pending_activity.get("group", ""),
+                room=pending_activity.get("room", ""),
+                day=day,
+                start=start,
+                duration=pending_activity.get("duration", 1),
+            )
+            current_activities.append(target_activity)
+            newly_placed = True
+        else:
+            previous_day = target_activity.day
+            previous_start = target_activity.start
+            target_activity.day = day
+            target_activity.start = start
+
+        candidate_schedule = self._build_schedule(current_activities)
+        conflicts = self._scheduler_engine.validate(candidate_schedule)
+
+        new_conflicts = [
+            conflict
+            for conflict in conflicts
+            if self._conflict_key(conflict) not in baseline_keys
+        ]
+
+        if new_conflicts:
+            exclude_pairs = {(day, start)}
+            if not newly_placed:
+                exclude_pairs.add((previous_day, previous_start))
+                base_activities = [a for a in current_activities if a is not target_activity]
+                target_activity.day = previous_day
+                target_activity.start = previous_start
+            else:
+                current_activities.remove(target_activity)
+                base_activities = current_activities
+
+            suggestions = self._suggest_alternative_slots(
+                base_activities, target_activity, exclude_pairs, baseline_keys
+            )
+
+            return {
+                "ok": False,
+                "error": "validation_failed",
+                "conflicts": serialize_conflicts(new_conflicts),
+                "suggested_slots": suggestions,
+                "proposal": serialize_proposal(proposal),
+            }
+
+        updated_metadata = dict(proposal.metadata or {})
+        if newly_placed:
+            updated_metadata["unscheduled_activities"] = [
+                item for item in unscheduled_activities if item.get("id") != activity_id
+            ]
+
+        updated_proposal = ScheduleProposal(
+            id=proposal.id,
+            activities=current_activities,
+            score=proposal.score,
+            conflicts=conflicts,
+            warnings=proposal.warnings,
+            score_breakdown=getattr(proposal, "score_breakdown", None),
+            metadata=updated_metadata,
+        )
+        self._redo_history.pop(proposal_id, None)
+        self._move_history.setdefault(proposal_id, []).append(proposal)
+        self._proposal_store[proposal_id] = updated_proposal
+        self._persist_proposal_state(
+            updated_proposal,
+            self._load_snapshot().generation_stats,
+            list((updated_proposal.metadata or {}).get("unscheduled_activities", [])),
+        )
+
+        return {
+            "ok": True,
+            "proposal": serialize_proposal(updated_proposal),
+            "unscheduled_activities": updated_metadata.get("unscheduled_activities", []),
+        }
+
+    def swap_proposal_activities(
+        self, proposal_id: str, activity_id_a: int, activity_id_b: int
+    ) -> Dict[str, Any]:
+        """Swap the day/start of two already-scheduled activities in a proposal."""
         proposal = self._proposal_store.get(proposal_id)
         if proposal is None:
             raise LookupError("proposal_not_found")
@@ -349,64 +594,163 @@ class SchedulerUseCases:
             )
             for activity in proposal.activities
         ]
-        unscheduled = list((proposal.metadata or {}).get("unscheduled_activities", []))
-        target = next((activity for activity in current_activities if activity.id == activity_id), None)
 
         baseline_schedule = self._build_schedule(current_activities)
         baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
         baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
 
-        if target is None:
-            pending = next((activity for activity in unscheduled if activity["id"] == activity_id), None)
-            if pending is None:
-                raise LookupError("proposal_activity_not_found")
-            target = Activity(
-                id=pending["id"],
-                teacher=pending.get("teacher", ""),
-                subject=pending.get("subject", ""),
-                group=pending.get("group", ""),
-                room=pending.get("room", ""),
-                day=day,
-                start=start,
-                duration=pending.get("duration", 1),
-            )
-            current_activities.append(target)
-        else:
-            target.day = day
-            target.start = start
+        activity_a = next((item for item in current_activities if item.id == activity_id_a), None)
+        activity_b = next((item for item in current_activities if item.id == activity_id_b), None)
+
+        if activity_a is None or activity_b is None:
+            return {
+                "ok": False,
+                "error": "activity_not_found",
+                "proposal": serialize_proposal(proposal),
+            }
+
+        activity_a.day, activity_b.day = activity_b.day, activity_a.day
+        activity_a.start, activity_b.start = activity_b.start, activity_a.start
 
         candidate_schedule = self._build_schedule(current_activities)
         conflicts = self._scheduler_engine.validate(candidate_schedule)
-        new_conflicts = [conflict for conflict in conflicts if self._conflict_key(conflict) not in baseline_keys]
+        new_conflicts = [
+            conflict
+            for conflict in conflicts
+            if self._conflict_key(conflict) not in baseline_keys
+        ]
+
         if new_conflicts:
+            activity_a.day, activity_b.day = activity_b.day, activity_a.day
+            activity_a.start, activity_b.start = activity_b.start, activity_a.start
             return {
                 "ok": False,
                 "error": "validation_failed",
                 "conflicts": serialize_conflicts(new_conflicts),
                 "proposal": serialize_proposal(proposal),
-                "unscheduled_activities": unscheduled,
             }
 
-        remaining_unscheduled = [activity for activity in unscheduled if activity["id"] != activity_id]
-        updated_metadata = dict(proposal.metadata or {})
-        updated_metadata["unscheduled_activities"] = remaining_unscheduled
         updated_proposal = ScheduleProposal(
             id=proposal.id,
             activities=current_activities,
             score=proposal.score,
-            conflicts=[],
+            conflicts=conflicts,
             warnings=proposal.warnings,
-            score_breakdown=proposal.score_breakdown,
-            metadata=updated_metadata,
+            score_breakdown=getattr(proposal, "score_breakdown", None),
+            metadata=dict(proposal.metadata or {}),
         )
+        self._move_history.setdefault(proposal_id, []).append(proposal)
+        self._redo_history.pop(proposal_id, None)
         self._proposal_store[proposal_id] = updated_proposal
-        self._persist_proposal_state(updated_proposal, self._load_snapshot().generation_stats, remaining_unscheduled)
+        self._persist_proposal_state(
+            updated_proposal,
+            self._load_snapshot().generation_stats,
+            list((updated_proposal.metadata or {}).get("unscheduled_activities", [])),
+        )
+
         return {
             "ok": True,
             "proposal": serialize_proposal(updated_proposal),
-            "conflicts": [],
-            "unscheduled_activities": remaining_unscheduled,
         }
+
+    def undo_last_move(self, proposal_id: str) -> Dict[str, Any]:
+        """Revert the last move/swap applied to a proposal."""
+        if proposal_id not in self._proposal_store:
+            raise LookupError("proposal_not_found")
+
+        history = self._move_history.get(proposal_id)
+        if not history:
+            return {"ok": False, "error": "nothing_to_undo"}
+
+        current_proposal = self._proposal_store[proposal_id]
+        previous_proposal = history.pop()
+        self._redo_history.setdefault(proposal_id, []).append(current_proposal)
+        self._proposal_store[proposal_id] = previous_proposal
+        self._persist_proposal_state(
+            previous_proposal,
+            self._load_snapshot().generation_stats,
+            list((previous_proposal.metadata or {}).get("unscheduled_activities", [])),
+        )
+
+        return {
+            "ok": True,
+            "proposal": serialize_proposal(previous_proposal),
+            "unscheduled_activities": list((previous_proposal.metadata or {}).get("unscheduled_activities", [])),
+        }
+
+    def redo_last_move(self, proposal_id: str) -> Dict[str, Any]:
+        """Re-apply the last move/swap that was undone."""
+        if proposal_id not in self._proposal_store:
+            raise LookupError("proposal_not_found")
+
+        redo_stack = self._redo_history.get(proposal_id)
+        if not redo_stack:
+            return {"ok": False, "error": "nothing_to_redo"}
+
+        current_proposal = self._proposal_store[proposal_id]
+        next_proposal = redo_stack.pop()
+        self._move_history.setdefault(proposal_id, []).append(current_proposal)
+        self._proposal_store[proposal_id] = next_proposal
+        self._persist_proposal_state(
+            next_proposal,
+            self._load_snapshot().generation_stats,
+            list((next_proposal.metadata or {}).get("unscheduled_activities", [])),
+        )
+
+        return {
+            "ok": True,
+            "proposal": serialize_proposal(next_proposal),
+            "unscheduled_activities": list((next_proposal.metadata or {}).get("unscheduled_activities", [])),
+        }
+
+    def suggest_slots_for_unscheduled(
+        self, proposal_id: str, activity_id: int, max_results: int = 3
+    ) -> Dict[str, Any]:
+        """Suggest slots where a currently-unscheduled (pending) activity
+        could be placed, given the rest of the schedule already in place."""
+        proposal = self._proposal_store.get(proposal_id)
+        if proposal is None:
+            raise LookupError("proposal_not_found")
+
+        unscheduled = list((proposal.metadata or {}).get("unscheduled_activities", []))
+        pending = next((item for item in unscheduled if item.get("id") == activity_id), None)
+        if pending is None:
+            return {"ok": False, "error": "activity_not_found"}
+
+        current_activities = [
+            Activity(
+                id=activity.id,
+                teacher=activity.teacher,
+                subject=activity.subject,
+                group=activity.group,
+                room=activity.room,
+                day=activity.day,
+                start=activity.start,
+                duration=activity.duration,
+            )
+            for activity in proposal.activities
+        ]
+
+        baseline_schedule = self._build_schedule(current_activities)
+        baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
+        baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
+
+        target_activity = Activity(
+            id=pending["id"],
+            teacher=pending.get("teacher", ""),
+            subject=pending.get("subject", ""),
+            group=pending.get("group", ""),
+            room=pending.get("room", ""),
+            day="",
+            start="",
+            duration=pending.get("duration", 1),
+        )
+
+        suggestions = self._suggest_alternative_slots(
+            current_activities, target_activity, set(), baseline_keys, max_results=max_results
+        )
+
+        return {"ok": True, "suggested_slots": suggestions}
 
     def _scheduled_to_activity(
         self,
@@ -416,7 +760,14 @@ class SchedulerUseCases:
     ) -> Activity:
         metadata = scheduled_activity.teaching_block.metadata or {}
         return Activity(
-            id=metadata.get("fet_id", hash((scheduled_activity.teaching_block.id, scheduled_activity.day, scheduled_activity.start_timeslot.period))),
+            id=metadata.get(
+                "fet_id",
+                zlib.crc32(
+                    f"{scheduled_activity.teaching_block.id}|{scheduled_activity.day}|{scheduled_activity.start_timeslot.period}".encode(
+                        "utf-8"
+                    )
+                ),
+            ),
             teacher=scheduled_activity.teacher_id or metadata.get("teacher", ""),
             subject=metadata.get("subject") or metadata.get("subject_id") or scheduled_activity.teaching_block.id,
             group=scheduled_activity.group_id or metadata.get("group", ""),
@@ -442,6 +793,13 @@ class SchedulerUseCases:
         merged_activities = list(fixed_activities) + generated_activities
         for activity in merged_activities:
             full_schedule.add(activity)
+        full_schedule.configuration = {
+            "split_groups": {
+                (group.get("name") or "").strip()
+                for group in self._academic_data_repo.list_groups()
+                if group.get("is_split")
+            }
+        }
 
         updated_metadata = dict(proposal.metadata or {})
         updated_metadata["unscheduled_activities"] = self._build_unscheduled_activities(payload, merged_activities)
@@ -721,6 +1079,13 @@ class SchedulerUseCases:
         schedule = Schedule()
         for activity in activities:
             schedule.add(activity)
+        schedule.configuration = {
+            "split_groups": {
+                (group.get("name") or "").strip()
+                for group in self._academic_data_repo.list_groups()
+                if group.get("is_split")
+            }
+        }
         return schedule
 
     def _load_snapshot(self) -> WorkingTimetableSnapshot:
