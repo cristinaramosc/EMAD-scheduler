@@ -21,14 +21,12 @@ def academic_data_summary():
 
 class TeacherDTO(BaseModel):
     name: str
-    short_name: Optional[str] = ""
     active: Optional[bool] = True
     unavailable_slots: Optional[List[str]] = []
 
 
 class TeacherUpdateDTO(BaseModel):
     name: Optional[str] = None
-    short_name: Optional[str] = None
     active: Optional[bool] = None
     unavailable_slots: Optional[List[str]] = None
 
@@ -57,6 +55,7 @@ class GroupDTO(BaseModel):
     active: Optional[bool] = True
     unavailable_slots: Optional[List[str]] = []
     fixed_slots: Optional[List[str]] = []
+    is_split: Optional[bool] = False
 
 
 class GroupUpdateDTO(BaseModel):
@@ -65,6 +64,7 @@ class GroupUpdateDTO(BaseModel):
     active: Optional[bool] = None
     unavailable_slots: Optional[List[str]] = None
     fixed_slots: Optional[List[str]] = None
+    is_split: Optional[bool] = None
 
 
 class GroupRestrictionDTO(BaseModel):

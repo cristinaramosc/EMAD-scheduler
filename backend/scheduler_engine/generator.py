@@ -43,7 +43,7 @@ class SchedulerGenerator:
         generated_scheduled_activities: List[ScheduledActivity] = []
 
         if teaching_blocks and isinstance(teaching_blocks[0], TeachingRequirement):
-            teaching_blocks = self._build_blocks_from_requirements(teaching_blocks)
+            teaching_blocks = self._build_blocks_from_requirements(teaching_blocks, context)
 
         total_blocks = len(teaching_blocks)
 
@@ -96,22 +96,90 @@ class SchedulerGenerator:
             schedule_proposal=proposals[0] if proposals else None,
         )
 
-    def _build_blocks_from_requirements(self, requirements: Sequence[TeachingRequirement]) -> List[TeachingBlock]:
+    def _order_distributions_by_preference(self, distributions: Sequence[List]) -> List[List]:
+        """Ordena les distribucions possibles evitant concentrar totes les
+        hores en un únic bloc quan hi ha flexibilitat de dies: prioritza
+        primer les distribucions amb més d'un bloc, després les més
+        equilibrades (menys diferència entre el bloc més gran i el més
+        petit), i deixa el bloc únic com a últim recurs."""
+
+        def sort_key(distribution):
+            sizes = [block.duration_blocks for block in distribution]
+            is_single_block = 1 if len(sizes) == 1 else 0
+            spread = max(sizes) - min(sizes) if len(sizes) > 1 else 0
+            return (is_single_block, spread, len(sizes))
+
+        return sorted(distributions, key=sort_key)
+
+    def _build_blocks_from_requirements(
+        self, requirements: Sequence[TeachingRequirement], context: Optional[GenerationContext] = None
+    ) -> List[TeachingBlock]:
         block_generator = BlockGenerator()
         blocks: List[TeachingBlock] = []
+        # Activitats ja "compromeses" per requeriments anteriors d'aquesta
+        # mateixa crida, per poder comprovar si una distribució concreta
+        # realment té lloc a l'horari abans de triar-la.
+        tentative_scheduled: List[ScheduledActivity] = []
+
         for requirement in requirements:
             distributions = block_generator.generate(requirement)
             if not distributions:
                 continue
 
-            # generate() returns every valid way to split the weekly hours
-            # across days; only one of them should become real teaching
-            # blocks. Distributions are pre-sorted by (fewest days, block
-            # sizes), so the first one is the most concentrated valid option.
-            distribution = distributions[0]
+            metadata = {
+                "requirement_id": requirement.id,
+                "group_id": requirement.group_id,
+                "subject_id": requirement.subject_id,
+                "teacher_id": requirement.teacher_id,
+                "group": str(requirement.group_id),
+                "subject": str(requirement.subject_id),
+                "teacher": str(requirement.teacher_id),
+            }
 
-            for block in distribution:
-                blocks.append(
+            chosen_teaching_blocks: Optional[List[TeachingBlock]] = None
+
+            if context is not None:
+                # Prova cada distribució candidata (les més equilibrades
+                # primer, el bloc únic com a últim recurs) contra el
+                # calendari/restriccions reals, i es queda amb la primera
+                # que aconsegueix col·locar-se sencera.
+                for distribution in self._order_distributions_by_preference(distributions):
+                    candidate_teaching_blocks = [
+                        TeachingBlock(
+                            id=block.id,
+                            duration=block.duration,
+                            order=block.order,
+                            duration_blocks=block.duration_blocks,
+                            preferred_room_id=None,
+                            preferred_teacher_id=requirement.teacher_id,
+                            fixed=False,
+                            metadata=metadata,
+                        )
+                        for block in distribution
+                    ]
+
+                    trial_scheduled = list(tentative_scheduled)
+                    all_placed = True
+                    for teaching_block in candidate_teaching_blocks:
+                        placement = self._placement_strategy.place(teaching_block, context, trial_scheduled)
+                        if placement is None:
+                            all_placed = False
+                            break
+                        trial_scheduled.append(placement)
+
+                    if all_placed:
+                        chosen_teaching_blocks = candidate_teaching_blocks
+                        tentative_scheduled = trial_scheduled
+                        break
+
+            if chosen_teaching_blocks is None:
+                # Cap distribució s'ha pogut col·locar sencera (o no hi ha
+                # context per provar-ho): manté el comportament anterior,
+                # la distribució més concentrada, perquè el generador
+                # principal ho intenti igualment i, si cal, expliqui per
+                # què no s'ha pogut col·locar.
+                fallback_distribution = distributions[0]
+                chosen_teaching_blocks = [
                     TeachingBlock(
                         id=block.id,
                         duration=block.duration,
@@ -120,19 +188,12 @@ class SchedulerGenerator:
                         preferred_room_id=None,
                         preferred_teacher_id=requirement.teacher_id,
                         fixed=False,
-                        metadata={
-    "requirement_id": requirement.id,
-
-    "group_id": requirement.group_id,
-    "subject_id": requirement.subject_id,
-    "teacher_id": requirement.teacher_id,
-
-    "group": str(requirement.group_id),
-    "subject": str(requirement.subject_id),
-    "teacher": str(requirement.teacher_id),
-},
+                        metadata=metadata,
                     )
-                )
+                    for block in fallback_distribution
+                ]
+
+            blocks.extend(chosen_teaching_blocks)
         return blocks
 
     def _detect_conflicts(self, proposal: ScheduleProposal) -> List[Conflict]:

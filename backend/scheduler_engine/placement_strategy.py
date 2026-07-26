@@ -63,7 +63,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
                     continue
 
-                if self._group_conflict_exists(teaching_block, slot, all_activities):
+                if self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
 
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
@@ -136,7 +136,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 any_calendar_slot = True
                 day_name = self._day_name(day)
 
-                if self._group_conflict_exists(teaching_block, slot, all_activities):
+                if self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     add(f"El grup {group_label} ja té una altra activitat {day_name} en aquesta franja.")
 
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
@@ -182,7 +182,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
                     continue
                 if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
                     continue
-                if self._group_conflict_exists(teaching_block, slot, all_activities):
+                if self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
                     continue
@@ -229,6 +229,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
         teaching_block: TeachingBlock,
         start_slot: TimeSlot,
         activities: Sequence[ScheduledActivity],
+        context: Optional[GenerationContext] = None,
     ) -> bool:
         group_id = None
         if teaching_block.metadata:
@@ -239,6 +240,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
         required_slots = teaching_block.duration_blocks or 1
         candidate_subject = (teaching_block.metadata or {}).get("subject")
         candidate_parent, _ = _parent_and_quarter(group_id, candidate_subject)
+        split_groups = (context.configuration.get("split_groups") or set()) if context is not None else set()
+        group_is_split = candidate_parent in split_groups or group_id in split_groups
 
         for activity in activities:
             if activity.day != start_slot.day:
@@ -250,9 +253,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
             activity_end = activity.start_timeslot.period + activity.duration
             candidate_end = start_slot.period + required_slots
             if start_slot.period < activity_end and candidate_end > activity.start_timeslot.period:
-                # Exception: two activities of the same parent group are allowed
-                # to overlap in the same slot when one subject/group ends in
-                # "1Q" and the other in "2Q".
+                # Exception 1: two activities of the same parent group are
+                # allowed to overlap in the same slot when one subject/group
+                # ends in "1Q" and the other in "2Q".
                 same_exact_slot = (
                     start_slot.period == activity.start_timeslot.period
                     and required_slots == activity.duration
@@ -261,6 +264,19 @@ class GreedyPlacementStrategy(PlacementStrategy):
                     group_id, candidate_subject, activity.group_id, existing_subject
                 ):
                     continue
+
+                # Exception 2: a group marked as "desdoblat" (split) can have
+                # two simultaneous activities as long as the teacher and the
+                # room are both different (each subgroup goes its own way).
+                if group_is_split:
+                    candidate_teacher = teaching_block.preferred_teacher_id
+                    candidate_room = teaching_block.preferred_room_id
+                    different_teacher = (
+                        candidate_teacher and activity.teacher_id and candidate_teacher != activity.teacher_id
+                    )
+                    different_room = candidate_room and activity.room_id and candidate_room != activity.room_id
+                    if different_teacher and different_room:
+                        continue
                 return True
 
         return False

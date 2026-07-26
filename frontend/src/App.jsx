@@ -25,7 +25,6 @@ const ASSIGNMENT_SHEET_COLUMNS = [
 
 const TEACHER_SHEET_COLUMNS = [
   { ...keyColumn("name", textColumn), title: "Nom" },
-  { ...keyColumn("short_name", textColumn), title: "Nom curt" },
 ];
 
 const GROUP_SHEET_COLUMNS = [
@@ -456,9 +455,9 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState("timetable");
   const [academicTab, setAcademicTab] = useState("teachers");
 
-  const [teacherDraft, setTeacherDraft] = useState({ name: "", short_name: "", active: true });
+  const [teacherDraft, setTeacherDraft] = useState({ name: "", active: true });
   const [teacherEdit, setTeacherEdit] = useState(null);
-  const [teacherEditValues, setTeacherEditValues] = useState({ name: "", short_name: "", active: true });
+  const [teacherEditValues, setTeacherEditValues] = useState({ name: "", active: true });
   const [teacherRestrictions, setTeacherRestrictions] = useState([]);
   const [teacherRestrictionEditor, setTeacherRestrictionEditor] = useState("");
   const [teacherRestrictionDraft, setTeacherRestrictionDraft] = useState(createTeacherRestrictionDraft(""));
@@ -2313,9 +2312,9 @@ export default function App() {
     teachers: {
       columns: TEACHER_SHEET_COLUMNS,
       source: () => teachers,
-      normalize: (t) => ({ name: t.name || "", short_name: t.short_name || "" }),
-      create: (row) => apiJson("POST", "/academic-data/teachers", { name: row.name, short_name: row.short_name }),
-      update: (name, row) => apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, { short_name: row.short_name }),
+      normalize: (t) => ({ name: t.name || "" }),
+      create: (row) => apiJson("POST", "/academic-data/teachers", { name: row.name }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, {}),
       remove: (name) => apiJson("DELETE", `/academic-data/teachers/${encodeURIComponent(name)}`),
     },
     groups: {
@@ -2459,22 +2458,70 @@ export default function App() {
               {filteredActivities.length} activitats visibles · {conflicts.length} conflictes
             </p>
             {displayedUnscheduledActivities.length > 0 && (
-              <button
-                type="button"
-                onClick={() => document.getElementById("incidents-panel")?.scrollIntoView({ behavior: "smooth" })}
-                style={{
-                  marginTop: 6,
-                  padding: "4px 12px",
-                  borderRadius: 999,
-                  border: "1px solid #b71c1c",
-                  background: "#fdecea",
-                  color: "#b71c1c",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                ⚠️ {displayedUnscheduledActivities.length} activitats sense franja — veure incidències
-              </button>
+              <div style={{ marginTop: 6 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    marginBottom: 4,
+                    color: "#b71c1c",
+                    fontWeight: 600,
+                    fontSize: "0.85rem",
+                  }}
+                >
+                  <span>⚠️ {displayedUnscheduledActivities.length} activitats sense franja</span>
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById("incidents-panel")?.scrollIntoView({ behavior: "smooth" })}
+                    style={{
+                      border: "none",
+                      background: "none",
+                      color: "#b71c1c",
+                      textDecoration: "underline",
+                      cursor: "pointer",
+                      fontSize: "0.8rem",
+                      padding: 0,
+                    }}
+                  >
+                    veure detalls
+                  </button>
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    overflowX: "auto",
+                    paddingBottom: 4,
+                    maxWidth: "70vw",
+                  }}
+                >
+                  {displayedUnscheduledActivities.map((activity, index) => (
+                    <div
+                      key={activity.id ?? index}
+                      draggable={Boolean(activity.id)}
+                      onDragStart={(event) => activity.id && handleDragStart(event, activity.id)}
+                      onDragEnd={() => setDraggedActivityId(null)}
+                      title={activity.id ? "Arrossega-la fins al calendari per col·locar-la" : undefined}
+                      style={{
+                        flex: "0 0 auto",
+                        background: "#fdecea",
+                        border: "1px solid #e53935",
+                        borderRadius: 8,
+                        padding: "4px 10px",
+                        fontSize: "0.78rem",
+                        color: "#b71c1c",
+                        cursor: activity.id ? "grab" : "default",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <strong>{activity.subject || "Assignatura"}</strong>
+                      {activity.teacher ? ` · ${activity.teacher}` : ""}
+                      {activity.group ? ` · ${activity.group}` : ""}
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -2585,7 +2632,7 @@ export default function App() {
                     type="button"
                     onClick={() => toggleGroupBreak(day)}
                     disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
-                    title={`Descans ${day} per ${selectedGroup} (entre les 9:30 i les 12:30)`}
+                    title={`Descans ${day} per ${selectedGroup} (busca la primera franja lliure d'aquell dia)`}
                     style={{
                       padding: "0 6px",
                       background: isActive ? "#2f6f73" : "#ffffff",
@@ -2702,14 +2749,13 @@ export default function App() {
                   <thead>
                     <tr>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
-                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("short_name", setAcademicSort)}>Nom curt{sortIndicator("short_name", academicSort)}</th>
                       <th>Actiu</th>
                       <th>Restriccions</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {applyAcademicSort(teachers.filter((t) => matchesSearch(academicSearch, [t.name, t.short_name])), academicSort).map((t) => {
+                    {applyAcademicSort(teachers.filter((t) => matchesSearch(academicSearch, [t.name])), academicSort).map((t) => {
                       const restriction = teacherRestrictions.find((item) => item.teacher === t.name);
                       const manualCount = (restriction?.unavailable_slots || []).length;
                       const fetCount = (restriction?.fet_unavailable_slots || []).length;
@@ -2723,16 +2769,6 @@ export default function App() {
                             />
                           ) : (
                             t.name
-                          )}
-                        </td>
-                        <td>
-                          {teacherEdit === t.name ? (
-                            <input
-                              value={teacherEditValues.short_name}
-                              onChange={(event) => setTeacherEditValues({ ...teacherEditValues, short_name: event.target.value })}
-                            />
-                          ) : (
-                            t.short_name || "-"
                           )}
                         </td>
                         <td>
@@ -2769,7 +2805,6 @@ export default function App() {
                               <button onClick={async () => {
                                 const payload = {
                                   name: teacherEditValues.name,
-                                  short_name: teacherEditValues.short_name,
                                   active: teacherEditValues.active,
                                 };
                                 const res = await updateTeacher(t.name, payload);
@@ -2786,7 +2821,7 @@ export default function App() {
                             <>
                               <button onClick={() => {
                                 setTeacherEdit(t.name);
-                                setTeacherEditValues({ name: t.name, short_name: t.short_name || "", active: t.active !== false });
+                                setTeacherEditValues({ name: t.name, active: t.active !== false });
                               }}>Edita</button>
                               <button onClick={async () => {
                                 const res = await deleteTeacher(t.name);
@@ -2808,13 +2843,6 @@ export default function App() {
                       </td>
                       <td>
                         <input
-                          value={teacherDraft.short_name}
-                          placeholder="Nom curt"
-                          onChange={(event) => setTeacherDraft({ ...teacherDraft, short_name: event.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <input
                           type="checkbox"
                           checked={teacherDraft.active}
                           onChange={(event) => setTeacherDraft({ ...teacherDraft, active: event.target.checked })}
@@ -2828,7 +2856,7 @@ export default function App() {
                           }
                           const res = await createTeacher(teacherDraft);
                           if (res.ok) {
-                            setTeacherDraft({ name: "", short_name: "", active: true });
+                            setTeacherDraft({ name: "", active: true });
                             await refreshAcademicLists();
                           } else {
                             alert("No s'ha pogut crear el professor.");
@@ -4161,7 +4189,12 @@ export default function App() {
                           <article
                             key={index}
                             className="incident-card"
+                            draggable={Boolean(warning.id)}
+                            onDragStart={(event) => warning.id && handleDragStart(event, warning.id)}
+                            onDragEnd={() => setDraggedActivityId(null)}
+                            title={warning.id ? "Arrossega-la fins al calendari per col·locar-la" : undefined}
                             style={{
+                              cursor: warning.id ? "grab" : "default",
                               background: style.background,
                               borderLeft: `4px solid ${style.border}`,
                               borderRadius: "8px",

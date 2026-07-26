@@ -27,7 +27,6 @@ NOTE_FONT = Font(italic=True, color="667085")
 
 TEACHER_COLUMNS = [
     ("name", "Nom"),
-    ("short_name", "Nom curt"),
     ("active", "Actiu (Sí/No)"),
     ("no_gaps", "Sense buits (Sí/No)"),
     ("max_hours_per_day", "Màx. hores/dia"),
@@ -125,7 +124,6 @@ def _teacher_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
         restriction = restrictions.get(teacher["name"], {})
         rows.append({
             "name": teacher.get("name", ""),
-            "short_name": teacher.get("short_name", ""),
             "active": _bool_to_text(teacher.get("active", True)),
             "no_gaps": _bool_to_text(restriction.get("no_gaps")),
             "max_hours_per_day": restriction.get("max_hours_per_day", ""),
@@ -267,7 +265,7 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
         name = str(row.get("name") or "").strip()
         if not name:
             continue
-        repo.create_teacher({"name": name, "short_name": row.get("short_name") or ""})
+        repo.create_teacher({"name": name})
         teachers_created += 1
         if row.get("no_gaps") is not None or row.get("unavailable_slots") or row.get("preferred_availability"):
             repo.upsert_teacher_restriction({

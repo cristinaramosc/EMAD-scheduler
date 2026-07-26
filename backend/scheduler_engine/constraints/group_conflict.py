@@ -58,6 +58,7 @@ class GroupConflictConstraint(Constraint):
     def validate(self, schedule):
         conflicts = []
         occupied = {}
+        split_groups = getattr(schedule, "configuration", {}).get("split_groups", set()) if hasattr(schedule, "configuration") else set()
 
         for activity in schedule.all():
             if not activity.group or not activity.day or not activity.start:
@@ -80,6 +81,20 @@ class GroupConflictConstraint(Constraint):
                     continue
 
                 previous = bucket[-1]
+
+                # Excepció: si el grup està marcat com a desdoblat, dues
+                # activitats simultànies són vàlides quan tenen professor i
+                # aula diferents (cada subgrup va per lliure).
+                group_is_split = parent_group in split_groups or activity.group in split_groups
+                if group_is_split:
+                    different_teacher = (
+                        previous.teacher and activity.teacher and previous.teacher != activity.teacher
+                    )
+                    different_room = previous.room and activity.room and previous.room != activity.room
+                    if different_teacher and different_room:
+                        bucket.append(activity)
+                        continue
+
                 activities = [previous.id, activity.id]
                 conflicts.append(
                     Conflict(
