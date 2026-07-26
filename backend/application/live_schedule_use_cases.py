@@ -297,12 +297,17 @@ class LiveScheduleUseCases:
             **self.state(),
         }
 
-    _BREAK_WINDOW_STARTS = ["9:30", "10:00", "10:30", "11:00", "11:30", "12:00"]
+    _BREAK_WINDOW_STARTS = [
+        "8:00", "8:30", "9:00", "9:30", "10:00", "10:30", "11:00", "11:30",
+        "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
+        "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30",
+        "20:00", "20:30",
+    ]
 
     def toggle_group_break(self, group: str, day: str) -> Dict[str, Any]:
         """Activa/desactiva un descans de mitja hora per a un grup en un dia
-        concret. El descans sempre cau entre les 9:30 i les 12:30, triant
-        automàticament la primera franja lliure d'aquesta finestra."""
+        concret (matí o tarda), triant automàticament la primera franja
+        lliure d'aquell dia per aquest grup."""
         existing = next(
             (
                 item

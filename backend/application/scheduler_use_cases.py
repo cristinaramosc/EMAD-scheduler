@@ -44,6 +44,25 @@ class SchedulerUseCases:
             frozenset(conflict.activities or []),
         )
 
+    def _restricted_slots_for(self, teacher: str, group: str) -> set:
+        """Franges (dia, hora) marcades com a no disponibles per aquest
+        professor o grup a les seves restriccions (independent dels
+        conflictes d'activitat contra activitat que ja comprova validate())."""
+        restricted: set = set()
+        for record in self._academic_data_repo.active_teacher_restrictions():
+            if teacher and record.get("teacher") == teacher:
+                for slot in record.get("unavailable_slots", []):
+                    parts = str(slot).split(" ", 1)
+                    if len(parts) == 2:
+                        restricted.add((parts[0], parts[1]))
+        for record in self._academic_data_repo.active_group_restrictions():
+            if group and record.get("group") == group:
+                for slot in record.get("unavailable_slots", []):
+                    parts = str(slot).split(" ", 1)
+                    if len(parts) == 2:
+                        restricted.add((parts[0], parts[1]))
+        return restricted
+
     def _suggest_alternative_slots(
         self,
         base_activities: List["Activity"],
@@ -53,14 +72,16 @@ class SchedulerUseCases:
         max_results: int = 3,
     ) -> List[Dict[str, str]]:
         """Try every (day, start) combo and return up to max_results where
-        target_activity would fit without introducing new conflicts."""
+        target_activity would fit without introducing new conflicts, and
+        that aren't marked as unavailable for this teacher/group."""
         day_names = self._time_labels.get("day_names", [])
         hour_names = self._time_labels.get("hour_names", [])
         suggestions: List[Dict[str, str]] = []
+        restricted_slots = self._restricted_slots_for(target_activity.teacher, target_activity.group)
 
         for day in day_names:
             for start in hour_names:
-                if (day, start) in exclude_pairs:
+                if (day, start) in exclude_pairs or (day, start) in restricted_slots:
                     continue
 
                 candidate = Activity(
@@ -210,6 +231,12 @@ class SchedulerUseCases:
         blocked_activities += self._load_fet_blocked_activities()
         blocked_activities += fixed_scheduled_activities
 
+        split_groups = {
+            (group.get("name") or "").strip()
+            for group in self._academic_data_repo.list_groups()
+            if group.get("is_split")
+        }
+
         context = GenerationContext(
             school_calendar=self._school_calendar,
             existing_scheduled_activities=tuple(blocked_activities),
@@ -219,6 +246,7 @@ class SchedulerUseCases:
                 "room_constraints_enabled": True,
                 "day_names": day_names,
                 "hour_names": hour_names,
+                "split_groups": split_groups,
             },
         )
 
@@ -303,6 +331,11 @@ class SchedulerUseCases:
             raise ValueError("missing_requirement_ids")
 
         payload = self._fet_generation_inputs_fn(self._fet_file)
+        split_groups = {
+            (group.get("name") or "").strip()
+            for group in self._academic_data_repo.list_groups()
+            if group.get("is_split")
+        }
         context = GenerationContext(
             school_calendar=payload["school_calendar"],
             existing_scheduled_activities=tuple(payload["blocked_activities"]),
@@ -312,6 +345,7 @@ class SchedulerUseCases:
                 "room_constraints_enabled": True,
                 "day_names": payload["day_names"],
                 "hour_names": payload["hour_names"],
+                "split_groups": split_groups,
             },
         )
         generator = SchedulerGenerator()
@@ -759,6 +793,13 @@ class SchedulerUseCases:
         merged_activities = list(fixed_activities) + generated_activities
         for activity in merged_activities:
             full_schedule.add(activity)
+        full_schedule.configuration = {
+            "split_groups": {
+                (group.get("name") or "").strip()
+                for group in self._academic_data_repo.list_groups()
+                if group.get("is_split")
+            }
+        }
 
         updated_metadata = dict(proposal.metadata or {})
         updated_metadata["unscheduled_activities"] = self._build_unscheduled_activities(payload, merged_activities)
@@ -1038,6 +1079,13 @@ class SchedulerUseCases:
         schedule = Schedule()
         for activity in activities:
             schedule.add(activity)
+        schedule.configuration = {
+            "split_groups": {
+                (group.get("name") or "").strip()
+                for group in self._academic_data_repo.list_groups()
+                if group.get("is_split")
+            }
+        }
         return schedule
 
     def _load_snapshot(self) -> WorkingTimetableSnapshot:
