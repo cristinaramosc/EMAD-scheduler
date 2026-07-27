@@ -468,7 +468,7 @@ export default function App() {
   const [availabilitySelectionAnchor, setAvailabilitySelectionAnchor] = useState(null);
   const [unavailableSelectionAnchor, setUnavailableSelectionAnchor] = useState(null);
 
-  const [groupDraft, setGroupDraft] = useState({ name: "", course: "", active: true });
+  const [groupDraft, setGroupDraft] = useState({ name: "", course: "", active: true, is_split: false });
   const [groupEdit, setGroupEdit] = useState(null);
   const [groupEditValues, setGroupEditValues] = useState({ name: "", course: "", active: true });
 
@@ -2934,6 +2934,7 @@ export default function App() {
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("course", setAcademicSort)}>Curs{sortIndicator("course", academicSort)}</th>
                       <th>Actiu</th>
+                      <th title="Permet dues assignatures del mateix grup a la mateixa hora, amb professor i aula diferents">Desdoblat</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
@@ -2973,12 +2974,24 @@ export default function App() {
                         </td>
                         <td>
                           {groupEdit === g.name ? (
+                            <input
+                              type="checkbox"
+                              checked={Boolean(groupEditValues.is_split)}
+                              onChange={(event) => setGroupEditValues({ ...groupEditValues, is_split: event.target.checked })}
+                            />
+                          ) : (
+                            g.is_split ? "Sí" : "No"
+                          )}
+                        </td>
+                        <td>
+                          {groupEdit === g.name ? (
                             <>
                               <button onClick={async () => {
                                 const payload = {
                                   name: groupEditValues.name,
                                   course: groupEditValues.course,
                                   active: groupEditValues.active,
+                                  is_split: groupEditValues.is_split,
                                 };
                                 const res = await updateGroup(g.name, payload);
                                 if (res.ok) {
@@ -2994,7 +3007,7 @@ export default function App() {
                             <>
                               <button onClick={() => {
                                 setGroupEdit(g.name);
-                                setGroupEditValues({ name: g.name, course: g.course || "", active: g.active !== false });
+                                setGroupEditValues({ name: g.name, course: g.course || "", active: g.active !== false, is_split: Boolean(g.is_split) });
                               }}>Edita</button>
                               <button onClick={async () => {
                                 const res = await deleteGroup(g.name);
