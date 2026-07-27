@@ -974,6 +974,8 @@ class SchedulerUseCases:
 
     def _build_requirement_from_assignment(self, index: int, assignment: Dict[str, Any]) -> TeachingRequirement:
         preferred_room = assignment.get("preferred_room", "")
+        fixed_day = assignment.get("fixed_day") or None
+        fixed_start = assignment.get("fixed_start") or None
         session_hours = float(assignment["weekly_hours"])
         return TeachingRequirement(
             id=f"academic-{index}",
@@ -989,6 +991,8 @@ class SchedulerUseCases:
             preferred_rooms=[preferred_room] if preferred_room else [],
             fixed_teacher=True,
             priority=2,
+            fixed_day=fixed_day,
+            fixed_start=fixed_start,
         )
 
     def _build_blocked_activities_from_restrictions(
