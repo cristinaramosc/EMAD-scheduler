@@ -21,6 +21,8 @@ class TeachingBlock:
     preferred_room_id: Optional[str] = None
     preferred_teacher_id: Optional[str] = None
     fixed: bool = False
+    fixed_day: Optional[str] = None
+    fixed_start: Optional[str] = None
     metadata: Dict[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
