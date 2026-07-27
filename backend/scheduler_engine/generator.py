@@ -150,9 +150,11 @@ class SchedulerGenerator:
                             duration=block.duration,
                             order=block.order,
                             duration_blocks=block.duration_blocks,
-                            preferred_room_id=None,
+                            preferred_room_id=(requirement.preferred_rooms[0] if requirement.preferred_rooms else None),
                             preferred_teacher_id=requirement.teacher_id,
-                            fixed=False,
+                            fixed=bool(requirement.fixed_day and requirement.fixed_start),
+                            fixed_day=requirement.fixed_day,
+                            fixed_start=requirement.fixed_start,
                             metadata=metadata,
                         )
                         for block in distribution
@@ -185,9 +187,11 @@ class SchedulerGenerator:
                         duration=block.duration,
                         order=block.order,
                         duration_blocks=block.duration_blocks,
-                        preferred_room_id=None,
+                        preferred_room_id=(requirement.preferred_rooms[0] if requirement.preferred_rooms else None),
                         preferred_teacher_id=requirement.teacher_id,
-                        fixed=False,
+                        fixed=bool(requirement.fixed_day and requirement.fixed_start),
+                        fixed_day=requirement.fixed_day,
+                        fixed_start=requirement.fixed_start,
                         metadata=metadata,
                     )
                     for block in fallback_distribution
@@ -219,21 +223,27 @@ class SchedulerGenerator:
 
         return conflicts
 
+    def _fixed_day_first(self, blocks: Sequence[TeachingBlock]) -> List[TeachingBlock]:
+        """Manté l'ordre relatiu de cada llista (sort estable) però posa
+        primer els blocs amb dia fix, perquè el motor els col·loqui abans
+        que les activitats flexibles puguin ocupar-los la franja."""
+        return sorted(blocks, key=lambda block: 0 if getattr(block, "fixed", False) else 1)
+
     def _build_orderings(self, teaching_blocks: Sequence[TeachingBlock], context: GenerationContext) -> List[List[TeachingBlock]]:
         blocks = list(teaching_blocks)
-        orderings = [blocks[:], list(reversed(blocks))]
+        orderings = [self._fixed_day_first(blocks), self._fixed_day_first(list(reversed(blocks)))]
 
         sorted_by_duration_desc = sorted(blocks, key=lambda block: block.duration_blocks or 0, reverse=True)
         sorted_by_duration_asc = sorted(blocks, key=lambda block: block.duration_blocks or 0)
-        orderings.extend([sorted_by_duration_desc, sorted_by_duration_asc])
+        orderings.extend([self._fixed_day_first(sorted_by_duration_desc), self._fixed_day_first(sorted_by_duration_asc)])
 
         if context.random_seed is not None:
             rng = random.Random(context.random_seed)
             shuffled = list(blocks)
             rng.shuffle(shuffled)
-            orderings.append(shuffled)
+            orderings.append(self._fixed_day_first(shuffled))
         else:
-            orderings.append(list(blocks))
+            orderings.append(self._fixed_day_first(list(blocks)))
 
         unique_orderings: List[List[TeachingBlock]] = []
         seen = set()
