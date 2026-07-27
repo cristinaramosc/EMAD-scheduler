@@ -64,6 +64,8 @@ class RequirementService:
             preferred_rooms=normalized.get("preferred_rooms", []),
             fixed_teacher=normalized.get("fixed_teacher", False),
             priority=normalized.get("priority", 2),
+            fixed_day=normalized.get("fixed_day") or None,
+            fixed_start=normalized.get("fixed_start") or None,
         )
 
         # repository handles id assignment
@@ -105,6 +107,8 @@ class RequirementService:
             preferred_rooms=merged.get("preferred_rooms", []),
             fixed_teacher=merged.get("fixed_teacher", False),
             priority=merged.get("priority", 2),
+            fixed_day=merged.get("fixed_day") or None,
+            fixed_start=merged.get("fixed_start") or None,
         )
 
         # if no exception raised, persist via repository
