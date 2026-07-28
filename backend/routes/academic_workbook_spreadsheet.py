@@ -20,6 +20,17 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     from repositories.academic_data_repository import AcademicDataRepository
 
+try:
+    from backend.dependencies import get_academic_data_repo
+except ModuleNotFoundError:  # pragma: no cover
+    from dependencies import get_academic_data_repo
+
+from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse
+
+
+router = APIRouter(prefix="/academic-data", tags=["Academic Workbook Spreadsheet"])
+
 
 HEADER_FILL = PatternFill(start_color="263447", end_color="263447", fill_type="solid")
 HEADER_FONT = Font(color="FFFFFF", bold=True)
@@ -332,4 +343,43 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
         "groups": groups_created,
         "rooms": rooms_created,
         "assignments": assignments_created,
+    }
+
+
+@router.get("/spreadsheet/blank")
+def download_blank_spreadsheet():
+    buffer = build_workbook(None, blank=True)
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="EMAD-model-buit.xlsx"'},
+    )
+
+
+@router.get("/spreadsheet/current")
+def download_current_spreadsheet():
+    repo = get_academic_data_repo()
+    buffer = build_workbook(repo, blank=False)
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="EMAD-dades-actuals.xlsx"'},
+    )
+
+
+@router.post("/spreadsheet/import")
+async def import_spreadsheet(file: UploadFile = File(...)):
+    repo = get_academic_data_repo()
+    file_bytes = await file.read()
+    try:
+        result = import_workbook(repo, file_bytes)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    return {
+        "ok": True,
+        "teachers": result["teachers"],
+        "groups": result["groups"],
+        "assignments": result["assignments"],
+        "rooms": result["rooms"],
     }
