@@ -4,6 +4,11 @@ import zlib
 from typing import Any, Dict, List
 
 try:
+    from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+except ModuleNotFoundError:  # pragma: no cover
+    from scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+
+try:
     from models.teaching_block import TeachingBlock
     from models.teaching_requirement import TeachingRequirement
     from repositories.academic_data_repository import AcademicDataRepository
@@ -273,6 +278,7 @@ class SchedulerUseCases:
             self._apply_consecutive_group_preferences(proposal, assignments, hour_names)
             for proposal in proposals
         ]
+        proposals = [self._apply_quarter_pair_alignment(proposal) for proposal in proposals]
         proposals.sort(key=lambda proposal: proposal.score, reverse=True)
 
         for proposal in proposals:
@@ -947,6 +953,63 @@ class SchedulerUseCases:
                 original_day, original_start = second.day, second.start
                 second.day = first.day
                 second.start = hour_names[new_index]
+
+                candidate_schedule = self._build_schedule(activities)
+                candidate_conflicts = self._scheduler_engine.validate(candidate_schedule)
+                new_keys = [
+                    conflict for conflict in candidate_conflicts
+                    if self._conflict_key(conflict) not in baseline_keys
+                ]
+                if not new_keys:
+                    break
+
+                second.day, second.start = original_day, original_start
+
+        final_schedule = self._build_schedule(activities)
+        final_conflicts = self._scheduler_engine.validate(final_schedule)
+
+        return ScheduleProposal(
+            id=proposal.id,
+            activities=activities,
+            score=proposal.score,
+            conflicts=final_conflicts,
+            warnings=proposal.warnings,
+            score_breakdown=getattr(proposal, "score_breakdown", None),
+            metadata=dict(proposal.metadata or {}),
+        )
+
+    def _apply_quarter_pair_alignment(self, proposal: ScheduleProposal) -> ScheduleProposal:
+        """Si dues activitats són la variant 1Q i 2Q del mateix grup pare,
+        intenta que comparteixin exactament la mateixa casella (dia i hora),
+        perquè es mostrin juntes al calendari, sempre que això no introdueixi
+        cap conflicte nou."""
+        activities = list(proposal.activities)
+
+        by_parent: Dict[str, List[Activity]] = {}
+        for activity in activities:
+            parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
+            if quarter_marker is None:
+                continue
+            by_parent.setdefault(parent, []).append(activity)
+
+        pairs_to_align = [members for members in by_parent.values() if len(members) == 2]
+        if not pairs_to_align:
+            return proposal
+
+        baseline_schedule = self._build_schedule(activities)
+        baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
+        baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
+
+        for act_a, act_b in pairs_to_align:
+            if act_a.day == act_b.day and act_a.start == act_b.start:
+                continue  # ja comparteixen casella
+
+            if not is_valid_quarter_pair(act_a.group, act_a.subject, act_b.group, act_b.subject):
+                continue
+
+            for first, second in ((act_a, act_b), (act_b, act_a)):
+                original_day, original_start = second.day, second.start
+                second.day, second.start = first.day, first.start
 
                 candidate_schedule = self._build_schedule(activities)
                 candidate_conflicts = self._scheduler_engine.validate(candidate_schedule)

@@ -41,6 +41,7 @@ button:disabled {
   border: 1px solid #d9dee8;
   border-radius: 8px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 14px;
