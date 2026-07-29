@@ -39,6 +39,9 @@ NOTE_FONT = Font(italic=True, color="667085")
 TEACHER_COLUMNS = [
     ("name", "Nom"),
     ("active", "Actiu (Sí/No)"),
+    ("center_hours", "Hores de centre"),
+    ("coordination_name", "Coordinació (nom)"),
+    ("coordination_hours", "Coordinació (hores)"),
     ("no_gaps", "Sense buits (Sí/No)"),
     ("max_hours_per_day", "Màx. hores/dia"),
     ("max_consecutive_hours", "Màx. hores consecutives"),
@@ -95,6 +98,15 @@ def _text_to_slots(value: Any) -> List[str]:
     return [part.strip() for part in text.replace("\n", ",").split(",") if part.strip()]
 
 
+def _text_to_optional_float(value: Any):
+    if value in (None, ""):
+        return None
+    try:
+        return float(str(value).replace(",", "."))
+    except ValueError:
+        return None
+
+
 def _format_hours(value: Any) -> Any:
     if value in (None, ""):
         return ""
@@ -137,6 +149,9 @@ def _teacher_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
         rows.append({
             "name": teacher.get("name", ""),
             "active": _bool_to_text(teacher.get("active", True)),
+            "center_hours": _format_hours(teacher.get("center_hours")),
+            "coordination_name": teacher.get("coordination_name", ""),
+            "coordination_hours": _format_hours(teacher.get("coordination_hours")),
             "no_gaps": _bool_to_text(restriction.get("no_gaps")),
             "max_hours_per_day": restriction.get("max_hours_per_day", ""),
             "max_consecutive_hours": restriction.get("max_consecutive_hours", ""),
@@ -278,7 +293,13 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
         name = str(row.get("name") or "").strip()
         if not name:
             continue
-        repo.create_teacher({"name": name})
+        repo.create_teacher({
+            "name": name,
+            "active": _text_to_bool(row.get("active")) if row.get("active") not in (None, "") else True,
+            "center_hours": _text_to_optional_float(row.get("center_hours")),
+            "coordination_name": str(row.get("coordination_name") or "").strip(),
+            "coordination_hours": _text_to_optional_float(row.get("coordination_hours")),
+        })
         teachers_created += 1
         if row.get("no_gaps") is not None or row.get("unavailable_slots") or row.get("preferred_availability"):
             repo.upsert_teacher_restriction({
