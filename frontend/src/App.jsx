@@ -455,9 +455,21 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState("timetable");
   const [academicTab, setAcademicTab] = useState("teachers");
 
-  const [teacherDraft, setTeacherDraft] = useState({ name: "", active: true });
+  const [teacherDraft, setTeacherDraft] = useState({
+    name: "",
+    active: true,
+    center_hours: "",
+    coordination_name: "",
+    coordination_hours: "",
+  });
   const [teacherEdit, setTeacherEdit] = useState(null);
-  const [teacherEditValues, setTeacherEditValues] = useState({ name: "", active: true });
+  const [teacherEditValues, setTeacherEditValues] = useState({
+    name: "",
+    active: true,
+    center_hours: "",
+    coordination_name: "",
+    coordination_hours: "",
+  });
   const [teacherRestrictions, setTeacherRestrictions] = useState([]);
   const [teacherRestrictionEditor, setTeacherRestrictionEditor] = useState("");
   const [teacherRestrictionDraft, setTeacherRestrictionDraft] = useState(createTeacherRestrictionDraft(""));
@@ -741,14 +753,14 @@ export default function App() {
     }
 
     return (
-      <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 12 }}>
-          <h3 style={{ margin: 0 }}>{teacherRestrictionEditor}</h3>
+      <div className="restriction-editor">
+        <div className="restriction-editor-header">
+          <h3>{teacherRestrictionEditor}</h3>
           <button type="button" onClick={() => openTeacherRestrictionEditor("")}>Tanca</button>
         </div>
 
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 16 }}>
-          <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div className="restriction-quick-fields">
+          <label className="restriction-checkbox">
             <input
               type="checkbox"
               checked={Boolean(teacherRestrictionDraft.no_gaps)}
@@ -756,51 +768,51 @@ export default function App() {
             />
             Sense buits
           </label>
-          <label>
-            Màx. hores per dia
+          <label className="restriction-number-field">
+            Màx. hores/dia
             <input
               type="number"
               min="0"
+              className="hours-input"
               value={teacherRestrictionDraft.max_hours_per_day}
               onChange={(event) => setTeacherRestrictionDraft({ ...teacherRestrictionDraft, max_hours_per_day: event.target.value })}
-              style={{ marginLeft: 8, width: 64 }}
             />
           </label>
-          <label>
+          <label className="restriction-number-field">
             Màx. hores consecutives
             <input
               type="number"
               min="0"
+              className="hours-input"
               value={teacherRestrictionDraft.max_consecutive_hours}
               onChange={(event) => setTeacherRestrictionDraft({ ...teacherRestrictionDraft, max_consecutive_hours: event.target.value })}
-              style={{ marginLeft: 8, width: 64 }}
             />
           </label>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <h4 style={{ marginBottom: 6 }}>Disponibilitat preferida</h4>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        <div className="restriction-section">
+          <h4>Disponibilitat preferida</h4>
+          <div className="restriction-presets">
             <button type="button" onClick={() => applyAvailabilityPreset("matí", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Matí</button>
             <button type="button" onClick={() => applyAvailabilityPreset("tarda", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Tarda</button>
             <button type="button" onClick={() => applyAvailabilityPreset("dia-complet", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Dia complet</button>
-            <button type="button" onClick={() => clearAvailabilitySelection(teacherRestrictionDraft, setTeacherRestrictionDraft)}>Neteja selecció</button>
+            <button type="button" className="ghost" onClick={() => clearAvailabilitySelection(teacherRestrictionDraft, setTeacherRestrictionDraft)}>Neteja selecció</button>
           </div>
-          <div className="muted">Clic simple per activar o desactivar una franja. Maj + clic per seleccionar un rang.</div>
-          <div style={{ overflowX: "auto" }}>
-            <table>
+          <p className="restriction-hint">Clic simple per activar o desactivar una franja. Maj + clic per seleccionar un rang.</p>
+          <div className="availability-grid-wrap">
+            <table className="availability-grid">
               <thead>
                 <tr>
-                  <th>Dia</th>
+                  <th></th>
                   {HOURS.map((hour) => (
-                    <th key={hour} style={{ minWidth: 42 }}>{hour}</th>
+                    <th key={hour}>{hour}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {DAYS.map((day) => (
                   <tr key={day}>
-                    <td>{day}</td>
+                    <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
                     {HOURS.map((hour) => {
                       const slotKey = `${day}-${hour}`;
                       const isPreferred = teacherRestrictionDraft.preferred_availability.includes(slotKey);
@@ -808,15 +820,9 @@ export default function App() {
                         <td key={slotKey}>
                           <button
                             type="button"
+                            className={`availability-cell${isPreferred ? " availability-cell--preferred" : ""}`}
                             onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setAvailabilitySelectionAnchor(slotKey); }}
                             onClick={(event) => updateAvailabilitySelection(slotKey, event, teacherRestrictionDraft, setTeacherRestrictionDraft)}
-                            style={{
-                              width: 16,
-                              height: 16,
-                              padding: 0,
-                              border: `1px solid ${isPreferred ? "#4f46e5" : "#cbd5e1"}`,
-                              background: isPreferred ? "#c7d2fe" : "#fff",
-                            }}
                           />
                         </td>
                       );
@@ -828,50 +834,52 @@ export default function App() {
           </div>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <h4 style={{ marginBottom: 6 }}>Franges no disponibles</h4>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+        <div className="restriction-section">
+          <h4>Franges no disponibles</h4>
+          <div className="restriction-presets">
             <button type="button" onClick={() => applyUnavailablePreset("no-abans-10", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No abans de les 10:00</button>
             <button type="button" onClick={() => applyUnavailablePreset("no-abans-15", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No abans de les 15:00</button>
             <button type="button" onClick={() => applyUnavailablePreset("no-despres-17", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No després de les 17:00</button>
             <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Entre les 10:00 i les 14:00</button>
             <button type="button" onClick={() => applyUnavailablePreset("nomes-matins", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Només matins</button>
             <button type="button" onClick={() => applyUnavailablePreset("nomes-tardes", teacherRestrictionDraft, setTeacherRestrictionDraft)}>Només tardes</button>
-            <button type="button" onClick={() => clearAvailabilitySelection(teacherRestrictionDraft, setTeacherRestrictionDraft, "unavailable_slots", setUnavailableSelectionAnchor)}>Neteja selecció</button>
+            <button type="button" className="ghost" onClick={() => clearAvailabilitySelection(teacherRestrictionDraft, setTeacherRestrictionDraft, "unavailable_slots", setUnavailableSelectionAnchor)}>Neteja selecció</button>
           </div>
-          <div className="muted">Clic simple per marcar/desmarcar una franja no disponible manualment (vermell). Maj + clic per seleccionar un rang. Les caselles taronges venen del fitxer FET i no s'editen aquí.</div>
-          <div style={{ overflowX: "auto" }}>
-            <table>
+          <p className="restriction-hint">
+            Clic simple per marcar/desmarcar una franja no disponible manualment (vermell). Maj + clic per seleccionar un rang.
+            Les caselles taronges venen del fitxer FET i no s'editen aquí.
+          </p>
+          <div className="availability-grid-wrap">
+            <table className="availability-grid">
               <thead>
                 <tr>
-                  <th>Dia</th>
+                  <th></th>
                   {HOURS.map((hour) => (
-                    <th key={hour} style={{ minWidth: 42 }}>{hour}</th>
+                    <th key={hour}>{hour}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {DAYS.map((day) => (
                   <tr key={day}>
-                    <td>{day}</td>
+                    <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
                     {HOURS.map((hour) => {
                       const slotKey = `${day}-${hour}`;
                       const isUnavailable = teacherRestrictionDraft.unavailable_slots.includes(slotKey);
                       const isFromFet = (teacherRestrictionDraft.fet_unavailable_slots || []).includes(`${day} ${hour}`);
+                      const cellClass = isUnavailable
+                        ? "availability-cell availability-cell--unavailable"
+                        : isFromFet
+                        ? "availability-cell availability-cell--fet"
+                        : "availability-cell";
                       return (
                         <td key={slotKey}>
                           <button
                             type="button"
+                            className={cellClass}
                             title={isFromFet ? "No disponible segons el fitxer FET" : undefined}
                             onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setUnavailableSelectionAnchor(slotKey); }}
                             onClick={(event) => updateAvailabilitySelection(slotKey, event, teacherRestrictionDraft, setTeacherRestrictionDraft, "unavailable_slots", unavailableSelectionAnchor, setUnavailableSelectionAnchor)}
-                            style={{
-                              width: 16,
-                              height: 16,
-                              padding: 0,
-                              border: `1px solid ${isUnavailable ? "#b91c1c" : isFromFet ? "#c2680d" : "#cbd5e1"}`,
-                              background: isUnavailable ? "#fecaca" : isFromFet ? "#fed7aa" : "#fff",
-                            }}
                           />
                         </td>
                       );
@@ -883,7 +891,7 @@ export default function App() {
           </div>
         </div>
 
-        <button type="button" onClick={saveTeacherRestrictions} disabled={isSavingTeacherRestrictions}>
+        <button type="button" className="primary restriction-save-button" onClick={saveTeacherRestrictions} disabled={isSavingTeacherRestrictions}>
           {isSavingTeacherRestrictions ? "S'està desant..." : "Desa restriccions"}
         </button>
       </div>
@@ -1275,8 +1283,13 @@ export default function App() {
       setProposal(null);
       setGenerationStats(null);
       setGeneratedUnscheduledActivities([]);
-      setSuccessMessage("La proposta s'ha acceptat i ara és l'horari actiu.");
       await loadData();
+
+      // El dinar és una regla fixa, no una acció manual: qualsevol professor
+      // amb classe matí i tarda ha de tenir com a mínim 1h lliure entre les
+      // 12h i les 16h. S'assigna automàticament en acceptar l'horari.
+      await assignLunchBreaks({ silent: true });
+      setSuccessMessage("La proposta s'ha acceptat i ara és l'horari actiu.");
     } catch (err) {
       setError(err.message || "No s'ha pogut acceptar la proposta.");
     } finally {
@@ -1458,9 +1471,11 @@ export default function App() {
     }
   }
 
-  async function assignLunchBreaks() {
-    setError("");
-    setSuccessMessage("");
+  async function assignLunchBreaks({ silent = false } = {}) {
+    if (!silent) {
+      setError("");
+      setSuccessMessage("");
+    }
     try {
       const response = await fetch(`${API_URL}/scheduler/lunch-breaks/assign`, { method: "POST" });
       const data = await response.json();
@@ -1472,10 +1487,15 @@ export default function App() {
       setConflicts(data.conflicts || []);
       const addedCount = data.added?.length || 0;
       const skippedCount = data.skipped_no_slot?.length || 0;
-      setSuccessMessage(
-        `S'han afegit ${addedCount} hores de dinar.` +
-        (skippedCount > 0 ? ` ${skippedCount} professors no tenien cap franja lliure entre les 12h i les 16h.` : "")
-      );
+      // Els professors sense franja lliure entre 12h i 16h són un problema
+      // real d'horari: s'avisa sempre, encara que la crida sigui automàtica.
+      if (skippedCount > 0) {
+        setError(
+          `${skippedCount} professor(s) amb classe matí i tarda no tenen cap franja lliure entre les 12h i les 16h per dinar.`
+        );
+      } else if (!silent) {
+        setSuccessMessage(`S'han afegit ${addedCount} hores de dinar.`);
+      }
     } catch {
       setError("No s'han pogut assignar les hores de dinar.");
     }
@@ -1508,24 +1528,6 @@ export default function App() {
     } finally {
       setIsTogglingBreak(false);
     }
-  }
-
-  async function addCoordination() {
-    const teacher = window.prompt("Professor/s (separats per coma si són diversos):");
-    if (!teacher) return;
-    const day = window.prompt(`Dia (${DAYS.join(", ")}):`, DAYS[0]);
-    if (!day || !DAYS.includes(day)) {
-      setError("Dia no vàlid.");
-      return;
-    }
-    const start = window.prompt(`Hora d'inici (${HOURS[0]} - ${HOURS[HOURS.length - 1]}):`, HOURS[0]);
-    if (!start || !HOURS.includes(start)) {
-      setError("Hora no vàlida.");
-      return;
-    }
-    const durationRaw = window.prompt("Durada en blocs de 30 min (2 = 1 hora):", "2");
-    const duration = parseInt(durationRaw, 10) || 2;
-    await addManualActivity({ subject: "Coordinació", day, start, duration, teacher });
   }
 
   async function fetchSuggestions(activityId) {
@@ -2646,26 +2648,6 @@ export default function App() {
             </div>
           ) : null}
 
-          <button
-            type="button"
-            onClick={addCoordination}
-            disabled={isLoading || isSaving || isGenerating}
-            title="Afegeix una hora de coordinació per a un o més professors"
-            style={{ marginLeft: 8 }}
-          >
-            + Coordinació
-          </button>
-
-          <button
-            type="button"
-            onClick={assignLunchBreaks}
-            disabled={isLoading || isSaving || isGenerating}
-            title="Assigna una hora de dinar (12h-16h) als professors amb classe matí i tarda"
-            style={{ marginLeft: 8 }}
-          >
-            + Dinars
-          </button>
-
           <button type="button" onClick={loadData} disabled={isLoading || isSaving || isGenerating}>
             {isLoading ? "Carregant" : "Actualitza"}
           </button>
@@ -2750,6 +2732,8 @@ export default function App() {
                     <tr>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
                       <th>Actiu</th>
+                      <th>Hores de centre</th>
+                      <th>Coordinació</th>
                       <th>Restriccions</th>
                       <th>Accions</th>
                     </tr>
@@ -2783,6 +2767,46 @@ export default function App() {
                           )}
                         </td>
                         <td>
+                          {teacherEdit === t.name ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              className="hours-input"
+                              placeholder="0"
+                              value={teacherEditValues.center_hours}
+                              onChange={(event) => setTeacherEditValues({ ...teacherEditValues, center_hours: event.target.value })}
+                            />
+                          ) : (
+                            t.center_hours || t.center_hours === 0 ? `${t.center_hours}h` : <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          {teacherEdit === t.name ? (
+                            <div className="coordination-cell">
+                              <input
+                                type="text"
+                                placeholder="Nom de la coordinació"
+                                value={teacherEditValues.coordination_name}
+                                onChange={(event) => setTeacherEditValues({ ...teacherEditValues, coordination_name: event.target.value })}
+                              />
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.5"
+                                className="hours-input"
+                                placeholder="Hores"
+                                value={teacherEditValues.coordination_hours}
+                                onChange={(event) => setTeacherEditValues({ ...teacherEditValues, coordination_hours: event.target.value })}
+                              />
+                            </div>
+                          ) : t.coordination_name ? (
+                            <span>{t.coordination_name} <span className="muted">({t.coordination_hours || 0}h)</span></span>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td>
                           {restriction ? (
                             <span title="Franges no disponibles marcades manualment + les que vénen del FET">
                               {manualCount} manuals · {fetCount} del FET
@@ -2806,6 +2830,9 @@ export default function App() {
                                 const payload = {
                                   name: teacherEditValues.name,
                                   active: teacherEditValues.active,
+                                  center_hours: teacherEditValues.center_hours === "" ? null : Number(teacherEditValues.center_hours),
+                                  coordination_name: teacherEditValues.coordination_name,
+                                  coordination_hours: teacherEditValues.coordination_hours === "" ? null : Number(teacherEditValues.coordination_hours),
                                 };
                                 const res = await updateTeacher(t.name, payload);
                                 if (res.ok) {
@@ -2821,7 +2848,13 @@ export default function App() {
                             <>
                               <button onClick={() => {
                                 setTeacherEdit(t.name);
-                                setTeacherEditValues({ name: t.name, active: t.active !== false });
+                                setTeacherEditValues({
+                                  name: t.name,
+                                  active: t.active !== false,
+                                  center_hours: t.center_hours ?? "",
+                                  coordination_name: t.coordination_name || "",
+                                  coordination_hours: t.coordination_hours ?? "",
+                                });
                               }}>Edita</button>
                               <button onClick={async () => {
                                 const res = await deleteTeacher(t.name);
@@ -2849,14 +2882,49 @@ export default function App() {
                         />
                       </td>
                       <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          className="hours-input"
+                          placeholder="0"
+                          value={teacherDraft.center_hours}
+                          onChange={(event) => setTeacherDraft({ ...teacherDraft, center_hours: event.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <div className="coordination-cell">
+                          <input
+                            type="text"
+                            placeholder="Nom de la coordinació"
+                            value={teacherDraft.coordination_name}
+                            onChange={(event) => setTeacherDraft({ ...teacherDraft, coordination_name: event.target.value })}
+                          />
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            className="hours-input"
+                            placeholder="Hores"
+                            value={teacherDraft.coordination_hours}
+                            onChange={(event) => setTeacherDraft({ ...teacherDraft, coordination_hours: event.target.value })}
+                          />
+                        </div>
+                      </td>
+                      <td>
                         <button onClick={async () => {
                           if (!teacherDraft.name) {
                             alert("El nom del professor és obligatori");
                             return;
                           }
-                          const res = await createTeacher(teacherDraft);
+                          const payload = {
+                            ...teacherDraft,
+                            center_hours: teacherDraft.center_hours === "" ? null : Number(teacherDraft.center_hours),
+                            coordination_hours: teacherDraft.coordination_hours === "" ? null : Number(teacherDraft.coordination_hours),
+                          };
+                          const res = await createTeacher(payload);
                           if (res.ok) {
-                            setTeacherDraft({ name: "", active: true });
+                            setTeacherDraft({ name: "", active: true, center_hours: "", coordination_name: "", coordination_hours: "" });
                             await refreshAcademicLists();
                           } else {
                             alert("No s'ha pogut crear el professor.");
