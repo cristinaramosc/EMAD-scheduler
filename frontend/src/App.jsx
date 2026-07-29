@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { DataSheetGrid, textColumn, floatColumn, keyColumn } from "react-datasheet-grid";
+import { DataSheetGrid, textColumn, floatColumn, checkboxColumn, keyColumn } from "react-datasheet-grid";
 import "react-datasheet-grid/dist/style.css";
 import "./App.css";
 
@@ -25,6 +25,10 @@ const ASSIGNMENT_SHEET_COLUMNS = [
 
 const TEACHER_SHEET_COLUMNS = [
   { ...keyColumn("name", textColumn), title: "Nom" },
+  { ...keyColumn("active", checkboxColumn), title: "Actiu" },
+  { ...keyColumn("center_hours", floatColumn), title: "Hores de centre" },
+  { ...keyColumn("coordination_name", textColumn), title: "Coordinació (nom)" },
+  { ...keyColumn("coordination_hours", floatColumn), title: "Coordinació (hores)" },
 ];
 
 const GROUP_SHEET_COLUMNS = [
@@ -2314,9 +2318,26 @@ export default function App() {
     teachers: {
       columns: TEACHER_SHEET_COLUMNS,
       source: () => teachers,
-      normalize: (t) => ({ name: t.name || "" }),
-      create: (row) => apiJson("POST", "/academic-data/teachers", { name: row.name }),
-      update: (name, row) => apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, {}),
+      normalize: (t) => ({
+        name: t.name || "",
+        active: t.active !== false,
+        center_hours: t.center_hours ?? "",
+        coordination_name: t.coordination_name || "",
+        coordination_hours: t.coordination_hours ?? "",
+      }),
+      create: (row) => apiJson("POST", "/academic-data/teachers", {
+        name: row.name,
+        active: row.active !== false,
+        center_hours: row.center_hours === "" ? null : Number(row.center_hours),
+        coordination_name: row.coordination_name || "",
+        coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
+      }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, {
+        active: row.active !== false,
+        center_hours: row.center_hours === "" ? null : Number(row.center_hours),
+        coordination_name: row.coordination_name || "",
+        coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
+      }),
       remove: (name) => apiJson("DELETE", `/academic-data/teachers/${encodeURIComponent(name)}`),
     },
     groups: {

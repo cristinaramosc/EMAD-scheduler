@@ -416,6 +416,192 @@ class LiveScheduleUseCases:
             **self.state(),
         }
 
+    # ---------------------------------------------------------------
+    # Reunió/Coordinació fixes (dimecres) + repartiment automàtic de les
+    # hores de centre i coordinació restants de cada professor.
+    # ---------------------------------------------------------------
+
+    _DAY_ORDER = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+    _FIXED_MEETING_DAY = "Dimecres"
+    _FIXED_MEETING_BLOCKS = [("Reunió", "14:00"), ("Coordinació", "15:00")]  # 1h cadascun
+    _MAX_DAILY_BLOCKS = 24  # 12h * 2 blocs de 30 min
+
+    @staticmethod
+    def _half_hour_grid() -> tuple[List[str], Dict[str, int]]:
+        hour_names = []
+        hour = 8 * 60
+        while hour <= 21 * 60:
+            hour_names.append(f"{hour // 60}:{hour % 60:02d}")
+            hour += 30
+        return hour_names, {name: index for index, name in enumerate(hour_names)}
+
+    @staticmethod
+    def _to_hours(value: Any) -> float:
+        if value in (None, ""):
+            return 0.0
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _place_extra_hours_for_teacher(
+        self,
+        teacher: str,
+        subject: str,
+        blocks_needed: int,
+        hour_names: List[str],
+        hour_index: Dict[str, int],
+    ) -> tuple:
+        """Col·loca `blocks_needed` blocs de 30 min per a `teacher` com a
+        `subject`, enganxats abans o després de les classes que ja tingui
+        cada dia, sense superar les 12h/dia (_MAX_DAILY_BLOCKS) si és
+        evitable. Si no hi caben enlloc, els assigna igualment al final
+        del darrer dia amb classes i ho marca com a conflicte."""
+        added: List[Dict[str, Any]] = []
+        exceeded: List[Dict[str, Any]] = []
+
+        teacher_days = [
+            day for day in self._DAY_ORDER
+            if any(a.teacher == teacher and a.day == day for a in self._engine.state.all())
+        ]
+
+        for day in teacher_days:
+            if blocks_needed <= 0:
+                break
+
+            day_activities = sorted(
+                (a for a in self._engine.state.all() if a.teacher == teacher and a.day == day),
+                key=lambda a: hour_index.get(a.start, -1),
+            )
+            if not day_activities:
+                continue
+
+            used_blocks = sum(a.duration for a in day_activities)
+            free_blocks = self._MAX_DAILY_BLOCKS - used_blocks
+            if free_blocks <= 0:
+                continue
+            chunk = min(blocks_needed, free_blocks)
+
+            placed = False
+            last = day_activities[-1]
+            last_end_idx = hour_index.get(last.start, -1) + last.duration
+            if 0 <= last_end_idx and last_end_idx + chunk <= len(hour_names):
+                start_name = hour_names[last_end_idx]
+                result = self.add_manual_activity(subject=subject, day=day, start=start_name, duration=chunk, teacher=teacher)
+                if result.get("ok"):
+                    added.append({"teacher": teacher, "day": day, "start": start_name, "duration": chunk, "subject": subject})
+                    blocks_needed -= chunk
+                    placed = True
+
+            if not placed:
+                first = day_activities[0]
+                first_start_idx = hour_index.get(first.start, -1)
+                place_blocks = min(chunk, first_start_idx) if first_start_idx > 0 else 0
+                if place_blocks > 0:
+                    start_idx = first_start_idx - place_blocks
+                    start_name = hour_names[start_idx]
+                    result = self.add_manual_activity(subject=subject, day=day, start=start_name, duration=place_blocks, teacher=teacher)
+                    if result.get("ok"):
+                        added.append({"teacher": teacher, "day": day, "start": start_name, "duration": place_blocks, "subject": subject})
+                        blocks_needed -= place_blocks
+
+        if blocks_needed > 0 and teacher_days:
+            day = teacher_days[-1]
+            day_activities = sorted(
+                (a for a in self._engine.state.all() if a.teacher == teacher and a.day == day),
+                key=lambda a: hour_index.get(a.start, -1),
+            )
+            if day_activities:
+                last = day_activities[-1]
+                last_end_idx = hour_index.get(last.start, -1) + last.duration
+                if 0 <= last_end_idx < len(hour_names):
+                    place_blocks = min(blocks_needed, len(hour_names) - last_end_idx)
+                    if place_blocks > 0:
+                        start_name = hour_names[last_end_idx]
+                        result = self.add_manual_activity(subject=subject, day=day, start=start_name, duration=place_blocks, teacher=teacher)
+                        if result.get("ok"):
+                            added.append({"teacher": teacher, "day": day, "start": start_name, "duration": place_blocks, "subject": subject})
+                            blocks_needed -= place_blocks
+                            exceeded.append({"teacher": teacher, "day": day, "subject": subject, "extra_blocks": place_blocks})
+
+        return blocks_needed, added, exceeded
+
+    def assign_center_and_coordination_hours(self) -> Dict[str, Any]:
+        """Per a cada professor: si té el bloc fix de dimecres (Reunió
+        14-15h + Coordinació 15-16h) activat, l'assigna i en resta 1h de
+        les hores de centre i 1h de les de coordinació. Reparteix la resta
+        de les hores de centre/coordinació enganxades a les classes que ja
+        tingui, sense superar les 12h/dia si és evitable; si no hi caben
+        enlloc, les assigna igualment i ho marca com a conflicte."""
+        if self._academic_data_repo is None:
+            return {"ok": False, "error": "academic_data_repo_unavailable", **self.state()}
+
+        hour_names, hour_index = self._half_hour_grid()
+        restrictions = {r.get("teacher"): r for r in self._academic_data_repo.list_teacher_restrictions()}
+
+        added_meetings: List[Dict[str, Any]] = []
+        added_hours: List[Dict[str, Any]] = []
+        daily_hours_exceeded: List[Dict[str, Any]] = []
+        skipped_no_slot: List[Dict[str, Any]] = []
+
+        for teacher in self._academic_data_repo.list_teachers():
+            name = teacher.get("name")
+            if not name:
+                continue
+
+            restriction = restrictions.get(name, {})
+            fixed_meeting_active = restriction.get("fixed_meeting_active", True)
+
+            remaining_center = self._to_hours(teacher.get("center_hours"))
+            remaining_coordination = self._to_hours(teacher.get("coordination_hours"))
+
+            if fixed_meeting_active:
+                existing_day_activities = [
+                    a for a in self._engine.state.all()
+                    if a.teacher == name and a.day == self._FIXED_MEETING_DAY
+                ]
+                for subject, start in self._FIXED_MEETING_BLOCKS:
+                    already_present = any(
+                        (a.subject or "").strip().lower() == subject.lower() and a.start == start
+                        for a in existing_day_activities
+                    )
+                    if not already_present:
+                        result = self.add_manual_activity(
+                            subject=subject, day=self._FIXED_MEETING_DAY, start=start, duration=2, teacher=name,
+                        )
+                        if result.get("ok"):
+                            added_meetings.append({"teacher": name, "subject": subject})
+                        else:
+                            skipped_no_slot.append({"teacher": name, "subject": subject, "reason": "conflict"})
+                            continue
+                    if subject == "Reunió":
+                        remaining_center = max(0.0, remaining_center - 1.0)
+                    else:
+                        remaining_coordination = max(0.0, remaining_coordination - 1.0)
+
+            for subject, remaining in (("Hores de centre", remaining_center), ("Coordinació", remaining_coordination)):
+                blocks_needed = round(remaining * 2)
+                if blocks_needed <= 0:
+                    continue
+                pending, added, exceeded = self._place_extra_hours_for_teacher(
+                    teacher=name, subject=subject, blocks_needed=blocks_needed,
+                    hour_names=hour_names, hour_index=hour_index,
+                )
+                added_hours.extend(added)
+                daily_hours_exceeded.extend(exceeded)
+                if pending > 0:
+                    skipped_no_slot.append({"teacher": name, "subject": subject, "reason": "no_existing_day", "pending_blocks": pending})
+
+        return {
+            "ok": True,
+            "added_meetings": added_meetings,
+            "added_hours": added_hours,
+            "daily_hours_exceeded": daily_hours_exceeded,
+            "skipped_no_slot": skipped_no_slot,
+            **self.state(),
+        }
+
+
     def _persist_active_schedule(self, clear_proposal: bool) -> None:
         previous = self._working_timetable_repo.load_snapshot()
         self._working_timetable_repo.save_snapshot(

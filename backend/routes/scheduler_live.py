@@ -71,3 +71,13 @@ def assign_teacher_lunch_breaks():
     """Afegeix una hora de dinar (12h-16h) als professors amb classe matí i tarda."""
     use_cases = get_live_schedule_use_cases()
     return use_cases.assign_teacher_lunch_breaks()
+
+
+@router.post("/center-coordination-hours/assign")
+def assign_center_and_coordination_hours():
+    """Assigna el bloc fix de dimecres (Reunió 14-15h + Coordinació 15-16h)
+    als professors que el tinguin activat, i reparteix la resta de les
+    seves hores de centre/coordinació enganxades a les classes que ja
+    tinguin."""
+    use_cases = get_live_schedule_use_cases()
+    return use_cases.assign_center_and_coordination_hours()

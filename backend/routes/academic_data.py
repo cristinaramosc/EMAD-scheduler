@@ -44,6 +44,7 @@ class TeacherRestrictionDTO(BaseModel):
     max_consecutive_hours: Optional[float] = None
     preferred_availability: Optional[List[str]] = []
     unavailable_slots: Optional[List[str]] = []
+    fixed_meeting_active: Optional[bool] = True
 
 
 class TeacherRestrictionUpdateDTO(BaseModel):
@@ -53,6 +54,7 @@ class TeacherRestrictionUpdateDTO(BaseModel):
     max_consecutive_hours: Optional[float] = None
     preferred_availability: Optional[List[str]] = None
     unavailable_slots: Optional[List[str]] = None
+    fixed_meeting_active: Optional[bool] = None
 
 
 class GroupDTO(BaseModel):
@@ -215,7 +217,9 @@ def get_teacher_restrictions(name: str):
         "max_consecutive_hours": None,
         "preferred_availability": [],
         "unavailable_slots": [],
+        "fixed_meeting_active": True,
     }
+    merged.setdefault("fixed_meeting_active", True)
     merged["fet_unavailable_slots"] = fet_slots
     return merged
 
@@ -227,6 +231,9 @@ def update_teacher_restrictions(name: str, payload: TeacherRestrictionUpdateDTO)
     if current is None:
         raise HTTPException(status_code=404, detail="teacher_not_found")
 
+    existing_restriction = next((item for item in repo.list_teacher_restrictions() if item.get("teacher") == name), None)
+    existing_fixed_meeting_active = (existing_restriction or {}).get("fixed_meeting_active", True)
+
     record = {
         "teacher": payload.teacher or name,
         "no_gaps": payload.no_gaps if payload.no_gaps is not None else False,
@@ -234,6 +241,7 @@ def update_teacher_restrictions(name: str, payload: TeacherRestrictionUpdateDTO)
         "max_consecutive_hours": payload.max_consecutive_hours,
         "preferred_availability": payload.preferred_availability if payload.preferred_availability is not None else [],
         "unavailable_slots": payload.unavailable_slots if payload.unavailable_slots is not None else [],
+        "fixed_meeting_active": payload.fixed_meeting_active if payload.fixed_meeting_active is not None else existing_fixed_meeting_active,
     }
     repo.upsert_teacher_restriction(record)
     return {"ok": True}
