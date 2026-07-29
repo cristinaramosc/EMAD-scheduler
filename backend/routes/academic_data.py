@@ -23,12 +23,18 @@ class TeacherDTO(BaseModel):
     name: str
     active: Optional[bool] = True
     unavailable_slots: Optional[List[str]] = []
+    center_hours: Optional[float] = None
+    coordination_name: Optional[str] = ""
+    coordination_hours: Optional[float] = None
 
 
 class TeacherUpdateDTO(BaseModel):
     name: Optional[str] = None
     active: Optional[bool] = None
     unavailable_slots: Optional[List[str]] = None
+    center_hours: Optional[float] = None
+    coordination_name: Optional[str] = None
+    coordination_hours: Optional[float] = None
 
 
 class TeacherRestrictionDTO(BaseModel):
