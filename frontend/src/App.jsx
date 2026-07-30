@@ -83,7 +83,8 @@ function createTeacherRestrictionDraft(teacherName = "") {
     max_consecutive_hours: "",
     preferred_availability: [],
     unavailable_slots: [],
-    fet_unavailable_slots: [],
+    weekly_meeting_active: true,
+    weekly_coordination_active: true,
   };
 }
 
@@ -95,7 +96,6 @@ function createGroupRestrictionDraft(groupName = "") {
     max_consecutive_hours: "",
     preferred_availability: [],
     unavailable_slots: [],
-    fet_unavailable_slots: [],
   };
 }
 
@@ -403,7 +403,6 @@ function canShareSlotWithQuarter(existingActivity, candidateActivity) {
 
 export default function App() {
   const workbookInputRef = useRef(null);
-  const fetInputRef = useRef(null);
   const academicSpreadsheetInputRef = useRef(null);
   const [isImportingSpreadsheet, setIsImportingSpreadsheet] = useState(false);
   const [activities, setActivities] = useState([]);
@@ -553,6 +552,31 @@ export default function App() {
       setGeneratedUnscheduledActivities(data.unscheduled_activities || []);
     } catch {
       setError("No s'ha pogut carregar l'horari.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function clearActiveSchedule() {
+    if (!window.confirm("Segur que vols buidar l'horari actiu? S'esborraran totes les activitats programades (no les dades acadèmiques de professors, grups, aules ni assignatures).")) {
+      return;
+    }
+    setIsLoading(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const response = await fetch(`${API_URL}/scheduler/load`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify([]),
+      });
+      if (!response.ok) {
+        throw new Error("No s'ha pogut buidar l'horari.");
+      }
+      await loadData();
+      setSuccessMessage("L'horari actiu s'ha buidat.");
+    } catch (err) {
+      setError(err.message || "No s'ha pogut buidar l'horari.");
     } finally {
       setIsLoading(false);
     }
@@ -727,6 +751,8 @@ export default function App() {
         max_consecutive_hours: teacherRestrictionDraft.max_consecutive_hours === "" ? null : Number(teacherRestrictionDraft.max_consecutive_hours),
         preferred_availability: teacherRestrictionDraft.preferred_availability || [],
         unavailable_slots: teacherRestrictionDraft.unavailable_slots || [],
+        weekly_meeting_active: Boolean(teacherRestrictionDraft.weekly_meeting_active),
+        weekly_coordination_active: Boolean(teacherRestrictionDraft.weekly_coordination_active),
       };
 
       const response = await fetch(`${API_URL}/academic-data/teachers/${encodeURIComponent(teacherRestrictionDraft.teacher)}/restrictions`, {
@@ -792,6 +818,22 @@ export default function App() {
               onChange={(event) => setTeacherRestrictionDraft({ ...teacherRestrictionDraft, max_consecutive_hours: event.target.value })}
             />
           </label>
+          <label className="restriction-checkbox" title="Dimecres 14:00-15:00. Si està activat, es resta 1h de les hores de centre.">
+            <input
+              type="checkbox"
+              checked={Boolean(teacherRestrictionDraft.weekly_meeting_active)}
+              onChange={(event) => setTeacherRestrictionDraft({ ...teacherRestrictionDraft, weekly_meeting_active: event.target.checked })}
+            />
+            Reunió claustre (dimecres 14-15h)
+          </label>
+          <label className="restriction-checkbox" title="Dimecres 15:00-16:00. Si està activat, es resta 1h de les hores de coordinació.">
+            <input
+              type="checkbox"
+              checked={Boolean(teacherRestrictionDraft.weekly_coordination_active)}
+              onChange={(event) => setTeacherRestrictionDraft({ ...teacherRestrictionDraft, weekly_coordination_active: event.target.checked })}
+            />
+            Coordinació (dimecres 15-16h)
+          </label>
         </div>
 
         <div className="restriction-section">
@@ -850,8 +892,7 @@ export default function App() {
             <button type="button" className="ghost" onClick={() => clearAvailabilitySelection(teacherRestrictionDraft, setTeacherRestrictionDraft, "unavailable_slots", setUnavailableSelectionAnchor)}>Neteja selecció</button>
           </div>
           <p className="restriction-hint">
-            Clic simple per marcar/desmarcar una franja no disponible manualment (vermell). Maj + clic per seleccionar un rang.
-            Les caselles taronges venen del fitxer FET i no s'editen aquí.
+            Clic simple per marcar/desmarcar una franja no disponible. Maj + clic per seleccionar un rang.
           </p>
           <div className="availability-grid-wrap">
             <table className="availability-grid">
@@ -870,18 +911,14 @@ export default function App() {
                     {HOURS.map((hour) => {
                       const slotKey = `${day}-${hour}`;
                       const isUnavailable = teacherRestrictionDraft.unavailable_slots.includes(slotKey);
-                      const isFromFet = (teacherRestrictionDraft.fet_unavailable_slots || []).includes(`${day} ${hour}`);
                       const cellClass = isUnavailable
                         ? "availability-cell availability-cell--unavailable"
-                        : isFromFet
-                        ? "availability-cell availability-cell--fet"
                         : "availability-cell";
                       return (
                         <td key={slotKey}>
                           <button
                             type="button"
                             className={cellClass}
-                            title={isFromFet ? "No disponible segons el fitxer FET" : undefined}
                             onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setUnavailableSelectionAnchor(slotKey); }}
                             onClick={(event) => updateAvailabilitySelection(slotKey, event, teacherRestrictionDraft, setTeacherRestrictionDraft, "unavailable_slots", unavailableSelectionAnchor, setUnavailableSelectionAnchor)}
                           />
@@ -993,50 +1030,6 @@ export default function App() {
     await saveGroupRestrictions(nextDraft);
   }
 
-  async function loadFetData(file) {
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const requestOptions = {
-        method: "POST",
-      };
-
-      if (file) {
-        const formData = new FormData();
-        formData.append("file", file);
-
-         console.log(file);
-  console.log(file?.name);
-  console.log(file?.size);
-        requestOptions.body = formData;
-      }
-
-      const response = await fetch(`${API_URL}/scheduler/load-fet`, requestOptions);
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || "No s'ha pogut carregar el fitxer FET.");
-      }
-
-      setActivities((data.activities || []).map(normalizeTimetableActivity));
-      setConflicts(data.conflicts || []);
-      setProposal(null);
-      setGenerationStats(null);
-      setGeneratedUnscheduledActivities([]);
-      // refresh academic lists produced by FET import
-      await loadAcademicSummary();
-      await loadTimetableEntities();
-    } catch {
-      setError("No s'ha pogut carregar el fitxer FET.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  function openFetSelector() {
-    fetInputRef.current?.click();
-  }
-
   async function downloadSpreadsheet(url, fallbackName) {
     setError("");
     setSuccessMessage("");
@@ -1104,16 +1097,6 @@ export default function App() {
     } finally {
       setIsImportingSpreadsheet(false);
     }
-  }
-
-  async function onFetFileSelected(event) {
-    const file = event.target?.files?.[0];
-    if (!file) {
-      return;
-    }
-
-    await loadFetData(file);
-    event.target.value = "";
   }
 
   async function generateProposal() {
@@ -2571,14 +2554,6 @@ export default function App() {
             onChange={onAcademicSpreadsheetSelected}
           />
 
-          <input
-            ref={fetInputRef}
-            type="file"
-            accept=".fet"
-            style={{ display: "none" }}
-            onChange={onFetFileSelected}
-          />
-
           <button type="button" onClick={generateProposal} disabled={isLoading || isSaving || isGenerating}>
             {isGenerating ? "Generant..." : "Genera proposta"}
           </button>
@@ -2608,10 +2583,6 @@ export default function App() {
             title="Assistent de resolució: pregunta sobre les incidències de la proposta actual"
           >
             🤖 Assistent
-          </button>
-
-          <button type="button" onClick={openFetSelector} disabled={isLoading || isSaving || isGenerating}>
-            Carrega FET
           </button>
 
           <button
@@ -2672,6 +2643,15 @@ export default function App() {
           <button type="button" onClick={loadData} disabled={isLoading || isSaving || isGenerating}>
             {isLoading ? "Carregant" : "Actualitza"}
           </button>
+
+          <button
+            type="button"
+            onClick={clearActiveSchedule}
+            disabled={isLoading || isSaving || isGenerating}
+            title="Esborra totes les activitats de l'horari actiu (no toca les dades acadèmiques)"
+          >
+            🗑️ Buida l'horari
+          </button>
         </div>
       </header>
 
@@ -2725,6 +2705,7 @@ export default function App() {
                       onChange={(rows) => setEntitySheetRows((prev) => ({ ...prev, teachers: rows }))}
                       columns={TEACHER_SHEET_COLUMNS}
                       height={480}
+                      rowHeight={32}
                     />
                     <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                       <button type="button" onClick={() => saveEntitySheet("teachers")} disabled={isSavingEntitySheet.teachers}>
@@ -2763,7 +2744,6 @@ export default function App() {
                     {applyAcademicSort(teachers.filter((t) => matchesSearch(academicSearch, [t.name])), academicSort).map((t) => {
                       const restriction = teacherRestrictions.find((item) => item.teacher === t.name);
                       const manualCount = (restriction?.unavailable_slots || []).length;
-                      const fetCount = (restriction?.fet_unavailable_slots || []).length;
                       return (
                       <tr key={t.name}>
                         <td>
@@ -2828,12 +2808,8 @@ export default function App() {
                           )}
                         </td>
                         <td>
-                          {restriction ? (
-                            <span title="Franges no disponibles marcades manualment + les que vénen del FET">
-                              {manualCount} manuals · {fetCount} del FET
-                            </span>
-                          ) : (
-                            <span className="muted">{fetCount} del FET</span>
+                          {manualCount > 0 && (
+                            <span>{manualCount} franges no disponibles</span>
                           )}
                           {" "}
                           <button
@@ -2994,6 +2970,7 @@ export default function App() {
                       onChange={(rows) => setEntitySheetRows((prev) => ({ ...prev, groups: rows }))}
                       columns={GROUP_SHEET_COLUMNS}
                       height={480}
+                      rowHeight={32}
                     />
                     <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                       <button type="button" onClick={() => saveEntitySheet("groups")} disabled={isSavingEntitySheet.groups}>
@@ -3314,6 +3291,7 @@ export default function App() {
                       onChange={(rows) => setEntitySheetRows((prev) => ({ ...prev, rooms: rows }))}
                       columns={ROOM_SHEET_COLUMNS}
                       height={480}
+                      rowHeight={32}
                     />
                     <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                       <button type="button" onClick={() => saveEntitySheet("rooms")} disabled={isSavingEntitySheet.rooms}>
@@ -3475,6 +3453,7 @@ export default function App() {
                       onChange={setSpreadsheetRows}
                       columns={ASSIGNMENT_SHEET_COLUMNS}
                       height={480}
+                      rowHeight={32}
                     />
                     <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
                       <button type="button" onClick={saveSpreadsheetRows} disabled={isSavingSpreadsheet}>
@@ -3929,40 +3908,6 @@ export default function App() {
             )}
           </div>
 
-          {activities.length > 0 && (
-            <div
-              className="group-color-legend"
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: "10px",
-                padding: "8px 4px",
-                fontSize: "0.8rem",
-              }}
-            >
-              {Array.from(new Set(activities.map((activity) => activity.group).filter(Boolean)))
-                .sort()
-                .map((group) => {
-                  const color = getGroupColor(group);
-                  return (
-                    <div key={group} style={{ display: "flex", alignItems: "center", gap: "5px" }}>
-                      <span
-                        style={{
-                          width: "10px",
-                          height: "10px",
-                          borderRadius: "50%",
-                          background: color.background,
-                          border: `1px solid ${color.border}`,
-                          display: "inline-block",
-                        }}
-                      />
-                      <span>{group}</span>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-
           <div className="timetable" aria-label="Horari">
           <div className="corner-cell" style={{ gridColumn: 1, gridRow: 1 }} />
 
@@ -4121,7 +4066,7 @@ export default function App() {
                     <button type="button" onClick={() => applyUnavailablePreset("nomes-tardes", groupRestrictionDraft, setGroupRestrictionDraft)}>Només tardes</button>
                     <button type="button" onClick={() => clearAvailabilitySelection(groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setUnavailableSelectionAnchor)}>Neteja selecció</button>
                   </div>
-                  <div className="muted">Clic simple per marcar/desmarcar una franja no disponible manualment (vermell). Maj + clic per seleccionar un rang. Les caselles taronges venen del fitxer FET i no s'editen aquí.</div>
+                  <div className="muted">Clic simple per marcar/desmarcar una franja no disponible. Maj + clic per seleccionar un rang.</div>
                   <div style={{ overflowX: "auto" }}>
                     <table>
                       <thead>
@@ -4139,20 +4084,18 @@ export default function App() {
                             {HOURS.map((hour) => {
                               const slotKey = `${day}-${hour}`;
                               const isUnavailable = groupRestrictionDraft.unavailable_slots.includes(slotKey);
-                              const isFromFet = (groupRestrictionDraft.fet_unavailable_slots || []).includes(`${day} ${hour}`);
                               return (
                                 <td key={slotKey}>
                                   <button
                                     type="button"
-                                    title={isFromFet ? "No disponible segons el fitxer FET" : undefined}
                                     onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setUnavailableSelectionAnchor(slotKey); }}
                                     onClick={(event) => updateAvailabilitySelection(slotKey, event, groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", unavailableSelectionAnchor, setUnavailableSelectionAnchor)}
                                     style={{
                                       width: 16,
                                       height: 16,
                                       padding: 0,
-                                      border: `1px solid ${isUnavailable ? "#b91c1c" : isFromFet ? "#c2680d" : "#cbd5e1"}`,
-                                      background: isUnavailable ? "#fecaca" : isFromFet ? "#fed7aa" : "#fff",
+                                      border: `1px solid ${isUnavailable ? "#b91c1c" : "#cbd5e1"}`,
+                                      background: isUnavailable ? "#fecaca" : "#fff",
                                     }}
                                   />
                                 </td>

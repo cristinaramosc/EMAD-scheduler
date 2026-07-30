@@ -127,7 +127,7 @@ button.primary:hover:not(:disabled) {
 }
 
 .topbar h1 {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.15;
@@ -144,8 +144,8 @@ button.primary:hover:not(:disabled) {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  height: 72px;
-  padding: 8px 12px;
+  height: 104px;
+  padding: 10px 14px;
   width: auto;
   object-fit: contain;
 }
@@ -203,32 +203,33 @@ button.primary:hover:not(:disabled) {
 }
 
 .group-tabs {
-  background: var(--color-surface-muted);
-  border-radius: var(--radius-pill);
   display: flex;
   flex-wrap: wrap;
-  gap: 2px;
-  padding: 3px;
+  gap: 8px;
 }
 
 .group-tab {
-  border: none;
-  background: transparent;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-pill);
-  min-height: 30px;
-  padding: 0 14px;
-  color: var(--color-text-secondary);
+  box-shadow: var(--shadow-sm);
+  font-weight: 500;
+  min-height: 32px;
+  padding: 0 16px;
+  color: var(--color-text-primary);
 }
 
 .group-tab:hover:not(:disabled) {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--color-surface-muted);
+  border-color: var(--color-text-tertiary);
 }
 
 .group-tab--active,
 .group-tab--active:hover {
-  background: var(--color-surface);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
   box-shadow: var(--shadow-sm);
-  color: var(--color-text-primary);
+  color: #ffffff;
   font-weight: 600;
 }
 
@@ -334,15 +335,15 @@ button.primary:hover:not(:disabled) {
 }
 
 .teachers-layout {
-  align-items: start;
-  display: grid;
-  gap: 24px;
-  grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.4fr);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .teachers-list {
   min-width: 0;
   overflow-x: auto;
+  width: 100%;
 }
 
 .teachers-restrictions-panel {
@@ -352,18 +353,6 @@ button.primary:hover:not(:disabled) {
   box-shadow: var(--shadow-sm);
   min-width: 0;
   padding: 20px;
-  position: sticky;
-  top: 12px;
-}
-
-@media (max-width: 1040px) {
-  .teachers-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .teachers-restrictions-panel {
-    position: static;
-  }
 }
 
 .slot-activities .activity-card {
@@ -739,7 +728,7 @@ button.primary:hover:not(:disabled) {
 .academic-table th,
 .academic-table td {
   border-bottom: 1px solid var(--color-border);
-  padding: 10px 14px;
+  padding: 6px 12px;
   text-align: left;
   vertical-align: middle;
 }
@@ -767,7 +756,7 @@ button.primary:hover:not(:disabled) {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font: inherit;
-  padding: 5px 8px;
+  padding: 3px 7px;
 }
 
 .academic-table input[type="text"]:focus,
@@ -781,8 +770,8 @@ button.primary:hover:not(:disabled) {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
   font: inherit;
-  padding: 5px 8px;
-  width: 68px;
+  padding: 3px 7px;
+  width: 64px;
 }
 
 .hours-input:focus {
@@ -953,8 +942,4 @@ button.primary:hover:not(:disabled) {
 
 .availability-cell--unavailable {
   background: var(--color-danger);
-}
-
-.availability-cell--fet {
-  background: var(--color-warning);
 }
