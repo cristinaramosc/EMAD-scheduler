@@ -1489,17 +1489,24 @@ export default function App() {
   }
 
   async function toggleGroupBreak(day) {
-    if (!selectedGroup) return;
+    console.log("[descans] toggleGroupBreak cridada", { day, selectedGroup });
+    if (!selectedGroup) {
+      console.log("[descans] sortida: no hi ha selectedGroup");
+      return;
+    }
     setIsTogglingBreak(true);
     setError("");
     setSuccessMessage("");
     try {
+      console.log("[descans] fent fetch a /scheduler/breaks/toggle");
       const response = await fetch(`${API_URL}/scheduler/breaks/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ group: selectedGroup, day }),
       });
+      console.log("[descans] resposta rebuda, status:", response.status);
       const data = await response.json();
+      console.log("[descans] data:", data);
       if (!data.ok) {
         setError(
           data.error === "no_free_slot"
@@ -1510,7 +1517,8 @@ export default function App() {
       }
       setActivities((data.activities || []).map(normalizeTimetableActivity));
       setConflicts(data.conflicts || []);
-    } catch {
+    } catch (err) {
+      console.log("[descans] ERROR capturat:", err);
       setError("No s'ha pogut canviar el descans.");
     } finally {
       setIsTogglingBreak(false);
