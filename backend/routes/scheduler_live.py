@@ -1,6 +1,6 @@
 from typing import List, Dict
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter
 
 if __package__ and __package__.startswith("backend"):
     from backend.dependencies import get_live_schedule_use_cases
@@ -16,16 +16,6 @@ router = APIRouter(prefix="/scheduler")
 def load(activities: List[Dict]):
     use_cases = get_live_schedule_use_cases()
     return use_cases.load(activities)
-
-
-@router.post("/load-fet")
-async def load_fet(file: UploadFile | None = File(None)):
-    use_cases = get_live_schedule_use_cases()
-    if file is None:
-        return use_cases.load_fet()
-
-    content = await file.read()
-    return use_cases.load_fet(content)
 
 
 @router.get("/state")

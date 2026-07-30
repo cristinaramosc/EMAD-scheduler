@@ -6,9 +6,9 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 try:
-    from backend.dependencies import get_academic_data_repo, get_scheduler_use_cases
+    from backend.dependencies import get_academic_data_repo
 except ModuleNotFoundError:  # pragma: no cover
-    from dependencies import get_academic_data_repo, get_scheduler_use_cases
+    from dependencies import get_academic_data_repo
 
 
 router = APIRouter(prefix="/academic-data", tags=["Academic Data"])
@@ -44,7 +44,8 @@ class TeacherRestrictionDTO(BaseModel):
     max_consecutive_hours: Optional[float] = None
     preferred_availability: Optional[List[str]] = []
     unavailable_slots: Optional[List[str]] = []
-    fixed_meeting_active: Optional[bool] = True
+    weekly_meeting_active: Optional[bool] = True
+    weekly_coordination_active: Optional[bool] = True
 
 
 class TeacherRestrictionUpdateDTO(BaseModel):
@@ -54,7 +55,8 @@ class TeacherRestrictionUpdateDTO(BaseModel):
     max_consecutive_hours: Optional[float] = None
     preferred_availability: Optional[List[str]] = None
     unavailable_slots: Optional[List[str]] = None
-    fixed_meeting_active: Optional[bool] = None
+    weekly_meeting_active: Optional[bool] = None
+    weekly_coordination_active: Optional[bool] = None
 
 
 class GroupDTO(BaseModel):
@@ -205,22 +207,12 @@ def get_teacher_restrictions(name: str):
     repo = get_academic_data_repo()
     restriction = next((item for item in repo.list_teacher_restrictions() if item.get("teacher") == name), None)
 
-    fet_slots = get_scheduler_use_cases().get_fet_restrictions()["teachers"].get(name, [])
-
-    if restriction is None and not fet_slots:
+    if restriction is None:
         raise HTTPException(status_code=404, detail="teacher_restrictions_not_found")
 
-    merged = dict(restriction) if restriction is not None else {
-        "teacher": name,
-        "no_gaps": False,
-        "max_hours_per_day": None,
-        "max_consecutive_hours": None,
-        "preferred_availability": [],
-        "unavailable_slots": [],
-        "fixed_meeting_active": True,
-    }
-    merged.setdefault("fixed_meeting_active", True)
-    merged["fet_unavailable_slots"] = fet_slots
+    merged = dict(restriction)
+    merged.setdefault("weekly_meeting_active", True)
+    merged.setdefault("weekly_coordination_active", True)
     return merged
 
 
@@ -232,7 +224,8 @@ def update_teacher_restrictions(name: str, payload: TeacherRestrictionUpdateDTO)
         raise HTTPException(status_code=404, detail="teacher_not_found")
 
     existing_restriction = next((item for item in repo.list_teacher_restrictions() if item.get("teacher") == name), None)
-    existing_fixed_meeting_active = (existing_restriction or {}).get("fixed_meeting_active", True)
+    existing_weekly_meeting_active = (existing_restriction or {}).get("weekly_meeting_active", True)
+    existing_weekly_coordination_active = (existing_restriction or {}).get("weekly_coordination_active", True)
 
     record = {
         "teacher": payload.teacher or name,
@@ -241,7 +234,8 @@ def update_teacher_restrictions(name: str, payload: TeacherRestrictionUpdateDTO)
         "max_consecutive_hours": payload.max_consecutive_hours,
         "preferred_availability": payload.preferred_availability if payload.preferred_availability is not None else [],
         "unavailable_slots": payload.unavailable_slots if payload.unavailable_slots is not None else [],
-        "fixed_meeting_active": payload.fixed_meeting_active if payload.fixed_meeting_active is not None else existing_fixed_meeting_active,
+        "weekly_meeting_active": payload.weekly_meeting_active if payload.weekly_meeting_active is not None else existing_weekly_meeting_active,
+        "weekly_coordination_active": payload.weekly_coordination_active if payload.weekly_coordination_active is not None else existing_weekly_coordination_active,
     }
     repo.upsert_teacher_restriction(record)
     return {"ok": True}
@@ -315,22 +309,10 @@ def get_group_restrictions(name: str):
     repo = get_academic_data_repo()
     restriction = next((item for item in repo.list_group_restrictions() if item.get("group") == name), None)
 
-    fet_slots = get_scheduler_use_cases().get_fet_restrictions()["groups"].get(name, [])
-
-    if restriction is None and not fet_slots:
+    if restriction is None:
         raise HTTPException(status_code=404, detail="group_restrictions_not_found")
 
-    merged = dict(restriction) if restriction is not None else {
-        "group": name,
-        "no_gaps": False,
-        "max_hours_per_day": None,
-        "max_consecutive_hours": None,
-        "preferred_availability": [],
-        "unavailable_slots": [],
-        "fixed_slots": [],
-    }
-    merged["fet_unavailable_slots"] = fet_slots
-    return merged
+    return dict(restriction)
 
 
 @router.patch("/groups/{name}/restrictions")

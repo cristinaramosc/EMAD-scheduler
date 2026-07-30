@@ -550,34 +550,37 @@ class LiveScheduleUseCases:
                 continue
 
             restriction = restrictions.get(name, {})
-            fixed_meeting_active = restriction.get("fixed_meeting_active", True)
+            weekly_meeting_active = restriction.get("weekly_meeting_active", True)
+            weekly_coordination_active = restriction.get("weekly_coordination_active", True)
+            block_active = {"Reunió": weekly_meeting_active, "Coordinació": weekly_coordination_active}
 
             remaining_center = self._to_hours(teacher.get("center_hours"))
             remaining_coordination = self._to_hours(teacher.get("coordination_hours"))
 
-            if fixed_meeting_active:
-                existing_day_activities = [
-                    a for a in self._engine.state.all()
-                    if a.teacher == name and a.day == self._FIXED_MEETING_DAY
-                ]
-                for subject, start in self._FIXED_MEETING_BLOCKS:
-                    already_present = any(
-                        (a.subject or "").strip().lower() == subject.lower() and a.start == start
-                        for a in existing_day_activities
+            existing_day_activities = [
+                a for a in self._engine.state.all()
+                if a.teacher == name and a.day == self._FIXED_MEETING_DAY
+            ]
+            for subject, start in self._FIXED_MEETING_BLOCKS:
+                if not block_active[subject]:
+                    continue
+                already_present = any(
+                    (a.subject or "").strip().lower() == subject.lower() and a.start == start
+                    for a in existing_day_activities
+                )
+                if not already_present:
+                    result = self.add_manual_activity(
+                        subject=subject, day=self._FIXED_MEETING_DAY, start=start, duration=2, teacher=name,
                     )
-                    if not already_present:
-                        result = self.add_manual_activity(
-                            subject=subject, day=self._FIXED_MEETING_DAY, start=start, duration=2, teacher=name,
-                        )
-                        if result.get("ok"):
-                            added_meetings.append({"teacher": name, "subject": subject})
-                        else:
-                            skipped_no_slot.append({"teacher": name, "subject": subject, "reason": "conflict"})
-                            continue
-                    if subject == "Reunió":
-                        remaining_center = max(0.0, remaining_center - 1.0)
+                    if result.get("ok"):
+                        added_meetings.append({"teacher": name, "subject": subject})
                     else:
-                        remaining_coordination = max(0.0, remaining_coordination - 1.0)
+                        skipped_no_slot.append({"teacher": name, "subject": subject, "reason": "conflict"})
+                        continue
+                if subject == "Reunió":
+                    remaining_center = max(0.0, remaining_center - 1.0)
+                else:
+                    remaining_coordination = max(0.0, remaining_coordination - 1.0)
 
             for subject, remaining in (("Hores de centre", remaining_center), ("Coordinació", remaining_coordination)):
                 blocks_needed = round(remaining * 2)

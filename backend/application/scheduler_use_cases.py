@@ -282,6 +282,9 @@ class SchedulerUseCases:
         for proposal in proposals:
             compacted_activities, _ = self._compact_activities(list(proposal.activities))
             proposal.activities = compacted_activities
+        for proposal in proposals:
+            compacted_activities, _ = self._compact_activities(list(proposal.activities))
+            proposal.activities = compacted_activities
         proposals.sort(key=lambda proposal: proposal.score, reverse=True)
 
         for proposal in proposals:
