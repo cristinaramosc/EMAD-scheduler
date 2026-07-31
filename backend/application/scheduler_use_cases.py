@@ -281,10 +281,7 @@ class SchedulerUseCases:
         proposals = [self._apply_quarter_pair_alignment(proposal) for proposal in proposals]
         for proposal in proposals:
             compacted_activities, _ = self._compact_activities(list(proposal.activities))
-            proposal.activities = compacted_activities
-        for proposal in proposals:
-            compacted_activities, _ = self._compact_activities(list(proposal.activities))
-            proposal.activities = compacted_activities
+            proposal.activities = self._insert_default_group_breaks(compacted_activities)
         proposals.sort(key=lambda proposal: proposal.score, reverse=True)
 
         for proposal in proposals:
@@ -1323,6 +1320,82 @@ class SchedulerUseCases:
             result.extend(ordered)
 
         return result, moved_ids
+
+    _MORNING_BREAK_GROUPS = {"1r apgi", "2n apgi", "pfi", "1r com", "2n com"}
+    _AFTERNOON_BREAK_GROUPS = {"comú", "gp", "gi"}
+
+    def _insert_default_group_breaks(self, activities: List[Activity]) -> List[Activity]:
+        """Insereix per defecte un descans de 30 min cada dia per a cada
+        grup, desplaçant les classes posteriors d'aquell grup/dia per
+        obrir-hi lloc de veritat. El descans es col·loca com a mínim 1h
+        després de començar i com a màxim 1h30 abans d'acabar, limitat al
+        matí (abans de les 14:00) o la tarda (a partir de les 14:00)
+        segons el grup (_MORNING_BREAK_GROUPS / _AFTERNOON_BREAK_GROUPS).
+        Si un dia no hi ha prou marge, aquell grup es queda sense descans
+        aquell dia en lloc de forçar-lo malament."""
+        day_names = self._time_labels.get("day_names", [])
+        hour_names = self._time_labels.get("hour_names", [])
+        day_index = {name: index for index, name in enumerate(day_names)}
+        hour_index = {name: index for index, name in enumerate(hour_names)}
+        midday_idx = hour_index.get("14:00")
+
+        by_group_day: Dict[tuple[str, str], List[Activity]] = {}
+        for activity in activities:
+            if activity.group and activity.day in day_index and activity.start in hour_index:
+                by_group_day.setdefault((activity.group, activity.day), []).append(activity)
+
+        existing_ids = [item.id for item in activities]
+        next_id = (max(existing_ids) + 1) if existing_ids else 1
+        new_breaks: List[Activity] = []
+
+        for (group, day), group_activities in by_group_day.items():
+            if any((a.subject or "").strip().lower() == "descans" for a in group_activities):
+                continue  # ja en té un
+
+            start_indices = [hour_index[a.start] for a in group_activities]
+            end_indices = [hour_index[a.start] + (a.duration or 1) for a in group_activities]
+            day_start_idx = min(start_indices)
+            day_end_idx = max(end_indices)
+
+            window_start_idx = day_start_idx + 2  # 1h després de començar
+            window_end_idx = day_end_idx - 3  # 1h30 abans d'acabar
+
+            group_key = (group or "").strip().lower()
+            if midday_idx is not None:
+                if group_key in self._MORNING_BREAK_GROUPS:
+                    window_end_idx = min(window_end_idx, midday_idx - 1)
+                elif group_key in self._AFTERNOON_BREAK_GROUPS:
+                    window_start_idx = max(window_start_idx, midday_idx)
+
+            if window_start_idx > window_end_idx or window_start_idx >= len(hour_names):
+                continue  # no hi ha prou marge aquell dia
+
+            insertion_idx = window_start_idx
+
+            to_shift = sorted(
+                (a for a in group_activities if hour_index[a.start] >= insertion_idx),
+                key=lambda a: hour_index[a.start],
+                reverse=True,
+            )
+            if any(hour_index[a.start] + 1 + (a.duration or 1) > len(hour_names) for a in to_shift):
+                continue  # desplaçar-les faria sortir del graella; es queda sense descans
+
+            for a in to_shift:
+                a.start = hour_names[hour_index[a.start] + 1]
+
+            new_breaks.append(Activity(
+                id=next_id,
+                teacher="",
+                subject="Descans",
+                group=group,
+                room="",
+                day=day,
+                start=hour_names[insertion_idx],
+                duration=1,
+            ))
+            next_id += 1
+
+        return activities + new_breaks
 
     def compact_active_schedule(self) -> Dict[str, Any]:
         """Elimina els forats de l'horari actiu ('sense buits')."""
