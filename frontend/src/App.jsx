@@ -96,6 +96,9 @@ function createGroupRestrictionDraft(groupName = "") {
     max_consecutive_hours: "",
     preferred_availability: [],
     unavailable_slots: [],
+    daily_start_time: "",
+    daily_max_end_time: "",
+    exception_slots: [],
   };
 }
 
@@ -479,6 +482,8 @@ export default function App() {
   const [isSavingTeacherRestrictions, setIsSavingTeacherRestrictions] = useState(false);
   const [groupRestrictions, setGroupRestrictions] = useState([]);
   const [groupRestrictionDraft, setGroupRestrictionDraft] = useState(createGroupRestrictionDraft(""));
+  const [exceptionDraftDay, setExceptionDraftDay] = useState(DAYS[0]);
+  const [exceptionDraftHour, setExceptionDraftHour] = useState(HOURS[0]);
   const [isSavingGroupRestrictions, setIsSavingGroupRestrictions] = useState(false);
   const [availabilitySelectionAnchor, setAvailabilitySelectionAnchor] = useState(null);
   const [unavailableSelectionAnchor, setUnavailableSelectionAnchor] = useState(null);
@@ -963,6 +968,7 @@ export default function App() {
         max_consecutive_hours: data.max_consecutive_hours ?? "",
         preferred_availability: Array.isArray(data.preferred_availability) ? data.preferred_availability : [],
         unavailable_slots: Array.isArray(data.unavailable_slots) ? data.unavailable_slots : [],
+        exception_slots: Array.isArray(data.exception_slots) ? data.exception_slots : [],
       };
       setGroupRestrictionDraft(nextDraft);
       setGroupRestrictions((current) => {
@@ -986,11 +992,14 @@ export default function App() {
     try {
       const payload = {
         group: updatedDraft.group,
-        no_gaps: Boolean(updatedDraft.no_gaps),
+        no_gaps: false,
         max_hours_per_day: updatedDraft.max_hours_per_day === "" ? null : Number(updatedDraft.max_hours_per_day),
         max_consecutive_hours: updatedDraft.max_consecutive_hours === "" ? null : Number(updatedDraft.max_consecutive_hours),
         preferred_availability: updatedDraft.preferred_availability || [],
         unavailable_slots: updatedDraft.unavailable_slots || [],
+        daily_start_time: updatedDraft.daily_start_time || "",
+        daily_max_end_time: updatedDraft.daily_max_end_time || "",
+        exception_slots: updatedDraft.exception_slots || [],
       };
 
       const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(updatedDraft.group)}/restrictions`, {
@@ -1014,21 +1023,6 @@ export default function App() {
     }
   }
 
-  async function toggleSelectedGroupNoGaps() {
-    if (!selectedGroup) {
-      return;
-    }
-
-    const nextDraft = {
-      ...createGroupRestrictionDraft(selectedGroup),
-      ...groupRestrictionDraft,
-      group: selectedGroup,
-      no_gaps: !Boolean(groupRestrictionDraft.no_gaps),
-    };
-
-    setGroupRestrictionDraft(nextDraft);
-    await saveGroupRestrictions(nextDraft);
-  }
 
   async function downloadSpreadsheet(url, fallbackName) {
     setError("");
@@ -1684,9 +1678,6 @@ export default function App() {
     if (!text || !proposal?.id || isAssistantThinking) return;
 
     const userMessage = { role: "user", text };
-    const historyForRequest = assistantMessages
-      .filter((msg) => !msg.isError)
-      .map((msg) => ({ role: msg.role, text: msg.text }));
     setAssistantMessages((prev) => [...prev, userMessage]);
     setAssistantInput("");
     setIsAssistantThinking(true);
@@ -1695,7 +1686,7 @@ export default function App() {
       const response = await fetch(`${API_URL}/assistant/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proposal_id: proposal.id, message: text, history: historyForRequest }),
+        body: JSON.stringify({ proposal_id: proposal.id, message: text }),
       });
       const data = await response.json();
 
@@ -1864,7 +1855,7 @@ export default function App() {
     setExplanationError("");
 
     try {
-      const response = await fetch(`${API_URL}/schedule/activity/${activityId}/explanation`);
+      const response = await fetch(`${API_URL}/scheduler/activity/${activityId}/explanation`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -2624,7 +2615,7 @@ export default function App() {
 
           {selectedGroup ? (
             <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: 8 }}>
-              <span style={{ fontSize: 12, color: "#667085" }}>Descans:</span>
+              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Descans:</span>
               {DAYS.map((day) => {
                 const isActive = groupBreakDays.has(day);
                 return (
@@ -2633,11 +2624,17 @@ export default function App() {
                     type="button"
                     onClick={() => toggleGroupBreak(day)}
                     disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
-                    title={`Descans ${day} per ${selectedGroup} (desplaça 30 min les classes posteriors per obrir un forat, entre 1h després de començar i 1h30 abans d'acabar)`}
+                    title={
+                      isActive
+                        ? `${day}: ja té descans per ${selectedGroup}. Clica per treure'l.`
+                        : `${day}: ${selectedGroup} no té descans. Clica per afegir-ne un (desplaça 30 min les classes posteriors, entre 1h després de començar i 1h30 abans d'acabar).`
+                    }
                     style={{
-                      padding: "0 6px",
-                      background: isActive ? "#2f6f73" : "#ffffff",
-                      color: isActive ? "#ffffff" : "#1f2937",
+                      padding: "0 8px",
+                      background: isActive ? "var(--color-accent)" : "var(--color-surface)",
+                      borderColor: isActive ? "var(--color-accent)" : "var(--color-border)",
+                      color: isActive ? "#ffffff" : "var(--color-text-primary)",
+                      fontWeight: isActive ? 600 : 500,
                     }}
                   >
                     {day.slice(0, 3)}
@@ -3992,14 +3989,6 @@ export default function App() {
               <div className="restriction-editor">
                 <p className="muted">{selectedGroup}</p>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(groupRestrictionDraft.no_gaps)}
-                      onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, no_gaps: event.target.checked })}
-                    />
-                    Sense buits
-                  </label>
                   <label>
                     Màx. hores/dia
                     <input
@@ -4023,46 +4012,84 @@ export default function App() {
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
-                  <h3>Disponibilitat preferida</h3>
-                  <div style={{ overflowX: "auto" }}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Dia</th>
-                          {HOURS.map((hour) => (
-                            <th key={hour} style={{ minWidth: 42 }}>{hour}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {DAYS.map((day) => (
-                          <tr key={day}>
-                            <td>{day}</td>
-                            {HOURS.map((hour) => {
-                              const slotKey = `${day}-${hour}`;
-                              const isPreferred = groupRestrictionDraft.preferred_availability.includes(slotKey);
-                              return (
-                                <td key={slotKey}>
-                                  <button
-                                    type="button"
-                                    onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setAvailabilitySelectionAnchor(slotKey); }}
-                                    onClick={(event) => updateAvailabilitySelection(slotKey, event, groupRestrictionDraft, setGroupRestrictionDraft)}
-                                    style={{
-                                      width: 16,
-                                      height: 16,
-                                      padding: 0,
-                                      border: `1px solid ${isPreferred ? "#4f46e5" : "#cbd5e1"}`,
-                                      background: isPreferred ? "#c7d2fe" : "#fff",
-                                    }}
-                                  />
-                                </td>
-                              );
-                            })}
-                          </tr>
+                  <h3>Horari del grup</h3>
+                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                    <label>
+                      Comencen a les
+                      <select
+                        value={groupRestrictionDraft.daily_start_time}
+                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_start_time: event.target.value })}
+                        style={{ marginLeft: 8 }}
+                      >
+                        <option value="">Sense definir</option>
+                        {HOURS.map((hour) => (
+                          <option key={hour} value={hour}>{hour}</option>
                         ))}
-                      </tbody>
-                    </table>
+                      </select>
+                    </label>
+                    <label>
+                      Poden acabar com a màxim a les
+                      <select
+                        value={groupRestrictionDraft.daily_max_end_time}
+                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_max_end_time: event.target.value })}
+                        style={{ marginLeft: 8 }}
+                      >
+                        <option value="">Sense definir</option>
+                        {HOURS.map((hour) => (
+                          <option key={hour} value={hour}>{hour}</option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <h3>Excepcions (dia+hora on aquest grup SÍ pot tenir classe fora del seu horari habitual)</h3>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+                    <select value={exceptionDraftDay} onChange={(event) => setExceptionDraftDay(event.target.value)}>
+                      {DAYS.map((day) => (
+                        <option key={day} value={day}>{day}</option>
+                      ))}
+                    </select>
+                    <select value={exceptionDraftHour} onChange={(event) => setExceptionDraftHour(event.target.value)}>
+                      {HOURS.map((hour) => (
+                        <option key={hour} value={hour}>{hour}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const slot = `${exceptionDraftDay} ${exceptionDraftHour}`;
+                        if (groupRestrictionDraft.exception_slots.includes(slot)) return;
+                        setGroupRestrictionDraft({
+                          ...groupRestrictionDraft,
+                          exception_slots: [...groupRestrictionDraft.exception_slots, slot],
+                        });
+                      }}
+                    >
+                      + Afegeix excepció
+                    </button>
+                  </div>
+                  {groupRestrictionDraft.exception_slots.length > 0 ? (
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {groupRestrictionDraft.exception_slots.map((slot) => (
+                        <li key={slot} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                          <span>{slot}</span>
+                          <button
+                            type="button"
+                            onClick={() => setGroupRestrictionDraft({
+                              ...groupRestrictionDraft,
+                              exception_slots: groupRestrictionDraft.exception_slots.filter((item) => item !== slot),
+                            })}
+                          >
+                            Treu
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="muted">Cap excepció definida.</p>
+                  )}
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
