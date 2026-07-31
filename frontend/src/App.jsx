@@ -96,9 +96,6 @@ function createGroupRestrictionDraft(groupName = "") {
     max_consecutive_hours: "",
     preferred_availability: [],
     unavailable_slots: [],
-    daily_start_time: "",
-    daily_max_end_time: "",
-    exception_slots: [],
   };
 }
 
@@ -416,6 +413,7 @@ export default function App() {
   const [generatedUnscheduledActivities, setGeneratedUnscheduledActivities] = useState([]);
   const [draggedActivityId, setDraggedActivityId] = useState(null);
   const [dropTarget, setDropTarget] = useState(null);
+  const [dropPreviewValid, setDropPreviewValid] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isFetchingEntities, setIsFetchingEntities] = useState(false);
   const [teachers, setTeachers] = useState([]);
@@ -482,8 +480,6 @@ export default function App() {
   const [isSavingTeacherRestrictions, setIsSavingTeacherRestrictions] = useState(false);
   const [groupRestrictions, setGroupRestrictions] = useState([]);
   const [groupRestrictionDraft, setGroupRestrictionDraft] = useState(createGroupRestrictionDraft(""));
-  const [exceptionDraftDay, setExceptionDraftDay] = useState(DAYS[0]);
-  const [exceptionDraftHour, setExceptionDraftHour] = useState(HOURS[0]);
   const [isSavingGroupRestrictions, setIsSavingGroupRestrictions] = useState(false);
   const [availabilitySelectionAnchor, setAvailabilitySelectionAnchor] = useState(null);
   const [unavailableSelectionAnchor, setUnavailableSelectionAnchor] = useState(null);
@@ -968,7 +964,6 @@ export default function App() {
         max_consecutive_hours: data.max_consecutive_hours ?? "",
         preferred_availability: Array.isArray(data.preferred_availability) ? data.preferred_availability : [],
         unavailable_slots: Array.isArray(data.unavailable_slots) ? data.unavailable_slots : [],
-        exception_slots: Array.isArray(data.exception_slots) ? data.exception_slots : [],
       };
       setGroupRestrictionDraft(nextDraft);
       setGroupRestrictions((current) => {
@@ -992,14 +987,11 @@ export default function App() {
     try {
       const payload = {
         group: updatedDraft.group,
-        no_gaps: false,
+        no_gaps: Boolean(updatedDraft.no_gaps),
         max_hours_per_day: updatedDraft.max_hours_per_day === "" ? null : Number(updatedDraft.max_hours_per_day),
         max_consecutive_hours: updatedDraft.max_consecutive_hours === "" ? null : Number(updatedDraft.max_consecutive_hours),
         preferred_availability: updatedDraft.preferred_availability || [],
         unavailable_slots: updatedDraft.unavailable_slots || [],
-        daily_start_time: updatedDraft.daily_start_time || "",
-        daily_max_end_time: updatedDraft.daily_max_end_time || "",
-        exception_slots: updatedDraft.exception_slots || [],
       };
 
       const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(updatedDraft.group)}/restrictions`, {
@@ -1023,6 +1015,21 @@ export default function App() {
     }
   }
 
+  async function toggleSelectedGroupNoGaps() {
+    if (!selectedGroup) {
+      return;
+    }
+
+    const nextDraft = {
+      ...createGroupRestrictionDraft(selectedGroup),
+      ...groupRestrictionDraft,
+      group: selectedGroup,
+      no_gaps: !Boolean(groupRestrictionDraft.no_gaps),
+    };
+
+    setGroupRestrictionDraft(nextDraft);
+    await saveGroupRestrictions(nextDraft);
+  }
 
   async function downloadSpreadsheet(url, fallbackName) {
     setError("");
@@ -1395,6 +1402,79 @@ export default function App() {
     }, {});
   }, [activitiesBySlot, selectedGroup]);
 
+  // Dues activitats poden solapar-se en el temps sense compartir el mateix
+  // inici (p. ex. una de mitja hora que comença enmig d'una altra de més
+  // llarga). Com que cada franja es renderitza en un div independent
+  // posicionat a la mateixa cel·la de la graella CSS, sense aquest càlcul
+  // es tapen completament l'una a l'altra. Aquí es detecten els solapaments
+  // reals (per dia) i s'assigna una columna a cada bloc perquè es mostrin
+  // en paral·lel, l'un al costat de l'altre.
+  const dayLayoutBlocks = useMemo(() => {
+    const blocksByDay = {};
+
+    Object.entries(visibleActivitiesBySlot).forEach(([slotKey, slotActivities]) => {
+      if (!slotActivities.length) {
+        return;
+      }
+      const [day, hour] = slotKey.split("-");
+      const hourRow = HOURS.indexOf(hour);
+      if (hourRow === -1) {
+        return;
+      }
+      const maxDuration = Math.max(1, ...slotActivities.map((activity) => Number(activity.duration) || 1));
+      const rowSpan = Math.min(maxDuration, HOURS.length - hourRow);
+
+      if (!blocksByDay[day]) {
+        blocksByDay[day] = [];
+      }
+      blocksByDay[day].push({ slotKey, day, hourRow, rowSpan, activities: slotActivities });
+    });
+
+    const result = [];
+
+    Object.values(blocksByDay).forEach((dayBlocks) => {
+      const sorted = [...dayBlocks].sort((a, b) => a.hourRow - b.hourRow || b.rowSpan - a.rowSpan);
+      const active = [];
+      let cluster = [];
+      let clusterMaxColumns = 0;
+
+      const flushCluster = () => {
+        cluster.forEach((item) => {
+          item.totalColumns = clusterMaxColumns;
+        });
+        cluster = [];
+        clusterMaxColumns = 0;
+      };
+
+      sorted.forEach((block) => {
+        for (let i = active.length - 1; i >= 0; i -= 1) {
+          if (active[i].endRow <= block.hourRow) {
+            active.splice(i, 1);
+          }
+        }
+        if (!active.length && cluster.length) {
+          flushCluster();
+        }
+
+        const usedColumns = new Set(active.map((item) => item.column));
+        let column = 0;
+        while (usedColumns.has(column)) {
+          column += 1;
+        }
+
+        active.push({ endRow: block.hourRow + block.rowSpan, column });
+        const item = { ...block, column };
+        cluster.push(item);
+        clusterMaxColumns = Math.max(clusterMaxColumns, active.length);
+        result.push(item);
+      });
+
+      flushCluster();
+    });
+
+    return result;
+  }, [visibleActivitiesBySlot]);
+
   const conflictIds = useMemo(() => conflictActivityIds(conflicts), [conflicts]);
   const conflictMessages = useMemo(() => conflictMessagesByActivity(conflicts), [conflicts]);
 
@@ -1678,6 +1758,9 @@ export default function App() {
     if (!text || !proposal?.id || isAssistantThinking) return;
 
     const userMessage = { role: "user", text };
+    const historyForRequest = assistantMessages
+      .filter((msg) => !msg.isError)
+      .map((msg) => ({ role: msg.role, text: msg.text }));
     setAssistantMessages((prev) => [...prev, userMessage]);
     setAssistantInput("");
     setIsAssistantThinking(true);
@@ -1686,7 +1769,7 @@ export default function App() {
       const response = await fetch(`${API_URL}/assistant/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proposal_id: proposal.id, message: text }),
+        body: JSON.stringify({ proposal_id: proposal.id, message: text, history: historyForRequest }),
       });
       const data = await response.json();
 
@@ -1808,13 +1891,13 @@ export default function App() {
     return existingSuffix && candidateSuffix && existingSuffix !== candidateSuffix;
   }
 
-  function canMoveActivityToSlot(activityId, day, start) {
+  function checkSlotAvailability(activityId, day, start) {
     // find candidate in active activities or in unscheduled/generated lists
     const activity = activities.find((item) => item.id === activityId)
       || generatedUnscheduledActivities.find((item) => item.id === activityId)
       || unscheduledActivities.find((item) => item.id === activityId);
     if (!activity) {
-      return true;
+      return { valid: true };
     }
 
     // build the slot activities from the full `activities` list (not the filtered view)
@@ -1826,28 +1909,36 @@ export default function App() {
     );
 
     if (!sameGroupActivities.length) {
-      return true;
+      return { valid: true };
     }
 
     if (sameGroupActivities.length > 1) {
-      const message = "Hi ha més d'una activitat en aquesta franja per al mateix grup.";
-      setError(message);
-      return false;
+      return { valid: false, message: "Hi ha més d'una activitat en aquesta franja per al mateix grup." };
     }
 
     const existing = sameGroupActivities[0];
     if (existing.id === activityId) {
-      return true;
+      return { valid: true };
     }
 
     if (canShareSlotWithQuarter(existing, activity)) {
-      return true;
+      return { valid: true };
     }
 
-    const message = "No es pot col·locar una altra assignatura diferent en aquesta franja per al mateix grup.";
-    setError(message);
-    alert(message);
-    return false;
+    return {
+      valid: false,
+      message: "No es pot col·locar una altra assignatura diferent en aquesta franja per al mateix grup.",
+    };
+  }
+
+  function canMoveActivityToSlot(activityId, day, start) {
+    const result = checkSlotAvailability(activityId, day, start);
+    if (!result.valid) {
+      setError(result.message);
+      alert(result.message);
+      return false;
+    }
+    return true;
   }
 
   async function loadActivityExplanation(activityId) {
@@ -1855,7 +1946,7 @@ export default function App() {
     setExplanationError("");
 
     try {
-      const response = await fetch(`${API_URL}/scheduler/activity/${activityId}/explanation`);
+      const response = await fetch(`${API_URL}/schedule/activity/${activityId}/explanation`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -1874,11 +1965,34 @@ export default function App() {
 
   function handleDragOver(event, day, start) {
     event.preventDefault();
-    setDropTarget(`${day}-${start}`);
+    const key = `${day}-${start}`;
+    if (dropTarget !== key) {
+      setDropTarget(key);
+    }
+
+    const activityId = draggedActivityId;
+    if (activityId === null || activityId === undefined) {
+      setDropPreviewValid(true);
+      return;
+    }
+
+    // Una franja ocupada per una única activitat diferent es resol amb un
+    // swap (sempre possible), no amb una col·locació directa.
+    const occupyingActivities = (activities || []).filter(
+      (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
+    );
+    if (occupyingActivities.length === 1) {
+      setDropPreviewValid(true);
+      return;
+    }
+
+    const result = checkSlotAvailability(activityId, day, start);
+    setDropPreviewValid(result.valid);
   }
 
   function handleDrop(event, day, start) {
     event.preventDefault();
+    setDropPreviewValid(true);
 
     // Prefer dataTransfer id but fallback to draggedActivityId state
     const transferId = event?.dataTransfer?.getData("text/plain");
@@ -1997,6 +2111,7 @@ export default function App() {
         onDragEnd={() => {
           setDraggedActivityId(null);
           setDropTarget(null);
+          setDropPreviewValid(true);
         }}
       >
         <strong>{activity.subject}</strong>
@@ -2505,7 +2620,7 @@ export default function App() {
                       key={activity.id ?? index}
                       draggable={Boolean(activity.id)}
                       onDragStart={(event) => activity.id && handleDragStart(event, activity.id)}
-                      onDragEnd={() => setDraggedActivityId(null)}
+                      onDragEnd={() => { setDraggedActivityId(null); setDropPreviewValid(true); }}
                       title={activity.id ? "Arrossega-la fins al calendari per col·locar-la" : undefined}
                       style={{
                         flex: "0 0 auto",
@@ -2615,7 +2730,7 @@ export default function App() {
 
           {selectedGroup ? (
             <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: 8 }}>
-              <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>Descans:</span>
+              <span style={{ fontSize: 12, color: "#667085" }}>Descans:</span>
               {DAYS.map((day) => {
                 const isActive = groupBreakDays.has(day);
                 return (
@@ -2624,17 +2739,11 @@ export default function App() {
                     type="button"
                     onClick={() => toggleGroupBreak(day)}
                     disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
-                    title={
-                      isActive
-                        ? `${day}: ja té descans per ${selectedGroup}. Clica per treure'l.`
-                        : `${day}: ${selectedGroup} no té descans. Clica per afegir-ne un (desplaça 30 min les classes posteriors, entre 1h després de començar i 1h30 abans d'acabar).`
-                    }
+                    title={`Descans ${day} per ${selectedGroup} (desplaça 30 min les classes posteriors per obrir un forat, entre 1h després de començar i 1h30 abans d'acabar)`}
                     style={{
-                      padding: "0 8px",
-                      background: isActive ? "var(--color-accent)" : "var(--color-surface)",
-                      borderColor: isActive ? "var(--color-accent)" : "var(--color-border)",
-                      color: isActive ? "#ffffff" : "var(--color-text-primary)",
-                      fontWeight: isActive ? 600 : 500,
+                      padding: "0 6px",
+                      background: isActive ? "#2f6f73" : "#ffffff",
+                      color: isActive ? "#ffffff" : "#1f2937",
                     }}
                   >
                     {day.slice(0, 3)}
@@ -3931,14 +4040,20 @@ export default function App() {
               {DAYS.map((day, dayIndex) => {
                 const key = `${day}-${hour}`;
                 const isDropTarget = dropTarget === key;
+                const dropTargetClass = isDropTarget
+                  ? (dropPreviewValid ? "slot slot--target slot--target-valid" : "slot slot--target slot--target-invalid")
+                  : "slot";
 
                 return (
                   <div
                     key={key}
-                    className={isDropTarget ? "slot slot--target" : "slot"}
+                    className={dropTargetClass}
                     style={{ gridColumn: dayIndex + 2, gridRow: hourIndex + 2 }}
                     onDragOver={(event) => handleDragOver(event, day, hour)}
-                    onDragLeave={() => setDropTarget(null)}
+                    onDragLeave={() => {
+                      setDropTarget(null);
+                      setDropPreviewValid(true);
+                    }}
                     onDrop={(event) => handleDrop(event, day, hour)}
                   />
                 );
@@ -3946,34 +4061,29 @@ export default function App() {
             </React.Fragment>
           ))}
 
-          {Object.entries(visibleActivitiesBySlot).map(([slotKey, slotActivities]) => {
-            if (!slotActivities.length) {
+          {dayLayoutBlocks.map((block) => {
+            const dayCol = DAYS.indexOf(block.day);
+            if (dayCol === -1) {
               return null;
             }
 
-            const [day, hour] = slotKey.split("-");
-            const dayCol = DAYS.indexOf(day);
-            const hourRow = HOURS.indexOf(hour);
-            if (dayCol === -1 || hourRow === -1) {
-              return null;
-            }
-
-            const maxDuration = Math.max(
-              1,
-              ...slotActivities.map((activity) => Number(activity.duration) || 1)
-            );
-            const rowSpan = Math.min(maxDuration, HOURS.length - hourRow);
+            const totalColumns = block.totalColumns || 1;
+            const widthPercent = 100 / totalColumns;
+            const leftPercent = widthPercent * block.column;
 
             return (
               <div
-                key={slotKey}
+                key={block.slotKey}
                 className="slot-activities"
                 style={{
                   gridColumn: dayCol + 2,
-                  gridRow: `${hourRow + 2} / span ${rowSpan}`,
+                  gridRow: `${block.hourRow + 2} / span ${block.rowSpan}`,
+                  ...(totalColumns > 1
+                    ? { width: `${widthPercent}%`, marginLeft: `${leftPercent}%` }
+                    : null),
                 }}
               >
-                {slotActivities.map(renderActivity)}
+                {block.activities.map(renderActivity)}
               </div>
             );
           })}
@@ -3989,6 +4099,14 @@ export default function App() {
               <div className="restriction-editor">
                 <p className="muted">{selectedGroup}</p>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(groupRestrictionDraft.no_gaps)}
+                      onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, no_gaps: event.target.checked })}
+                    />
+                    Sense buits
+                  </label>
                   <label>
                     Màx. hores/dia
                     <input
@@ -4012,84 +4130,46 @@ export default function App() {
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
-                  <h3>Horari del grup</h3>
-                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                    <label>
-                      Comencen a les
-                      <select
-                        value={groupRestrictionDraft.daily_start_time}
-                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_start_time: event.target.value })}
-                        style={{ marginLeft: 8 }}
-                      >
-                        <option value="">Sense definir</option>
-                        {HOURS.map((hour) => (
-                          <option key={hour} value={hour}>{hour}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Poden acabar com a màxim a les
-                      <select
-                        value={groupRestrictionDraft.daily_max_end_time}
-                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_max_end_time: event.target.value })}
-                        style={{ marginLeft: 8 }}
-                      >
-                        <option value="">Sense definir</option>
-                        {HOURS.map((hour) => (
-                          <option key={hour} value={hour}>{hour}</option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <h3>Excepcions (dia+hora on aquest grup SÍ pot tenir classe fora del seu horari habitual)</h3>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
-                    <select value={exceptionDraftDay} onChange={(event) => setExceptionDraftDay(event.target.value)}>
-                      {DAYS.map((day) => (
-                        <option key={day} value={day}>{day}</option>
-                      ))}
-                    </select>
-                    <select value={exceptionDraftHour} onChange={(event) => setExceptionDraftHour(event.target.value)}>
-                      {HOURS.map((hour) => (
-                        <option key={hour} value={hour}>{hour}</option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const slot = `${exceptionDraftDay} ${exceptionDraftHour}`;
-                        if (groupRestrictionDraft.exception_slots.includes(slot)) return;
-                        setGroupRestrictionDraft({
-                          ...groupRestrictionDraft,
-                          exception_slots: [...groupRestrictionDraft.exception_slots, slot],
-                        });
-                      }}
-                    >
-                      + Afegeix excepció
-                    </button>
-                  </div>
-                  {groupRestrictionDraft.exception_slots.length > 0 ? (
-                    <ul style={{ margin: 0, paddingLeft: 18 }}>
-                      {groupRestrictionDraft.exception_slots.map((slot) => (
-                        <li key={slot} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                          <span>{slot}</span>
-                          <button
-                            type="button"
-                            onClick={() => setGroupRestrictionDraft({
-                              ...groupRestrictionDraft,
-                              exception_slots: groupRestrictionDraft.exception_slots.filter((item) => item !== slot),
+                  <h3>Disponibilitat preferida</h3>
+                  <div style={{ overflowX: "auto" }}>
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Dia</th>
+                          {HOURS.map((hour) => (
+                            <th key={hour} style={{ minWidth: 42 }}>{hour}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {DAYS.map((day) => (
+                          <tr key={day}>
+                            <td>{day}</td>
+                            {HOURS.map((hour) => {
+                              const slotKey = `${day}-${hour}`;
+                              const isPreferred = groupRestrictionDraft.preferred_availability.includes(slotKey);
+                              return (
+                                <td key={slotKey}>
+                                  <button
+                                    type="button"
+                                    onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setAvailabilitySelectionAnchor(slotKey); }}
+                                    onClick={(event) => updateAvailabilitySelection(slotKey, event, groupRestrictionDraft, setGroupRestrictionDraft)}
+                                    style={{
+                                      width: 16,
+                                      height: 16,
+                                      padding: 0,
+                                      border: `1px solid ${isPreferred ? "#4f46e5" : "#cbd5e1"}`,
+                                      background: isPreferred ? "#c7d2fe" : "#fff",
+                                    }}
+                                  />
+                                </td>
+                              );
                             })}
-                          >
-                            Treu
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="muted">Cap excepció definida.</p>
-                  )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
@@ -4273,7 +4353,7 @@ export default function App() {
                             className="incident-card"
                             draggable={Boolean(warning.id)}
                             onDragStart={(event) => warning.id && handleDragStart(event, warning.id)}
-                            onDragEnd={() => setDraggedActivityId(null)}
+                            onDragEnd={() => { setDraggedActivityId(null); setDropPreviewValid(true); }}
                             title={warning.id ? "Arrossega-la fins al calendari per col·locar-la" : undefined}
                             style={{
                               cursor: warning.id ? "grab" : "default",
@@ -4509,6 +4589,7 @@ export default function App() {
                     onDragEnd={() => {
                       setDraggedActivityId(null);
                       setDropTarget(null);
+                      setDropPreviewValid(true);
                     }}
                   >
                     <strong>{activity.subject}</strong>
