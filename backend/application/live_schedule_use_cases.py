@@ -219,7 +219,7 @@ class LiveScheduleUseCases:
                 "ok": False,
                 "error": "validation_failed",
                 "conflicts": serialize_conflicts(new_conflicts),
-                **self.state(conflicts=conflicts),
+                **self.state(conflicts=baseline_conflicts),
             }
 
         self._persist_active_schedule(clear_proposal=False)
@@ -271,7 +271,7 @@ class LiveScheduleUseCases:
                 "ok": False,
                 "error": "validation_failed",
                 "conflicts": serialize_conflicts(new_conflicts),
-                **self.state(conflicts=conflicts),
+                **self.state(conflicts=baseline_conflicts),
             }
 
         self._persist_active_schedule(clear_proposal=False)
@@ -297,22 +297,32 @@ class LiveScheduleUseCases:
             **self.state(),
         }
 
-    _BREAK_WINDOW_STARTS = [
-        "8:00", "8:30", "9:00", "9:30", "10:00", "10:30", "11:00", "11:30",
-        "12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30",
-        "16:00", "16:30", "17:00", "17:30", "18:00", "18:30", "19:00", "19:30",
-        "20:00", "20:30",
-    ]
+    _MORNING_BREAK_GROUPS = {"1r apgi", "2n apgi", "pfi", "1r com", "2n com"}
+    _AFTERNOON_BREAK_GROUPS = {"comú", "gp", "gi"}
+
+    @staticmethod
+    def _norm_name(value: str) -> str:
+        return (value or "").strip().lower()
 
     def toggle_group_break(self, group: str, day: str) -> Dict[str, Any]:
-        """Activa/desactiva un descans de mitja hora per a un grup en un dia
-        concret (matí o tarda), triant automàticament la primera franja
-        lliure d'aquell dia per aquest grup."""
+        """Activa/desactiva un descans de 30 min per a un grup en un dia
+        concret. Si cal, desplaça 30 min més tard totes les classes
+        d'aquell grup a partir del punt d'inserció per obrir un forat
+        lliure de veritat (no es limita a buscar-ne un que ja existeixi).
+        El punt d'inserció és com a mínim 1h després de l'inici de la
+        primera classe del dia i com a màxim 1h30 abans del final de
+        l'última, i a més es limita al matí o la tarda segons el grup
+        (1r/2n APGI, PFI, 1r/2n COM -> matí; Comú, GP, GI -> tarda).
+        En desactivar-lo, torna a ajuntar l'horari desplaçant cap enrere
+        les classes que hi havia després."""
+        hour_names, hour_index = self._half_hour_grid()
+        target_group = self._norm_name(group)
+
         existing = next(
             (
                 item
                 for item in self._engine.state.all()
-                if item.group == group
+                if self._norm_name(item.group) == target_group
                 and item.day == day
                 and (item.subject or "").strip().lower() == "descans"
             ),
@@ -320,21 +330,92 @@ class LiveScheduleUseCases:
         )
 
         if existing is not None:
+            removed_idx = hour_index.get(existing.start, None)
             self._engine.state.remove(existing)
+            if removed_idx is not None:
+                later_items = sorted(
+                    (
+                        item
+                        for item in self._engine.state.all()
+                        if self._norm_name(item.group) == target_group and item.day == day
+                        and hour_index.get(item.start, -1) > removed_idx
+                    ),
+                    key=lambda item: hour_index.get(item.start, -1),
+                )
+                for item in later_items:
+                    idx = hour_index.get(item.start, -1)
+                    if idx <= 0:
+                        continue
+                    result = self.move(item.id, day, hour_names[idx - 1])
+                    if not result.get("ok"):
+                        break  # es queda on és si no es pot desplaçar (p.ex. xoca amb el professor en un altre grup)
             self._persist_active_schedule(clear_proposal=False)
             return {"ok": True, "active": False, **self.state()}
 
-        occupied_starts = {
-            item.start
-            for item in self._engine.state.all()
-            if item.group == group and item.day == day
-        }
-        chosen_start = next(
-            (start for start in self._BREAK_WINDOW_STARTS if start not in occupied_starts),
-            None,
+        day_activities = [
+            item for item in self._engine.state.all()
+            if self._norm_name(item.group) == target_group and item.day == day
+            and (item.subject or "").strip().lower() != "descans"
+        ]
+        if not day_activities:
+            known_groups = sorted({item.group for item in self._engine.state.all() if item.day == day and item.group})
+            return {
+                "ok": False,
+                "error": "no_free_slot",
+                "detail": f"cap classe aquell dia per aquest grup (grups amb classe {day}: {known_groups})",
+                "active": False,
+                **self.state(),
+            }
+
+        start_indices = [hour_index.get(item.start, -1) for item in day_activities]
+        end_indices = [hour_index.get(item.start, -1) + item.duration for item in day_activities]
+        if -1 in start_indices:
+            bad_starts = [item.start for item in day_activities if hour_index.get(item.start, -1) == -1]
+            return {"ok": False, "error": "no_free_slot", "detail": f"hora no reconeguda: {bad_starts}", "active": False, **self.state()}
+
+        day_start_idx = min(start_indices)
+        day_end_idx = max(end_indices)
+
+        window_start_idx = day_start_idx + 2  # 1h després de començar
+        window_end_idx = day_end_idx - 3  # 1h30 abans d'acabar
+
+        midday_idx = hour_index.get("14:00")
+        if midday_idx is not None:
+            if target_group in self._MORNING_BREAK_GROUPS:
+                window_end_idx = min(window_end_idx, midday_idx - 1)
+            elif target_group in self._AFTERNOON_BREAK_GROUPS:
+                window_start_idx = max(window_start_idx, midday_idx)
+
+        if window_start_idx > window_end_idx or window_start_idx >= len(hour_names):
+            return {
+                "ok": False,
+                "error": "no_free_slot",
+                "detail": f"classes de {hour_names[day_start_idx]} a {hour_names[day_end_idx - 1] if day_end_idx - 1 < len(hour_names) else '?'} "
+                          f"({(day_end_idx - day_start_idx) * 0.5}h seguides, calen minim 3h per deixar els dos marges "
+                          f"dins del mati o la tarda segons el grup)",
+                "active": False,
+                **self.state(),
+            }
+
+        insertion_idx = window_start_idx
+        chosen_start = hour_names[insertion_idx]
+
+        # Desplaça 30 min més tard totes les activitats d'aquest grup/dia
+        # que comencin al punt d'inserció o després, començant per la
+        # darrera perquè no xoquin entre elles durant el desplaçament.
+        to_shift = sorted(
+            (item for item in day_activities if hour_index.get(item.start, -1) >= insertion_idx),
+            key=lambda item: hour_index.get(item.start, -1),
+            reverse=True,
         )
-        if chosen_start is None:
-            return {"ok": False, "error": "no_free_slot", "active": False, **self.state()}
+        for item in to_shift:
+            idx = hour_index.get(item.start, -1)
+            new_idx = idx + 1
+            if new_idx + item.duration > len(hour_names):
+                return {"ok": False, "error": "no_free_slot", "active": False, **self.state()}
+            result = self.move(item.id, day, hour_names[new_idx])
+            if not result.get("ok"):
+                return {"ok": False, "error": result.get("error", "validation_failed"), "active": False, **self.state()}
 
         result = self.add_manual_activity(
             subject="Descans",

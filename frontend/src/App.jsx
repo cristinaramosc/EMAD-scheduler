@@ -1359,7 +1359,9 @@ export default function App() {
     }
 
     if (teacherFilter) {
-      nextActivities = nextActivities.filter((activity) => activity.teacher === teacherFilter);
+      nextActivities = nextActivities.filter(
+        (activity) => activity.teacher === teacherFilter || (activity.subject || "").trim().toLowerCase() === "descans"
+      );
     }
 
     return nextActivities;
@@ -1489,36 +1491,30 @@ export default function App() {
   }
 
   async function toggleGroupBreak(day) {
-    console.log("[descans] toggleGroupBreak cridada", { day, selectedGroup });
     if (!selectedGroup) {
-      console.log("[descans] sortida: no hi ha selectedGroup");
       return;
     }
     setIsTogglingBreak(true);
     setError("");
     setSuccessMessage("");
     try {
-      console.log("[descans] fent fetch a /scheduler/breaks/toggle");
       const response = await fetch(`${API_URL}/scheduler/breaks/toggle`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ group: selectedGroup, day }),
       });
-      console.log("[descans] resposta rebuda, status:", response.status);
       const data = await response.json();
-      console.log("[descans] data:", data);
       if (!data.ok) {
         setError(
           data.error === "no_free_slot"
-            ? "No hi ha cap franja lliure entre les 9:30 i les 12:30 per aquest grup i dia."
+            ? `No hi ha cap franja lliure per al descans${data.detail ? ` (${data.detail})` : ""}.`
             : "No s'ha pogut canviar el descans."
         );
         return;
       }
       setActivities((data.activities || []).map(normalizeTimetableActivity));
       setConflicts(data.conflicts || []);
-    } catch (err) {
-      console.log("[descans] ERROR capturat:", err);
+    } catch {
       setError("No s'ha pogut canviar el descans.");
     } finally {
       setIsTogglingBreak(false);
@@ -2634,7 +2630,7 @@ export default function App() {
                     type="button"
                     onClick={() => toggleGroupBreak(day)}
                     disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
-                    title={`Descans ${day} per ${selectedGroup} (busca la primera franja lliure d'aquell dia)`}
+                    title={`Descans ${day} per ${selectedGroup} (desplaça 30 min les classes posteriors per obrir un forat, entre 1h després de començar i 1h30 abans d'acabar)`}
                     style={{
                       padding: "0 6px",
                       background: isActive ? "#2f6f73" : "#ffffff",
@@ -3878,7 +3874,7 @@ export default function App() {
                   key={group.name}
                   type="button"
                   className={selectedGroup === group.name ? "group-tab group-tab--active" : "group-tab"}
-                  onClick={() => setSelectedGroup(group.name)}
+                  onClick={() => { setSelectedGroup(group.name); setTeacherFilter(""); }}
                 >
                   {group.name}
                 </button>
@@ -3890,8 +3886,11 @@ export default function App() {
                 Professor
                 <select
                   value={teacherFilter}
-                  onChange={(event) => setTeacherFilter(event.target.value)}
-                  disabled={isFetchingEntities || !selectedGroup}
+                  onChange={(event) => {
+                    setTeacherFilter(event.target.value);
+                    if (event.target.value) setSelectedGroup("");
+                  }}
+                  disabled={isFetchingEntities}
                 >
                   <option value="">Tots</option>
                   {teachers.map((teacher) => (
