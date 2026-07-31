@@ -84,6 +84,9 @@ class GroupRestrictionDTO(BaseModel):
     max_consecutive_hours: Optional[float] = None
     preferred_availability: Optional[List[str]] = []
     unavailable_slots: Optional[List[str]] = []
+    daily_start_time: Optional[str] = ""
+    daily_max_end_time: Optional[str] = ""
+    exception_slots: Optional[List[str]] = []
 
 
 class GroupRestrictionUpdateDTO(BaseModel):
@@ -93,6 +96,9 @@ class GroupRestrictionUpdateDTO(BaseModel):
     max_consecutive_hours: Optional[float] = None
     preferred_availability: Optional[List[str]] = None
     unavailable_slots: Optional[List[str]] = None
+    daily_start_time: Optional[str] = None
+    daily_max_end_time: Optional[str] = None
+    exception_slots: Optional[List[str]] = None
 
 
 class SubjectDTO(BaseModel):
@@ -330,6 +336,9 @@ def update_group_restrictions(name: str, payload: GroupRestrictionUpdateDTO):
         "preferred_availability": payload.preferred_availability if payload.preferred_availability is not None else [],
         "unavailable_slots": payload.unavailable_slots if payload.unavailable_slots is not None else current.get("unavailable_slots", []),
         "fixed_slots": current.get("fixed_slots", []),
+        "daily_start_time": payload.daily_start_time if payload.daily_start_time is not None else current.get("daily_start_time", ""),
+        "daily_max_end_time": payload.daily_max_end_time if payload.daily_max_end_time is not None else current.get("daily_max_end_time", ""),
+        "exception_slots": payload.exception_slots if payload.exception_slots is not None else current.get("exception_slots", []),
     }
     repo.upsert_group_restriction(record)
     return {"ok": True}

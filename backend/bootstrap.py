@@ -117,7 +117,10 @@ def build_dependencies() -> AppDependencies:
         academic_data_repo=academic_data_repo,
     )
     explanation_use_cases = ExplanationUseCases(DecisionExplainer(scheduler_engine))
-    assistant_use_cases = AssistantUseCases(proposal_store=proposal_store)
+    assistant_use_cases = AssistantUseCases(
+        proposal_store=proposal_store,
+        academic_data_repo=academic_data_repo,
+    )
 
     return AppDependencies(
         requirement_repo=requirement_repo,

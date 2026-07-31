@@ -36,9 +36,10 @@ LÍMITS
 - Qualsevol acció que impliqui modificar l'horari requereix confirmació explícita de la persona usuària fora d'aquesta conversa (aquesta versió de l'assistent és només de consulta, no executa accions).
 - Si la persona rebutja una recomanació, no insisteixis; pots oferir alternatives però respecta la decisió.
 - Si et pregunten un objectiu obert ("com puc millorar aquest horari?"), comença pels problemes més rellevants i proposa un pla d'acció ordenat, no una llista aïllada d'incidències.
+- Quan comparis alternatives, sigues concret: si el context inclou restriccions de professors o de grups (franges no disponibles, activitats fixes), fes-hi referència explícita en comptes de parlar en termes generals.
 
 CONTEXT
-Rebràs, en cada consulta, un resum estructurat de l'estat actual de la proposta d'horari (conflictes reals i activitats que no s'han pogut col·locar, amb els seus motius). Basa les teves respostes únicament en aquest context i en el que la persona et digui a la conversa."""
+Rebràs, en cada consulta, un resum estructurat de l'estat actual de la proposta d'horari (conflictes reals, activitats que no s'han pogut col·locar amb els seus motius, i les restriccions conegudes dels professors i grups implicats). Basa les teves respostes únicament en aquest context i en el que la persona et digui a la conversa. Si la conversa té torns anteriors, mantén-ne la coherència."""
 
 
 def _format_conflicts(conflicts: List[Dict[str, Any]]) -> str:
@@ -64,7 +65,68 @@ def _format_warnings(warnings: List[Dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
-def build_context_summary(proposal: ScheduleProposal) -> str:
+def _involved_names(proposal: ScheduleProposal) -> Dict[str, set]:
+    """Extreu els noms de professors i grups implicats en conflictes o
+    activitats sense col·locar, per poder-hi acotar les restriccions."""
+    teachers: set = set()
+    groups: set = set()
+
+    for conflict in proposal.conflicts or []:
+        if getattr(conflict, "teacher", None):
+            teachers.add(conflict.teacher)
+
+    for warning in proposal.warnings or []:
+        if not isinstance(warning, dict):
+            continue
+        if warning.get("teacher"):
+            teachers.add(warning["teacher"])
+        if warning.get("group"):
+            groups.add(warning["group"])
+
+    return {"teachers": teachers, "groups": groups}
+
+
+def _format_restrictions(
+    academic_data_repo: Optional[Any], teachers: set, groups: set
+) -> str:
+    if academic_data_repo is None or (not teachers and not groups):
+        return "No hi ha restriccions conegudes rellevants per aquesta proposta."
+
+    lines: List[str] = []
+
+    try:
+        teacher_restrictions = academic_data_repo.list_teacher_restrictions()
+    except Exception:  # pragma: no cover - defensiu, no ha de trencar el xat
+        teacher_restrictions = []
+    for record in teacher_restrictions:
+        if record.get("teacher") not in teachers:
+            continue
+        slots = record.get("unavailable_slots") or []
+        if slots:
+            lines.append(f"- Professor {record['teacher']}: no disponible a {', '.join(slots)}")
+
+    try:
+        group_restrictions = academic_data_repo.list_group_restrictions()
+    except Exception:  # pragma: no cover
+        group_restrictions = []
+    for record in group_restrictions:
+        if record.get("group") not in groups:
+            continue
+        unavailable = record.get("unavailable_slots") or []
+        fixed = record.get("fixed_slots") or []
+        if unavailable:
+            lines.append(f"- Grup {record['group']}: no disponible a {', '.join(unavailable)}")
+        if fixed:
+            lines.append(f"- Grup {record['group']}: activitats fixes a {', '.join(fixed)}")
+
+    if not lines:
+        return "No hi ha restriccions conegudes rellevants per aquesta proposta."
+    return "\n".join(lines)
+
+
+def build_context_summary(
+    proposal: ScheduleProposal, academic_data_repo: Optional[Any] = None
+) -> str:
     """Resum estructurat i llegible de l'estat de la proposta, per fer de
     context real a la conversa (evita que l'assistent inventi dades)."""
     conflicts = [
@@ -75,6 +137,7 @@ def build_context_summary(proposal: ScheduleProposal) -> str:
         for conflict in (proposal.conflicts or [])
     ]
     warnings = proposal.warnings or []
+    involved = _involved_names(proposal)
 
     return (
         f"Proposta: {proposal.id}\n"
@@ -82,16 +145,29 @@ def build_context_summary(proposal: ScheduleProposal) -> str:
         f"Activitats col·locades: {len(proposal.activities or [])}\n"
         f"Activitats sense col·locar: {len(warnings)}\n\n"
         f"CONFLICTES REALS:\n{_format_conflicts(conflicts)}\n\n"
-        f"ACTIVITATS SENSE FRANJA:\n{_format_warnings(warnings)}"
+        f"ACTIVITATS SENSE FRANJA:\n{_format_warnings(warnings)}\n\n"
+        f"RESTRICCIONS DE PROFESSORS I GRUPS IMPLICATS:\n"
+        f"{_format_restrictions(academic_data_repo, involved['teachers'], involved['groups'])}"
     )
 
 
 class AssistantUseCases:
-    def __init__(self, proposal_store: Dict[str, ScheduleProposal], model: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        proposal_store: Dict[str, ScheduleProposal],
+        model: Optional[str] = None,
+        academic_data_repo: Optional[Any] = None,
+    ) -> None:
         self._proposal_store = proposal_store
         self._model = model or os.environ.get("EMAD_ASSISTANT_MODEL", "claude-sonnet-4-6")
+        self._academic_data_repo = academic_data_repo
 
-    def ask(self, proposal_id: str, message: str) -> Dict[str, Any]:
+    def ask(
+        self,
+        proposal_id: str,
+        message: str,
+        history: Optional[List[Dict[str, str]]] = None,
+    ) -> Dict[str, Any]:
         proposal = self._proposal_store.get(proposal_id)
         if proposal is None:
             raise LookupError("proposal_not_found")
@@ -113,7 +189,28 @@ class AssistantUseCases:
                 "detail": "Cal instal·lar el paquet 'anthropic' (pip install anthropic).",
             }
 
-        context_summary = build_context_summary(proposal)
+        context_summary = build_context_summary(proposal, self._academic_data_repo)
+
+        # Torns anteriors de la conversa (sense recontext, per no repetir
+        # el resum a cada torn): el context fresc només s'adjunta a la
+        # pregunta actual, ja que l'estat de la proposta pot haver canviat.
+        conversation_messages: List[Dict[str, str]] = []
+        for turn in history or []:
+            role = turn.get("role")
+            text = turn.get("text") or turn.get("content")
+            if role not in ("user", "assistant") or not text:
+                continue
+            conversation_messages.append({"role": role, "content": text})
+
+        conversation_messages.append(
+            {
+                "role": "user",
+                "content": (
+                    f"Context de la proposta actual:\n\n{context_summary}\n\n"
+                    f"Pregunta de la persona usuària: {message}"
+                ),
+            }
+        )
 
         client = anthropic.Anthropic(api_key=api_key)
         try:
@@ -121,15 +218,7 @@ class AssistantUseCases:
                 model=self._model,
                 max_tokens=1024,
                 system=SYSTEM_PROMPT,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": (
-                            f"Context de la proposta actual:\n\n{context_summary}\n\n"
-                            f"Pregunta de la persona usuària: {message}"
-                        ),
-                    }
-                ],
+                messages=conversation_messages,
             )
         except Exception as exc:  # pragma: no cover - depends on live network/API
             return {"ok": False, "error": "api_call_failed", "detail": str(exc)}

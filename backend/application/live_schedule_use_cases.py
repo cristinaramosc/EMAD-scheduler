@@ -367,10 +367,24 @@ class LiveScheduleUseCases:
                 **self.state(),
             }
 
-        start_indices = [hour_index.get(item.start, -1) for item in day_activities]
-        end_indices = [hour_index.get(item.start, -1) + item.duration for item in day_activities]
+        exceptions = set()
+        if self._academic_data_repo is not None:
+            restriction = next(
+                (
+                    r for r in self._academic_data_repo.list_group_restrictions()
+                    if self._norm_name(r.get("group")) == target_group
+                ),
+                None,
+            )
+            if restriction:
+                exceptions = set(restriction.get("exception_slots") or [])
+
+        span_activities = [item for item in day_activities if f"{item.day} {item.start}" not in exceptions] or day_activities
+
+        start_indices = [hour_index.get(item.start, -1) for item in span_activities]
+        end_indices = [hour_index.get(item.start, -1) + item.duration for item in span_activities]
         if -1 in start_indices:
-            bad_starts = [item.start for item in day_activities if hour_index.get(item.start, -1) == -1]
+            bad_starts = [item.start for item in span_activities if hour_index.get(item.start, -1) == -1]
             return {"ok": False, "error": "no_free_slot", "detail": f"hora no reconeguda: {bad_starts}", "active": False, **self.state()}
 
         day_start_idx = min(start_indices)

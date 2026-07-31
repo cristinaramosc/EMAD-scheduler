@@ -228,7 +228,15 @@ class SchedulerUseCases:
             else:
                 flexible_assignments.append(assignment)
 
-        requirements = [self._build_requirement_from_assignment(index, assignment) for index, assignment in enumerate(flexible_assignments, start=1)]
+        restricted_teacher_names = {
+            (restriction.get("teacher") or "").strip()
+            for restriction in self._academic_data_repo.active_teacher_restrictions()
+            if restriction.get("unavailable_slots") or restriction.get("preferred_availability")
+        }
+        requirements = [
+            self._build_requirement_from_assignment(index, assignment, restricted_teacher_names)
+            for index, assignment in enumerate(flexible_assignments, start=1)
+        ]
         blocked_activities = self._build_blocked_activities_from_restrictions(
             self._academic_data_repo.active_teacher_restrictions(),
             self._academic_data_repo.active_group_restrictions(),
@@ -1038,16 +1046,25 @@ class SchedulerUseCases:
             metadata=dict(proposal.metadata or {}),
         )
 
-    def _build_requirement_from_assignment(self, index: int, assignment: Dict[str, Any]) -> TeachingRequirement:
+    def _build_requirement_from_assignment(
+        self, index: int, assignment: Dict[str, Any], restricted_teacher_names: set | None = None
+    ) -> TeachingRequirement:
         preferred_room = assignment.get("preferred_room", "")
         fixed_day = assignment.get("fixed_day") or None
         fixed_start = assignment.get("fixed_start") or None
         session_hours = float(assignment["weekly_hours"])
+        teacher_name = str(assignment["teacher"]).strip()
+        is_restricted_teacher = bool(restricted_teacher_names) and teacher_name in restricted_teacher_names
+        # Prioritat més alta (nombre més baix) per a professors amb
+        # restriccions de dies: es col·loquen primer perquè tenen menys
+        # marge de maniobra, i així el motor no es queda sense franges
+        # vàlides per a ells un cop col·locada la resta.
+        priority = 1 if is_restricted_teacher else 2
         return TeachingRequirement(
             id=f"academic-{index}",
             group_id=str(assignment["group"]),
             subject_id=str(assignment["subject"]),
-            teacher_id=str(assignment["teacher"]),
+            teacher_id=teacher_name,
             weekly_hours=session_hours,
             min_days=1,
             max_days=1,
@@ -1056,7 +1073,7 @@ class SchedulerUseCases:
             allow_half_hour_blocks=True,
             preferred_rooms=[preferred_room] if preferred_room else [],
             fixed_teacher=True,
-            priority=2,
+            priority=priority,
             fixed_day=fixed_day,
             fixed_start=fixed_start,
         )
@@ -1344,6 +1361,12 @@ class SchedulerUseCases:
             if activity.group and activity.day in day_index and activity.start in hour_index:
                 by_group_day.setdefault((activity.group, activity.day), []).append(activity)
 
+        exception_slots_by_group: Dict[str, set] = {}
+        if self._academic_data_repo is not None:
+            for restriction in self._academic_data_repo.list_group_restrictions():
+                key = (restriction.get("group") or "").strip().lower()
+                exception_slots_by_group[key] = set(restriction.get("exception_slots") or [])
+
         existing_ids = [item.id for item in activities]
         next_id = (max(existing_ids) + 1) if existing_ids else 1
         new_breaks: List[Activity] = []
@@ -1352,15 +1375,23 @@ class SchedulerUseCases:
             if any((a.subject or "").strip().lower() == "descans" for a in group_activities):
                 continue  # ja en té un
 
-            start_indices = [hour_index[a.start] for a in group_activities]
-            end_indices = [hour_index[a.start] + (a.duration or 1) for a in group_activities]
+            group_key = (group or "").strip().lower()
+            exceptions = exception_slots_by_group.get(group_key, set())
+            # Les classes marcades com a excepció (permeses fora de l'horari
+            # habitual del grup) no compten per calcular la franja del dia,
+            # perquè no desplacin el descans fora de lloc.
+            span_activities = [a for a in group_activities if f"{a.day} {a.start}" not in exceptions]
+            if not span_activities:
+                continue
+
+            start_indices = [hour_index[a.start] for a in span_activities]
+            end_indices = [hour_index[a.start] + (a.duration or 1) for a in span_activities]
             day_start_idx = min(start_indices)
             day_end_idx = max(end_indices)
 
             window_start_idx = day_start_idx + 2  # 1h després de començar
             window_end_idx = day_end_idx - 3  # 1h30 abans d'acabar
 
-            group_key = (group or "").strip().lower()
             if midday_idx is not None:
                 if group_key in self._MORNING_BREAK_GROUPS:
                     window_end_idx = min(window_end_idx, midday_idx - 1)
