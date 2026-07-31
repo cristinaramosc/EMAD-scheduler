@@ -1684,6 +1684,9 @@ export default function App() {
     if (!text || !proposal?.id || isAssistantThinking) return;
 
     const userMessage = { role: "user", text };
+    const historyForRequest = assistantMessages
+      .filter((msg) => !msg.isError)
+      .map((msg) => ({ role: msg.role, text: msg.text }));
     setAssistantMessages((prev) => [...prev, userMessage]);
     setAssistantInput("");
     setIsAssistantThinking(true);
@@ -1692,7 +1695,7 @@ export default function App() {
       const response = await fetch(`${API_URL}/assistant/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proposal_id: proposal.id, message: text }),
+        body: JSON.stringify({ proposal_id: proposal.id, message: text, history: historyForRequest }),
       });
       const data = await response.json();
 
