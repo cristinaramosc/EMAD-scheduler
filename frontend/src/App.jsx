@@ -4099,14 +4099,6 @@ export default function App() {
               <div className="restriction-editor">
                 <p className="muted">{selectedGroup}</p>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(groupRestrictionDraft.no_gaps)}
-                      onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, no_gaps: event.target.checked })}
-                    />
-                    Sense buits
-                  </label>
                   <label>
                     Màx. hores/dia
                     <input

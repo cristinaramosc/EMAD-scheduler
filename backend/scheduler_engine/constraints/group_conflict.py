@@ -21,19 +21,28 @@ def _quarter_suffix(text):
     return None
 
 
+def normalize_group_name(value):
+    """Normalitza un nom de grup (espais interns col·lapsats, sense
+    majúscules) perquè dues variants d'escriptura del mateix grup (p.ex.
+    "1r APGI" vs "1r  APGI" o "1R apgi") es reconeguin com el mateix grup
+    pare en comptes de tractar-se silenciosament com a grups diferents."""
+    return re.sub(r"\s+", " ", (value or "").strip()).casefold()
+
+
 def _parent_and_quarter(group, subject):
     """Retorna (grup_pare, marcador_de_quadrimestre) per a una combinació de
     grup + assignatura. El marcador es dedueix primer del nom del grup
     (p.ex. '1A 1Q' -> pare '1A', marcador '1q'); si el grup no en té, es
     dedueix del nom de l'assignatura (p.ex. grup '1A', assignatura
-    'Dibuix 1Q' -> pare '1A', marcador '1q')."""
+    'Dibuix 1Q' -> pare '1A', marcador '1q'). El grup pare retornat està
+    normalitzat (no es mostra mai a l'usuari, només s'usa per comparar)."""
     group_text = (group or "").strip()
     group_quarter = _quarter_suffix(group_text)
     if group_quarter is not None:
         parent = group_text[: -len(group_quarter)].strip()
-        return parent, group_quarter
+        return normalize_group_name(parent), group_quarter
 
-    return group_text, _quarter_suffix(subject)
+    return normalize_group_name(group_text), _quarter_suffix(subject)
 
 
 def is_valid_quarter_pair(first_group, first_subject, second_group, second_subject):
@@ -58,7 +67,8 @@ class GroupConflictConstraint(Constraint):
     def validate(self, schedule):
         conflicts = []
         occupied = {}
-        split_groups = getattr(schedule, "configuration", {}).get("split_groups", set()) if hasattr(schedule, "configuration") else set()
+        raw_split_groups = getattr(schedule, "configuration", {}).get("split_groups", set()) if hasattr(schedule, "configuration") else set()
+        split_groups = {normalize_group_name(name) for name in raw_split_groups}
 
         for activity in schedule.all():
             if not activity.group or not activity.day or not activity.start:
@@ -85,7 +95,7 @@ class GroupConflictConstraint(Constraint):
                 # Excepció: si el grup està marcat com a desdoblat, dues
                 # activitats simultànies són vàlides quan tenen professor i
                 # aula diferents (cada subgrup va per lliure).
-                group_is_split = parent_group in split_groups or activity.group in split_groups
+                group_is_split = parent_group in split_groups or normalize_group_name(activity.group) in split_groups
                 if group_is_split:
                     different_teacher = (
                         previous.teacher and activity.teacher and previous.teacher != activity.teacher
