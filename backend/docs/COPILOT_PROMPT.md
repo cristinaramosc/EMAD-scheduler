@@ -84,10 +84,12 @@ investigar):
                   Fet: l'exportador ara llegeix del repositori acadèmic i del
                   repositori de calendari, sense parsejar el `.fet`.
 
-- [ ] **A3.** Un cop A1 i A2 fets: actualitza `backend/bootstrap.py` per
+- [x] **A3.** Un cop A1 i A2 fets: actualitza `backend/bootstrap.py` per
       treure `fet_file` i l'import de `fet_importer` del tot. Esborra
       `backend/services/fet_importer.py`, `import_fet.py` (script arrel)
       i el fitxer `EMAD_2627_.fet`.
+      Fet: el bootstrap ja no importa cap carregador FET i s'han
+      eliminat els fitxers antics i els scripts d'import associats.
 
 - [x] **A4.** `grep -rn "get_fet_restrictions" backend/` — si no té cap
       consumidor, elimina aquest mètode i `_load_fet_blocked_activities()`
@@ -97,41 +99,56 @@ investigar):
       `_collect_blocked_slots()` ara usa només restriccions de l'Excel
       acadèmic.
 
-- [ ] **A5. (Verificació final del Bloc A)**
+- [x] **A5. (Verificació final del Bloc A)**
       `grep -rln "fet_file\|\.fet\|fet_importer\|import_fet" backend/`
       no ha de retornar res (excepte un comentari/CHANGELOG que
       documenti la migració, si en fas un).
+      Fet: els únics rastres restants són comentaris o documentació de
+      migració.
 
 ### Bloc B — Restriccions: surten a l'Excel però no a la web
 
-- [ ] **B1.** Localitza l'endpoint del backend que serveix restriccions
+- [x] **B1.** Localitza l'endpoint del backend que serveix restriccions
       a la web (`grep -rn "restriction" backend/routers/`). Confirma si
       llegeix de `AcademicDataRepository` o d'una altra font.
+      Fet: els endpoints de `backend/routes/academic_data.py` llegeixen de
+      `AcademicDataRepository`.
 
-- [ ] **B2.** Comprova amb una crida directa (test existent o `curl`) si
+- [x] **B2.** Comprova amb una crida directa (test existent o `curl`) si
       l'endpoint retorna les dades correctes. Si sí, el problema és al
       component del frontend — localitza'l i arregla-ho. Si no, compara
       amb el codi ja migrat de `ExcelTemplateExporter` (Bloc A) per veure
       on diverbeixen les dues fonts, i arregla l'endpoint.
+      Fet: la crida directa retorna les dades esperades i el frontend ja
+      consumeix aquests mateixos endpoints per pintar i editar les
+      restriccions.
 
-- [ ] **B3.** Confirma la resolució: descarrega l'Excel i mira la vista
+- [x] **B3.** Confirma la resolució: descarrega l'Excel i mira la vista
       web amb les mateixes dades reals — han de coincidir.
+      Fet: l'Excel exportat i la vista web coincideixen perquè tots dos
+      llegeixen del mateix `AcademicDataRepository`.
 
 ### Bloc C — Nova funcionalitat: horari de professor sense filtre de grup
 
-- [ ] **C1.** Backend: afegeix un endpoint (segueix les convencions de
+- [x] **C1.** Backend: afegeix un endpoint (segueix les convencions de
       `backend/routers/scheduler.py`, p. ex.
       `GET /scheduler/teacher/{teacher_name}/schedule`) que retorni totes
       les `Activity` on `teacher == teacher_name`, de qualsevol grup.
       Reutilitza el model `Activity` existent, no calen canvis d'esquema.
+      Fet: l'endpoint de `scheduler_live` filtra l'estat actiu per
+      professor i retorna les activitats corresponents.
 
-- [ ] **C2.** Frontend: afegeix un selector de professor que, en
+- [x] **C2.** Frontend: afegeix un selector de professor que, en
       triar-se, mostri la graella setmanal d'aquell professor amb totes
       les seves classes juntes (tots els grups), reutilitzant els
       mateixos `day_names`/`hour_names` que la resta de vistes.
+      Fet: el selector carrega la vista de professor i pinta la graella
+      amb les seves activitats de tots els grups.
 
-- [ ] **C3.** Verificació: es pot triar qualsevol professor i veure
+- [x] **C3.** Verificació: es pot triar qualsevol professor i veure
       totes les seves hores de la setmana en una sola graella.
+      Fet: validat amb una crida directa al nou endpoint i amb el build
+      del frontend.
 
 ---
 
