@@ -5,8 +5,10 @@ from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+    from backend.scheduler_engine.teacher_utils import teacher_label, teacher_names
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+    from scheduler_engine.teacher_utils import teacher_label, teacher_names
 
 try:
     from models.teaching_block import TeachingBlock
@@ -225,12 +227,18 @@ class SchedulerUseCases:
                 flexible_assignments.append(assignment)
 
         restricted_teacher_names = {
-            (restriction.get("teacher") or "").strip()
+            name
             for restriction in self._academic_data_repo.active_teacher_restrictions()
+            if restriction.get("unavailable_slots") or restriction.get("preferred_availability")
+            for name in teacher_names(restriction.get("teacher"))
+        }
+        restricted_group_names = {
+            (restriction.get("group") or "").strip()
+            for restriction in self._academic_data_repo.active_group_restrictions()
             if restriction.get("unavailable_slots") or restriction.get("preferred_availability")
         }
         requirements = [
-            self._build_requirement_from_assignment(index, assignment, restricted_teacher_names)
+            self._build_requirement_from_assignment(index, assignment, restricted_teacher_names, restricted_group_names)
             for index, assignment in enumerate(flexible_assignments, start=1)
         ]
         blocked_activities = self._build_blocked_activities_from_restrictions(
@@ -821,19 +829,24 @@ class SchedulerUseCases:
         index: int,
         assignment: Dict[str, Any],
         restricted_teacher_names: set[str],
+        restricted_group_names: set[str],
     ) -> TeachingRequirement:
         teacher = str(assignment.get("teacher", ""))
+        teacher_list = teacher_names(teacher)
         subject = str(assignment.get("subject", ""))
         group = str(assignment.get("group", ""))
         weekly_hours = float(assignment.get("weekly_hours", 0.0) or 0.0)
         preferred_room = str(assignment.get("preferred_room", "") or "")
         allow_half_hour_blocks = bool(assignment.get("allow_half_hour_blocks", False))
 
+        has_teacher_restrictions = bool(set(teacher_list).intersection(restricted_teacher_names))
+        has_group_restrictions = group in restricted_group_names
+
         return TeachingRequirement(
             id=str(assignment.get("id") or f"assignment-{index}"),
             group_id=group,
             subject_id=subject,
-            teacher_id=teacher,
+            teacher_id=teacher_label(teacher_list or teacher),
             weekly_hours=weekly_hours,
             min_days=int(assignment.get("min_days") or assignment.get("min_distribution_days") or 1),
             max_days=int(assignment.get("max_days") or assignment.get("max_distribution_days") or 5),
@@ -843,8 +856,8 @@ class SchedulerUseCases:
             min_distribution_days=assignment.get("min_distribution_days"),
             max_distribution_days=assignment.get("max_distribution_days"),
             preferred_rooms=[preferred_room] if preferred_room else [],
-            fixed_teacher=teacher in restricted_teacher_names,
-            priority=int(assignment.get("priority") or 2),
+            fixed_teacher=has_teacher_restrictions,
+            priority=1 if has_teacher_restrictions or has_group_restrictions else int(assignment.get("priority") or 2),
             fixed_day=assignment.get("fixed_day") or None,
             fixed_start=assignment.get("fixed_start") or None,
         )

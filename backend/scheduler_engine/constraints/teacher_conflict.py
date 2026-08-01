@@ -5,9 +5,11 @@ import re
 try:
     from backend.scheduler_engine.constraints.base import Constraint
     from backend.scheduler_engine.models import Conflict
+    from backend.scheduler_engine.teacher_utils import teacher_label, teacher_names
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.models import Conflict
+    from scheduler_engine.teacher_utils import teacher_label, teacher_names
 
 
 class TeacherConflictConstraint(Constraint):
@@ -18,36 +20,46 @@ class TeacherConflictConstraint(Constraint):
         occupied = {}
 
         for activity in schedule.all():
-            if not activity.teacher or not activity.day or not activity.start:
+            activity_teachers = teacher_names(activity.teacher)
+            if not activity_teachers or not activity.day or not activity.start:
                 continue
 
             for slot in self._iter_slots(activity):
-                key = (activity.teacher, activity.day, slot)
-                previous = occupied.get(key)
-                if previous is None:
-                    occupied[key] = activity
+                conflict_found = None
+                for teacher in activity_teachers:
+                    key = (teacher, activity.day, slot)
+                    previous = occupied.get(key)
+                    if previous is None:
+                        continue
+                    if previous.id != activity.id:
+                        conflict_found = previous
+                        break
+
+                if conflict_found is not None:
+                    activities = [conflict_found.id, activity.id]
+                    conflicts.append(
+                        Conflict(
+                            type="teacher_conflict",
+                            message=(
+                                f"El professor '{teacher_label(activity.teacher)}' té més d'una activitat "
+                                f"{activity.day} a les {activity.start}."
+                            ),
+                            teacher=teacher_label(activity.teacher),
+                            day=activity.day,
+                            start=activity.start,
+                            activities=activities,
+                            data={
+                                "teacher": teacher_label(activity.teacher),
+                                "day": activity.day,
+                                "start": activity.start,
+                                "activities": activities,
+                            },
+                        )
+                    )
                     continue
 
-                activities = [previous.id, activity.id]
-                conflicts.append(
-                    Conflict(
-                        type="teacher_conflict",
-                        message=(
-                            f"El professor '{activity.teacher}' té més d'una activitat "
-                            f"{activity.day} a les {activity.start}."
-                        ),
-                        teacher=activity.teacher,
-                        day=activity.day,
-                        start=activity.start,
-                        activities=activities,
-                        data={
-                            "teacher": activity.teacher,
-                            "day": activity.day,
-                            "start": activity.start,
-                            "activities": activities,
-                        },
-                    )
-                )
+                for teacher in activity_teachers:
+                    occupied[(teacher, activity.day, slot)] = activity
 
         return conflicts
 
