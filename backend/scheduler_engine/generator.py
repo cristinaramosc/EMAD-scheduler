@@ -339,6 +339,7 @@ class SchedulerGenerator:
                 day=f"Day {activity.day}",
                 start=f"Period {activity.start_timeslot.period}",
                 duration=activity.duration,
+                fixed=bool(getattr(activity.teaching_block, "fixed", False)),
             )
             for index, activity in enumerate(scheduled_activities, start=1)
         ]

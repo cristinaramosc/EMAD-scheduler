@@ -96,6 +96,8 @@ function createGroupRestrictionDraft(groupName = "") {
     max_consecutive_hours: "",
     preferred_availability: [],
     unavailable_slots: [],
+    daily_start_time: "",
+    daily_max_end_time: "",
   };
 }
 
@@ -985,6 +987,8 @@ export default function App() {
         max_consecutive_hours: data.max_consecutive_hours ?? "",
         preferred_availability: Array.isArray(data.preferred_availability) ? data.preferred_availability : [],
         unavailable_slots: Array.isArray(data.unavailable_slots) ? data.unavailable_slots : [],
+        daily_start_time: data.daily_start_time || "",
+        daily_max_end_time: data.daily_max_end_time || "",
       };
       setGroupRestrictionDraft(nextDraft);
       setGroupRestrictions((current) => {
@@ -1013,6 +1017,8 @@ export default function App() {
         max_consecutive_hours: updatedDraft.max_consecutive_hours === "" ? null : Number(updatedDraft.max_consecutive_hours),
         preferred_availability: updatedDraft.preferred_availability || [],
         unavailable_slots: updatedDraft.unavailable_slots || [],
+        daily_start_time: updatedDraft.daily_start_time || "",
+        daily_max_end_time: updatedDraft.daily_max_end_time || "",
       };
 
       const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(updatedDraft.group)}/restrictions`, {
@@ -2806,7 +2812,6 @@ export default function App() {
           <div className="academic-top">
             <button onClick={() => setAcademicTab("teachers")} className={academicTab === "teachers" ? "active" : ""}>Professors</button>
             <button onClick={() => setAcademicTab("groups")} className={academicTab === "groups" ? "active" : ""}>Grups d'alumnes</button>
-            <button onClick={() => setAcademicTab("subjects")} className={academicTab === "subjects" ? "active" : ""}>Assignatures</button>
             <button onClick={() => setAcademicTab("rooms")} className={academicTab === "rooms" ? "active" : ""}>Aules</button>
             <button onClick={() => setAcademicTab("assignments")} className={academicTab === "assignments" ? "active" : ""}>Assignacions docents</button>
             <button style={{ marginLeft: 16 }} onClick={() => refreshAcademicLists()}>Actualitza</button>
@@ -3264,140 +3269,6 @@ export default function App() {
                 </table>
                 </>
                 )}
-              </div>
-            )}
-
-            {academicTab === "subjects" && (
-              <div>
-                <h2>Assignatures</h2>
-                <table className="academic-table">
-                  <thead>
-                    <tr>
-                      <th>Nom</th>
-                      <th>Hores setmanals</th>
-                      <th>Durades de sessió permeses</th>
-                      <th>Accions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {academicSubjects.map((s) => (
-                      <tr key={s.name}>
-                        <td>
-                          {subjectEdit === s.name ? (
-                            <input
-                              value={subjectEditValues.name}
-                              onChange={(event) => setSubjectEditValues({ ...subjectEditValues, name: event.target.value })}
-                            />
-                          ) : (
-                            s.name
-                          )}
-                        </td>
-                        <td>
-                          {subjectEdit === s.name ? (
-                            <input
-                              type="number"
-                              step="0.5"
-                              value={subjectEditValues.weekly_hours}
-                              onChange={(event) => setSubjectEditValues({ ...subjectEditValues, weekly_hours: event.target.value })}
-                            />
-                          ) : (
-                            s.weekly_hours || "-"
-                          )}
-                        </td>
-                        <td>
-                          {subjectEdit === s.name ? (
-                            <input
-                              value={subjectEditValues.allowed_session_lengths}
-                              onChange={(event) => setSubjectEditValues({ ...subjectEditValues, allowed_session_lengths: event.target.value })}
-                            />
-                          ) : (
-                            formatSessionLengths(s.allowed_session_lengths)
-                          )}
-                        </td>
-                        <td>
-                          {subjectEdit === s.name ? (
-                            <>
-                              <button onClick={async () => {
-                                const payload = {
-                                  name: subjectEditValues.name,
-                                  weekly_hours: parseFloat(subjectEditValues.weekly_hours) || 0,
-                                  allowed_session_lengths: parseSessionLengths(subjectEditValues.allowed_session_lengths),
-                                };
-                                const res = await updateSubject(s.name, payload);
-                                if (res.ok) {
-                                  setSubjectEdit(null);
-                                  await refreshAcademicLists();
-                                } else {
-                                  alert("No s'ha pogut actualitzar l'assignatura.");
-                                }
-                              }}>Desa</button>
-                              <button onClick={() => setSubjectEdit(null)}>Cancel·la</button>
-                            </>
-                          ) : (
-                            <>
-                              <button onClick={() => {
-                                setSubjectEdit(s.name);
-                                setSubjectEditValues({
-                                  name: s.name,
-                                  weekly_hours: s.weekly_hours || "",
-                                  allowed_session_lengths: formatSessionLengths(s.allowed_session_lengths),
-                                });
-                              }}>Edita</button>
-                              <button onClick={async () => {
-                                const res = await deleteSubject(s.name);
-                                if (res.ok) await refreshAcademicLists(); else alert("No s'ha pogut eliminar l'assignatura.");
-                              }}>Elimina</button>
-                            </>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                    <tr>
-                      <td>
-                        <input
-                          value={subjectDraft.name}
-                          placeholder="Nom"
-                          onChange={(event) => setSubjectDraft({ ...subjectDraft, name: event.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          step="0.5"
-                          value={subjectDraft.weekly_hours}
-                          placeholder="Setmanals"
-                          onChange={(event) => setSubjectDraft({ ...subjectDraft, weekly_hours: event.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          value={subjectDraft.allowed_session_lengths}
-                          placeholder="2+3"
-                          onChange={(event) => setSubjectDraft({ ...subjectDraft, allowed_session_lengths: event.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <button onClick={async () => {
-                          if (!subjectDraft.name) {
-                            alert("El nom de l'assignatura és obligatori");
-                            return;
-                          }
-                          const payload = {
-                            name: subjectDraft.name,
-                            weekly_hours: parseFloat(subjectDraft.weekly_hours) || 0,
-                          };
-                          const res = await createSubject(payload);
-                          if (res.ok) {
-                            setSubjectDraft({ name: "", weekly_hours: "", allowed_session_lengths: "" });
-                            await refreshAcademicLists();
-                          } else {
-                            alert("No s'ha pogut crear l'assignatura.");
-                          }
-                        }}>Afegeix</button>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
               </div>
             )}
 
@@ -3919,7 +3790,17 @@ export default function App() {
                       <td>
                         <select
                           value={assignmentDraft.subject}
-                          onChange={(event) => setAssignmentDraft({ ...assignmentDraft, subject: event.target.value })}
+                          onChange={(event) => {
+                            const subjectName = event.target.value;
+                            const subjectRecord = academicSubjects.find((subject) => subject.name === subjectName);
+                            setAssignmentDraft((current) => {
+                              const next = { ...current, subject: subjectName };
+                              if (current.weekly_hours === "" && subjectRecord && subjectRecord.weekly_hours != null) {
+                                next.weekly_hours = String(subjectRecord.weekly_hours);
+                              }
+                              return next;
+                            });
+                          }}
                         >
                           <option value="">Assignatura</option>
                           {academicSubjects.map((s) => (
@@ -4163,45 +4044,37 @@ export default function App() {
                 </div>
 
                 <div style={{ marginBottom: 12 }}>
-                  <h3>Disponibilitat preferida</h3>
-                  <div style={{ overflowX: "auto" }}>
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Dia</th>
-                          {HOURS.map((hour) => (
-                            <th key={hour} style={{ minWidth: 42 }}>{hour}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {DAYS.map((day) => (
-                          <tr key={day}>
-                            <td>{day}</td>
-                            {HOURS.map((hour) => {
-                              const slotKey = `${day}-${hour}`;
-                              const isPreferred = groupRestrictionDraft.preferred_availability.includes(slotKey);
-                              return (
-                                <td key={slotKey}>
-                                  <button
-                                    type="button"
-                                    onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setAvailabilitySelectionAnchor(slotKey); }}
-                                    onClick={(event) => updateAvailabilitySelection(slotKey, event, groupRestrictionDraft, setGroupRestrictionDraft)}
-                                    style={{
-                                      width: 16,
-                                      height: 16,
-                                      padding: 0,
-                                      border: `1px solid ${isPreferred ? "#4f46e5" : "#cbd5e1"}`,
-                                      background: isPreferred ? "#c7d2fe" : "#fff",
-                                    }}
-                                  />
-                                </td>
-                              );
-                            })}
-                          </tr>
+                  <h3>Franja horària del grup</h3>
+                  <p className="muted" style={{ marginTop: 0 }}>
+                    Defineix des de quina hora i fins a quina hora pot tenir classe aquest grup.
+                  </p>
+                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                    <label>
+                      Inici
+                      <select
+                        value={groupRestrictionDraft.daily_start_time || ""}
+                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_start_time: event.target.value })}
+                        style={{ marginLeft: 8 }}
+                      >
+                        <option value="">Sense límit</option>
+                        {HOURS.map((hour) => (
+                          <option key={hour} value={hour}>{hour}</option>
                         ))}
-                      </tbody>
-                    </table>
+                      </select>
+                    </label>
+                    <label>
+                      Fi
+                      <select
+                        value={groupRestrictionDraft.daily_max_end_time || ""}
+                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_max_end_time: event.target.value })}
+                        style={{ marginLeft: 8 }}
+                      >
+                        <option value="">Sense límit</option>
+                        {HOURS.map((hour) => (
+                          <option key={hour} value={hour}>{hour}</option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
                 </div>
 

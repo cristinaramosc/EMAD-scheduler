@@ -47,6 +47,8 @@ class GroupTimeWindowConstraint(Constraint):
         constraints = getattr(schedule, "configuration", {}).get("group_time_window_constraints", {}) if hasattr(schedule, "configuration") else {}
         conflicts: list[Conflict] = []
         for activity in schedule.all():
+            if bool(getattr(activity, "fixed", False)):
+                continue
             if not activity.group or not activity.day or not activity.start:
                 continue
             window = get_group_time_window(activity.group, constraints)
