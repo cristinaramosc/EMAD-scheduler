@@ -12,6 +12,7 @@ if __package__ and __package__.startswith("backend"):
     from backend.application.scheduler_use_cases import SchedulerUseCases
     from backend.repositories.academic_data_repository import AcademicDataRepository
     from backend.repositories.requirement_repository import RequirementRepository
+    from backend.repositories.school_calendar_repository import SchoolCalendarRepository
     from backend.repositories.working_timetable_repository import JsonWorkingTimetableRepository, WorkingTimetableSnapshot
     from backend.scheduler_engine.engine_instance import engine as scheduler_engine
     from backend.scheduler_engine.models import Activity, Conflict, Schedule, ScheduleProposal
@@ -19,13 +20,6 @@ if __package__ and __package__.startswith("backend"):
     from backend.services.decision_explainer import DecisionExplainer
     from backend.services.excel_workbook_analyzer import ExcelWorkbookAnalyzer
     from backend.services.excel_template_exporter import ExcelTemplateExporter
-    from backend.services.fet_importer import (
-        load_activities,
-        load_generation_inputs,
-        load_school_calendar,
-        load_time_labels,
-        load_scheduler_activities,
-    )
     from backend.services.requirement_service import RequirementService
 else:  # pragma: no cover
     from application.assistant_use_cases import AssistantUseCases
@@ -34,6 +28,7 @@ else:  # pragma: no cover
     from application.scheduler_use_cases import SchedulerUseCases
     from repositories.academic_data_repository import AcademicDataRepository
     from repositories.requirement_repository import RequirementRepository
+    from repositories.school_calendar_repository import SchoolCalendarRepository
     from repositories.working_timetable_repository import JsonWorkingTimetableRepository, WorkingTimetableSnapshot
     from scheduler_engine.engine_instance import engine as scheduler_engine
     from scheduler_engine.models import Activity, Conflict, Schedule, ScheduleProposal
@@ -41,13 +36,6 @@ else:  # pragma: no cover
     from services.decision_explainer import DecisionExplainer
     from services.excel_workbook_analyzer import ExcelWorkbookAnalyzer
     from services.excel_template_exporter import ExcelTemplateExporter
-    from services.fet_importer import (
-        load_activities,
-        load_generation_inputs,
-        load_school_calendar,
-        load_time_labels,
-        load_scheduler_activities,
-    )
     from services.requirement_service import RequirementService
 
 
@@ -71,7 +59,6 @@ _APP_DEPS: AppDependencies | None = None
 
 
 def build_dependencies() -> AppDependencies:
-    fet_file = Path(__file__).resolve().parents[1] / "EMAD_2627_.fet"
     working_timetable_file = Path(
         os.environ.get(
             "EMAD_WORKING_TIMETABLE_FILE",
@@ -81,10 +68,19 @@ def build_dependencies() -> AppDependencies:
     requirement_repo = RequirementRepository()
     requirement_service = RequirementService(requirement_repo)
     academic_data_repo = AcademicDataRepository()
+    school_calendar_repo = SchoolCalendarRepository(
+        Path(
+            os.environ.get(
+                "EMAD_SCHOOL_CALENDAR_FILE",
+                str(Path(__file__).resolve().parent / "data" / "school_calendar.json"),
+            )
+        )
+    )
     academic_workbook_importer = AcademicWorkbookImporter(academic_data_repo)
     excel_workbook_analyzer = ExcelWorkbookAnalyzer()
     excel_template_exporter = ExcelTemplateExporter(
-        fet_file=fet_file,
+        academic_data_repo=academic_data_repo,
+        school_calendar_repo=school_calendar_repo,
         output_root=Path(
             os.environ.get(
                 "EMAD_EXCEL_TEMPLATES_DIR",
@@ -101,18 +97,13 @@ def build_dependencies() -> AppDependencies:
         requirement_repo=requirement_repo,
         scheduler_engine=scheduler_engine,
         proposal_store=proposal_store,
-        school_calendar=load_school_calendar(fet_file),
-        time_labels=load_time_labels(fet_file),
-        fet_generation_inputs_fn=load_generation_inputs,
-        fet_file=fet_file,
+        school_calendar=school_calendar_repo.load_school_calendar(),
+        time_labels=school_calendar_repo.load_time_labels(),
         academic_data_repo=academic_data_repo,
         working_timetable_repo=working_timetable_repo,
     )
     live_schedule_use_cases = LiveScheduleUseCases(
         engine=scheduler_engine,
-        load_activities_fn=load_activities,
-        load_scheduler_activities_fn=load_scheduler_activities,
-        fet_file=fet_file,
         working_timetable_repo=working_timetable_repo,
         academic_data_repo=academic_data_repo,
     )

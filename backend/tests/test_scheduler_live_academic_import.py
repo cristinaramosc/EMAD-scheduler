@@ -1,36 +1,57 @@
-from pathlib import Path
-
 from backend.bootstrap import reset_dependencies
 from backend.dependencies import get_academic_data_repo, get_live_schedule_use_cases, get_scheduler_use_cases
 
 
-def test_load_fet_populates_academic_data_repository() -> None:
+def test_academic_snapshot_populates_repository() -> None:
     reset_dependencies()
-    fet_file_path = Path(__file__).resolve().parents[2] / "EMAD_2627_.fet"
-    content = fet_file_path.read_bytes()
 
-    result = get_live_schedule_use_cases().load_fet(content)
-
-    assert result["ok"] is True
-    assert result["loaded"] > 0
+    repo = get_academic_data_repo()
+    repo.apply_snapshot(
+        {
+            "teachers": [{"name": "Eli"}],
+            "groups": [{"name": "1r APGI"}],
+            "subjects": [{"name": "Hª del DG"}],
+            "rooms": [{"name": "Aula 1"}],
+            "teaching_assignments": [
+                {
+                    "teacher": "Eli",
+                    "subject": "Hª del DG",
+                    "group": "1r APGI",
+                    "weekly_hours": 2.0,
+                }
+            ],
+        }
+    )
 
     summary = get_academic_data_repo().summary()
-    assert summary["teachers"] > 0
-    assert summary["groups"] > 0
-    assert summary["subjects"] > 0
-    assert summary["teaching_assignments"] > 0
+    assert summary["teachers"] == 1
+    assert summary["groups"] == 1
+    assert summary["subjects"] == 1
+    assert summary["teaching_assignments"] == 1
 
-    teachers = get_academic_data_repo().list_teachers()
-    assert any("Eli" in teacher["name"] for teacher in teachers)
+    teachers = repo.list_teachers()
+    assert teachers[0]["name"] == "Eli"
 
 
 def test_generate_proposal_keeps_academic_data_unchanged() -> None:
     reset_dependencies()
-    fet_file_path = Path(__file__).resolve().parents[2] / "EMAD_2627_.fet"
-    content = fet_file_path.read_bytes()
-
-    get_live_schedule_use_cases().load_fet(content)
     repo = get_academic_data_repo()
+
+    repo.apply_snapshot(
+        {
+            "teachers": [{"name": "Eli"}],
+            "groups": [{"name": "1r APGI"}],
+            "subjects": [{"name": "Hª del DG"}],
+            "teaching_assignments": [
+                {
+                    "teacher": "Eli",
+                    "subject": "Hª del DG",
+                    "group": "1r APGI",
+                    "weekly_hours": 2.0,
+                }
+            ],
+        }
+    )
 
     before_summary = repo.summary()
     before_assignments = repo.active_canonical_assignments()

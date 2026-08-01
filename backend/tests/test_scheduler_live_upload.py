@@ -1,17 +1,28 @@
-from pathlib import Path
-
 from backend.bootstrap import reset_dependencies
 from backend.dependencies import get_live_schedule_use_cases
 
 
-def test_load_fet_accepts_uploaded_file_bytes() -> None:
+def test_load_accepts_activity_payload() -> None:
     reset_dependencies()
-    fet_file_path = Path(__file__).resolve().parents[2] / "EMAD_2627_.fet"
-    content = fet_file_path.read_bytes()
+    result = get_live_schedule_use_cases().load(
+        [
+            {
+                "id": 1,
+                "teacher": "Eli",
+                "subject": "Hª del DG",
+                "group": "1r APGI",
+                "room": "Aula 1",
+                "day": "Dilluns",
+                "start": "8:00",
+                "duration": 2,
+            }
+        ]
+    )
 
-    result = get_live_schedule_use_cases().load_fet(content)
+    assert result["status"] == "ok"
+    assert result["loaded"] == 1
 
-    assert result["ok"] is True
-    assert result["loaded"] > 0
-    assert isinstance(result.get("activities"), list)
-    assert isinstance(result.get("conflicts"), list)
+    state = get_live_schedule_use_cases().state()
+    assert isinstance(state.get("activities"), list)
+    assert isinstance(state.get("conflicts"), list)
+    assert len(state["activities"]) == 1

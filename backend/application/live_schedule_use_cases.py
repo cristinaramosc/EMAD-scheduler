@@ -1,46 +1,29 @@
 from __future__ import annotations
 
-from io import BytesIO
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 try:
     from backend.repositories.working_timetable_repository import WorkingTimetableRepository, WorkingTimetableSnapshot
-    from backend.services.fet_importer import load_activities, load_scheduler_activities
     from backend.scheduler_engine.models.activity import Activity
     from backend.scheduler_engine.models.schedule import Schedule
     from backend.repositories.academic_data_repository import AcademicDataRepository
-    from backend.time_units import blocks_to_hours
 except ModuleNotFoundError:  # pragma: no cover
     from repositories.working_timetable_repository import WorkingTimetableRepository, WorkingTimetableSnapshot
-    from services.fet_importer import load_activities, load_scheduler_activities
     from scheduler_engine.models.activity import Activity
     from scheduler_engine.models.schedule import Schedule
     from repositories.academic_data_repository import AcademicDataRepository
-    from time_units import blocks_to_hours
 
 from .serializers import serialize_activity, serialize_conflicts
-
-try:
-    from backend.services.fet_importer import load_restrictions
-except ModuleNotFoundError:  # pragma: no cover
-    from services.fet_importer import load_restrictions
 
 
 class LiveScheduleUseCases:
     def __init__(
         self,
         engine: Any,
-        load_activities_fn: Any,
-        load_scheduler_activities_fn: Any,
-        fet_file: Path,
         working_timetable_repo: WorkingTimetableRepository,
         academic_data_repo: Optional[AcademicDataRepository] = None,
     ) -> None:
         self._engine = engine
-        self._load_activities_fn = load_activities_fn
-        self._load_scheduler_activities_fn = load_scheduler_activities_fn
-        self._fet_file = fet_file
         self._working_timetable_repo = working_timetable_repo
         self._academic_data_repo = academic_data_repo
 
@@ -52,96 +35,6 @@ class LiveScheduleUseCases:
         self._engine.load(schedule)
         self._persist_active_schedule(clear_proposal=True)
         return {"status": "ok", "loaded": len(schedule.all())}
-
-    def _resolve_fet_source(self, source: Any) -> Any:
-        if isinstance(source, (bytes, bytearray)):
-            return BytesIO(source)
-        return source
-
-    def load_fet(self, fet_file: Any | None = None) -> Dict[str, Any]:
-        source = self._fet_file if fet_file is None else fet_file
-
-        schedule = Schedule()
-        for activity in self._load_scheduler_activities_fn(self._resolve_fet_source(source)):
-            schedule.add(Activity(**activity))
-
-        self._engine.load(schedule)
-        self._persist_active_schedule(clear_proposal=True)
-
-        if self._academic_data_repo is not None:
-            try:
-                activities = self._load_activities_fn(self._resolve_fet_source(source))
-
-                teachers = set()
-                groups = set()
-                subjects = set()
-                rooms = set()
-                assignment_map = {}
-                for a in activities:
-                    t = a.get("teacher") or ""
-                    s = a.get("subject") or ""
-                    g = a.get("group_name") or ""
-                    r = a.get("room")
-                    d = a.get("duration") or 0
-
-                    if t:
-                        teachers.add(t)
-                    if g:
-                        groups.add(g)
-                    if s:
-                        subjects.add(s)
-                    if r:
-                        rooms.add(r)
-
-                    key = (t, s, g)
-                    assignment_map.setdefault(key, 0)
-                    try:
-                        assignment_map[key] += float(d)
-                    except Exception:
-                        pass
-
-                teaching_assignments = []
-                for (t, s, g), total_duration_blocks in assignment_map.items():
-                    if not (t and s and g):
-                        continue
-                    # `duration` from the FET file is expressed in half-hour
-                    # blocks (see fet_importer.load_activities), not hours.
-                    # It must be converted before being stored as weekly_hours,
-                    # otherwise e.g. 4 blocks (2h real) get shown as "4.0h".
-                    weekly_hours = blocks_to_hours(int(round(total_duration_blocks)))
-                    teaching_assignments.append({
-                        "teacher": t,
-                        "subject": s,
-                        "group": g,
-                        "weekly_hours": weekly_hours,
-                    })
-
-                snapshot = {
-                    "teachers": [{"name": name} for name in sorted(teachers)],
-                    "groups": [{"name": name} for name in sorted(groups)],
-                    "subjects": [{"name": name} for name in sorted(subjects)],
-                    "rooms": [{"name": name} for name in sorted(rooms)],
-                    "teaching_assignments": teaching_assignments,
-                }
-
-                restrictions = load_restrictions(self._resolve_fet_source(source))
-                if restrictions.get("teacher_restrictions"):
-                    snapshot["teacher_restrictions"] = restrictions["teacher_restrictions"]
-                if restrictions.get("group_restrictions"):
-                    snapshot["group_restrictions"] = restrictions["group_restrictions"]
-
-                try:
-                    self._academic_data_repo.apply_snapshot(snapshot)
-                except Exception:
-                    pass
-            except Exception:
-                pass
-
-        return {
-            "ok": True,
-            "loaded": len(schedule.all()),
-            **self.state(),
-        }
 
     def state(self, conflicts: List[Any] | None = None) -> Dict[str, Any]:
         if conflicts is not None:

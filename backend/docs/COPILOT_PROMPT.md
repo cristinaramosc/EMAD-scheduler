@@ -60,7 +60,7 @@ investigar):
 
 ### Bloc A — Acabar d'eliminar FET
 
-- [ ] **A1.** A `backend/application/live_schedule_use_cases.py`: elimina
+- [x] **A1.** A `backend/application/live_schedule_use_cases.py`: elimina
       el mètode `load_fet()` (i `_resolve_fet_source()` si existeix) i
       treu `fet_file`, `load_activities_fn`, `load_scheduler_activities_fn`
       del constructor. Comprova primer (`grep -rn "load_fet" backend/`)
@@ -68,8 +68,11 @@ investigar):
       substituir-la per una càrrega des de `AcademicDataRepository`. Si
       la resposta no és òbvia, és un cas per al `<!-- DUBTE -->`, no
       l'endevinis.
+      Fet: `LiveScheduleUseCases` ja no depèn de cap carregador FET; els
+      tests que el feien servir s'han reorientat a `AcademicDataRepository`
+      i `load()`.
 
-- [ ] **A2.** Reescriu `backend/services/excel_template_exporter.py`
+- [x] **A2.** Reescriu `backend/services/excel_template_exporter.py`
       (`ExcelTemplateExporter`) perquè no depengui de `fet_file`:
       - Calendari (dies/hores) → `SchoolCalendarRepository`.
       - Activitats/professors/grups/aules/restriccions →
@@ -78,16 +81,21 @@ investigar):
         `01_Carrega_docent`, `02_Restriccions_professors`,
         `03_Restriccions_grups`, `04_Aules`) i la mateixa signatura
         pública (`export_templates()` → `TemplateExportResult`).
+                  Fet: l'exportador ara llegeix del repositori acadèmic i del
+                  repositori de calendari, sense parsejar el `.fet`.
 
 - [ ] **A3.** Un cop A1 i A2 fets: actualitza `backend/bootstrap.py` per
       treure `fet_file` i l'import de `fet_importer` del tot. Esborra
       `backend/services/fet_importer.py`, `import_fet.py` (script arrel)
       i el fitxer `EMAD_2627_.fet`.
 
-- [ ] **A4.** `grep -rn "get_fet_restrictions" backend/` — si no té cap
+- [x] **A4.** `grep -rn "get_fet_restrictions" backend/` — si no té cap
       consumidor, elimina aquest mètode i `_load_fet_blocked_activities()`
       de `scheduler_use_cases.py`. Si en té, deixa un `<!-- DUBTE -->` i
       no el toquis.
+      Fet: s'ha eliminat la ruta de bloquejos FET no consumida i
+      `_collect_blocked_slots()` ara usa només restriccions de l'Excel
+      acadèmic.
 
 - [ ] **A5. (Verificació final del Bloc A)**
       `grep -rln "fet_file\|\.fet\|fet_importer\|import_fet" backend/`

@@ -12,11 +12,24 @@ from backend.main import app
 
 def test_group_restrictions_can_be_persisted() -> None:
     reset_dependencies()
-    fet_file_path = Path(__file__).resolve().parents[2] / "EMAD_2627_.fet"
-    content = fet_file_path.read_bytes()
-    get_live_schedule_use_cases().load_fet(content)
 
     repo = get_academic_data_repo()
+    repo.apply_snapshot(
+        {
+            "teachers": [{"name": "Eli"}],
+            "groups": [{"name": "1A"}],
+            "subjects": [{"name": "Matemàtiques"}],
+            "teaching_assignments": [
+                {
+                    "teacher": "Eli",
+                    "subject": "Matemàtiques",
+                    "group": "1A",
+                    "weekly_hours": 2.0,
+                }
+            ],
+        }
+    )
+
     group = repo.list_groups()[0]["name"]
 
     client = TestClient(app)
