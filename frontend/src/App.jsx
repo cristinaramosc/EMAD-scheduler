@@ -426,6 +426,7 @@ export default function App() {
   const [isSavingSpreadsheet, setIsSavingSpreadsheet] = useState(false);
   const [entitySheetOpen, setEntitySheetOpen] = useState({ teachers: false, groups: false, rooms: false });
   const [academicSearch, setAcademicSearch] = useState("");
+  const [academicAssignmentGroupFilter, setAcademicAssignmentGroupFilter] = useState("");
   const [academicSort, setAcademicSort] = useState({ key: null, direction: "asc" });
   const [entitySheetRows, setEntitySheetRows] = useState({ teachers: [], groups: [], rooms: [] });
   const [entitySheetOriginal, setEntitySheetOriginal] = useState({ teachers: [], groups: [], rooms: [] });
@@ -3602,13 +3603,25 @@ export default function App() {
                   </button>
                   <span className="muted">Selecciona 2 files amb la casella per activar-ho.</span>
                 </div>
-                <input
-                  type="text"
-                  placeholder="Cerca assignacions..."
-                  value={academicSearch}
-                  onChange={(event) => setAcademicSearch(event.target.value)}
-                  style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
-                />
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
+                  <input
+                    type="text"
+                    placeholder="Cerca assignacions..."
+                    value={academicSearch}
+                    onChange={(event) => setAcademicSearch(event.target.value)}
+                    style={{ padding: "6px 10px", width: "260px" }}
+                  />
+                  <select
+                    value={academicAssignmentGroupFilter}
+                    onChange={(event) => setAcademicAssignmentGroupFilter(event.target.value)}
+                    style={{ padding: "6px 10px" }}
+                  >
+                    <option value="">Tots els grups</option>
+                    {timetableGroupOptions.map((group) => (
+                      <option key={group.name} value={group.name}>{group.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <table className="academic-table">
                   <thead>
                     <tr>
@@ -3626,7 +3639,11 @@ export default function App() {
                   </thead>
                   <tbody>
                     {applyAcademicSort(
-                      teachingAssignments.filter((a) => matchesSearch(academicSearch, [a.teacher, a.subject, a.group])),
+                      teachingAssignments.filter(
+                        (a) =>
+                          matchesSearch(academicSearch, [a.teacher, a.subject, a.group]) &&
+                          (!academicAssignmentGroupFilter || getGroupParentName(a.group) === academicAssignmentGroupFilter)
+                      ),
                       academicSort
                     )
                       .map((a) => (

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import zlib
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
@@ -993,7 +993,15 @@ class SchedulerUseCases:
         """Si dues activitats són la variant 1Q i 2Q del mateix grup pare,
         intenta que comparteixin exactament la mateixa casella (dia i hora),
         perquè es mostrin juntes al calendari, sempre que això no introdueixi
-        cap conflicte nou."""
+        cap conflicte nou.
+
+        Primer busca la franja MÉS D'HORA de tota la setmana on totes dues
+        hi càpiguen (evita que la parella quedi relegada a l'hora on una
+        d'elles va caure per casualitat durant la generació inicial, per
+        exemple perquè altres assignatures del grup ja ocupaven la primera
+        hora). Si no en troba cap (o si les dues duren coses diferents, cas
+        en què compartir franja exacta no és possible), cau al comportament
+        anterior: prova només les dues franges on ja es troben."""
         activities = list(proposal.activities)
 
         by_parent: Dict[str, List[Activity]] = {}
@@ -1018,20 +1026,31 @@ class SchedulerUseCases:
             if not is_valid_quarter_pair(act_a.group, act_a.subject, act_b.group, act_b.subject):
                 continue
 
-            for first, second in ((act_a, act_b), (act_b, act_a)):
-                original_day, original_start = second.day, second.start
-                second.day, second.start = first.day, first.start
+            aligned = False
 
-                candidate_schedule = self._build_schedule(activities)
-                candidate_conflicts = self._scheduler_engine.validate(candidate_schedule)
-                new_keys = [
-                    conflict for conflict in candidate_conflicts
-                    if self._conflict_key(conflict) not in baseline_keys
-                ]
-                if not new_keys:
-                    break
+            if act_a.duration == act_b.duration:
+                earliest = self._earliest_common_slot_for_pair(act_a, act_b, activities, baseline_keys)
+                if earliest is not None:
+                    day, start = earliest
+                    act_a.day, act_a.start = day, start
+                    act_b.day, act_b.start = day, start
+                    aligned = True
 
-                second.day, second.start = original_day, original_start
+            if not aligned:
+                for first, second in ((act_a, act_b), (act_b, act_a)):
+                    original_day, original_start = second.day, second.start
+                    second.day, second.start = first.day, first.start
+
+                    candidate_schedule = self._build_schedule(activities)
+                    candidate_conflicts = self._scheduler_engine.validate(candidate_schedule)
+                    new_keys = [
+                        conflict for conflict in candidate_conflicts
+                        if self._conflict_key(conflict) not in baseline_keys
+                    ]
+                    if not new_keys:
+                        break
+
+                    second.day, second.start = original_day, original_start
 
         final_schedule = self._build_schedule(activities)
         final_conflicts = self._scheduler_engine.validate(final_schedule)
@@ -1045,6 +1064,60 @@ class SchedulerUseCases:
             score_breakdown=getattr(proposal, "score_breakdown", None),
             metadata=dict(proposal.metadata or {}),
         )
+
+    def _earliest_common_slot_for_pair(
+        self,
+        act_a: Activity,
+        act_b: Activity,
+        activities: List[Activity],
+        baseline_keys: set,
+    ) -> Optional[Tuple[str, str]]:
+        """Recorre tot el calendari escolar (dia a dia, franja a franja) i
+        retorna el primer (day, start) -en el mateix format de text que fan
+        servir Activity.day/Activity.start- on es pot moure la parella
+        sencera sense que apareguin conflictes nous respecte a
+        baseline_keys. Retorna None si no en troba cap."""
+        day_names = self._time_labels.get("day_names", [])
+        hour_names = self._time_labels.get("hour_names", [])
+        if not day_names or not hour_names:
+            return None
+
+        original_a = (act_a.day, act_a.start)
+        original_b = (act_b.day, act_b.start)
+        required_slots = act_a.duration or 1
+
+        for day_index in self._school_calendar.days:
+            if day_index >= len(day_names):
+                continue
+            for slot in self._school_calendar.periods_for_day(day_index):
+                if slot.period + required_slots > self._school_calendar.periods_per_day:
+                    continue
+                if slot.period >= len(hour_names):
+                    continue
+
+                day_label = day_names[day_index]
+                start_label = hour_names[slot.period]
+
+                if (day_label, start_label) == original_a and (day_label, start_label) == original_b:
+                    continue
+
+                act_a.day, act_a.start = day_label, start_label
+                act_b.day, act_b.start = day_label, start_label
+
+                candidate_schedule = self._build_schedule(activities)
+                candidate_conflicts = self._scheduler_engine.validate(candidate_schedule)
+                new_keys = [
+                    conflict for conflict in candidate_conflicts
+                    if self._conflict_key(conflict) not in baseline_keys
+                ]
+
+                act_a.day, act_a.start = original_a
+                act_b.day, act_b.start = original_b
+
+                if not new_keys:
+                    return day_label, start_label
+
+        return None
 
     def _build_requirement_from_assignment(
         self, index: int, assignment: Dict[str, Any], restricted_teacher_names: set | None = None
