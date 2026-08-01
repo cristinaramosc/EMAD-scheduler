@@ -8,7 +8,7 @@ try:
     from models.teaching_block import TeachingBlock
 except ModuleNotFoundError:  # pragma: no cover
     from backend.models.teaching_block import TeachingBlock
-from .constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+from .constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair, normalize_group_name
 from .constraints.group_time_window import get_group_time_window
 from .models import GenerationContext, ScheduledActivity, TimeSlot
 
@@ -240,8 +240,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
         required_slots = teaching_block.duration_blocks or 1
         candidate_subject = (teaching_block.metadata or {}).get("subject")
         candidate_parent, _ = _parent_and_quarter(group_id, candidate_subject)
-        split_groups = (context.configuration.get("split_groups") or set()) if context is not None else set()
-        group_is_split = candidate_parent in split_groups or group_id in split_groups
+        raw_split_groups = (context.configuration.get("split_groups") or set()) if context is not None else set()
+        split_groups = {normalize_group_name(name) for name in raw_split_groups}
+        group_is_split = candidate_parent in split_groups or normalize_group_name(group_id) in split_groups
 
         for activity in activities:
             if activity.day != start_slot.day:

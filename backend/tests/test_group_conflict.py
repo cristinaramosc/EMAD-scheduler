@@ -185,3 +185,43 @@ def test_group_conflict_detects_adjacent_slot_overlap():
     conflicts = engine.get_conflicts()
 
     assert any(c.type == "group_conflict" for c in conflicts)
+
+
+def test_group_conflict_detects_overlap_despite_group_name_spacing_and_case_variants():
+    """Dues activitats amb el mateix grup pare escrit de forma lleugerament
+    diferent (espais extra, majúscules) han de detectar-se com el mateix
+    grup i, per tant, com a conflicte real."""
+    schedule = Schedule()
+
+    schedule.add(
+        Activity(
+            id=1,
+            teacher="Alfred",
+            subject="Mitjans informàtics",
+            group="1r  APGI",
+            room="A1",
+            day="Monday",
+            start="08:00",
+            duration=4,
+        )
+    )
+
+    schedule.add(
+        Activity(
+            id=2,
+            teacher="Inno",
+            subject="Edició web",
+            group="1r apgi",
+            room="A2",
+            day="Monday",
+            start="08:30",
+            duration=1,
+        )
+    )
+
+    engine = SchedulerEngine()
+    engine.load(schedule)
+
+    conflicts = engine.get_conflicts()
+
+    assert any(c.type == "group_conflict" for c in conflicts)
