@@ -72,6 +72,18 @@ class LiveScheduleUseCases:
             "unscheduled_activities": [],
         }
 
+    def teacher_schedule(self, teacher_name: str) -> Dict[str, Any]:
+        current_state = self.state()
+        activities = [
+            activity
+            for activity in current_state.get("activities", [])
+            if activity.get("teacher") == teacher_name
+        ]
+        return {
+            "teacher": teacher_name,
+            "activities": activities,
+        }
+
     @staticmethod
     def _conflict_key(conflict: Any) -> tuple:
         return (

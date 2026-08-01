@@ -457,6 +457,7 @@ export default function App() {
   const [timetableEntity, setTimetableEntity] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
+  const [teacherScheduleActivities, setTeacherScheduleActivities] = useState([]);
   const [currentScreen, setCurrentScreen] = useState("timetable");
   const [academicTab, setAcademicTab] = useState("teachers");
 
@@ -556,6 +557,25 @@ export default function App() {
       setError("No s'ha pogut carregar l'horari.");
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function loadTeacherSchedule(teacherName) {
+    if (!teacherName) {
+      setTeacherScheduleActivities([]);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/scheduler/teacher/${encodeURIComponent(teacherName)}/schedule`);
+      if (!response.ok) {
+        setTeacherScheduleActivities([]);
+        return;
+      }
+      const data = await response.json();
+      setTeacherScheduleActivities((data.activities || []).map(normalizeTimetableActivity));
+    } catch {
+      setTeacherScheduleActivities([]);
     }
   }
 
@@ -1353,21 +1373,25 @@ export default function App() {
     }
   }, [selectedGroup]);
 
+  useEffect(() => {
+    loadTeacherSchedule(teacherFilter);
+  }, [teacherFilter, activities]);
+
   const filteredActivities = useMemo(() => {
-    let nextActivities = activities;
+    let nextActivities = teacherFilter && teacherScheduleActivities.length > 0
+      ? teacherScheduleActivities
+      : activities;
 
     if (selectedGroup) {
       nextActivities = nextActivities.filter((activity) => getGroupParentName(activity?.group) === selectedGroup);
     }
 
     if (teacherFilter) {
-      nextActivities = nextActivities.filter(
-        (activity) => activity.teacher === teacherFilter || (activity.subject || "").trim().toLowerCase() === "descans"
-      );
+      nextActivities = nextActivities.filter((activity) => activity.teacher === teacherFilter);
     }
 
     return nextActivities;
-  }, [activities, selectedGroup, teacherFilter]);
+  }, [activities, selectedGroup, teacherFilter, teacherScheduleActivities]);
 
   const groupBreakDays = useMemo(() => {
     if (!selectedGroup) return new Set();
