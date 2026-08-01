@@ -1,10 +1,10 @@
 {
   "active_schedule": [],
   "current_proposal": {
-    "id": "proposal-586521c66493",
+    "id": "proposal-073582bcc4dc",
     "activities": [
       {
-        "id": 237104259,
+        "id": 1465671427,
         "teacher": "Joan Carles",
         "subject": "PFI Taller",
         "group": "PFI",
@@ -14,7 +14,7 @@
         "duration": 12
       },
       {
-        "id": 3128012467,
+        "id": 1836611327,
         "teacher": "Bet",
         "subject": "Fonaments DG",
         "group": "GP",
@@ -24,7 +24,7 @@
         "duration": 8
       },
       {
-        "id": 2678475653,
+        "id": 453913596,
         "teacher": "Noëlle",
         "subject": "Projectes UF3",
         "group": "GP",
@@ -34,7 +34,7 @@
         "duration": 5
       },
       {
-        "id": 3089955844,
+        "id": 3095894559,
         "teacher": "Bego",
         "subject": "Ll. Tec. Audio UF3 1Q",
         "group": "GI",
@@ -44,7 +44,7 @@
         "duration": 8
       },
       {
-        "id": 2284244836,
+        "id": 3235259183,
         "teacher": "Sònia",
         "subject": "Interfícies gràfiques",
         "group": "GI",
@@ -54,7 +54,7 @@
         "duration": 3
       },
       {
-        "id": 1142525527,
+        "id": 1265398949,
         "teacher": "Marc F.",
         "subject": "Taller",
         "group": "1r COM",
@@ -64,7 +64,7 @@
         "duration": 8
       },
       {
-        "id": 578732093,
+        "id": 981905662,
         "teacher": "Bet",
         "subject": "Hª de l'art UF1",
         "group": "1r COM",
@@ -74,7 +74,7 @@
         "duration": 4
       },
       {
-        "id": 58991545,
+        "id": 2582238879,
         "teacher": "Imma",
         "subject": "PFI M1 Comunicació",
         "group": "PFI",
@@ -84,7 +84,7 @@
         "duration": 7
       },
       {
-        "id": 841093222,
+        "id": 3365527366,
         "teacher": "Judit",
         "subject": "PFI M3 Mates",
         "group": "PFI",
@@ -94,7 +94,7 @@
         "duration": 6
       },
       {
-        "id": 3060017271,
+        "id": 3375805393,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "2n COM",
@@ -104,7 +104,7 @@
         "duration": 7
       },
       {
-        "id": 3500282130,
+        "id": 1057274479,
         "teacher": "Borja",
         "subject": "ANG UF2 Behance my friend 1Q",
         "group": "2n COM",
@@ -114,7 +114,7 @@
         "duration": 4
       },
       {
-        "id": 2397993045,
+        "id": 3843420716,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "2n COM",
@@ -124,7 +124,7 @@
         "duration": 7
       },
       {
-        "id": 1319838748,
+        "id": 4007786855,
         "teacher": "Eulàlia",
         "subject": "Dx artístic",
         "group": "2n COM",
@@ -134,7 +134,7 @@
         "duration": 3
       },
       {
-        "id": 3443813936,
+        "id": 2125265769,
         "teacher": "Jordi",
         "subject": "GPP",
         "group": "2n COM",
@@ -144,7 +144,7 @@
         "duration": 2
       },
       {
-        "id": 3594461674,
+        "id": 2028873233,
         "teacher": "Eli",
         "subject": "Obra Final",
         "group": "2n COM",
@@ -154,7 +154,7 @@
         "duration": 2
       },
       {
-        "id": 3234138833,
+        "id": 1056973543,
         "teacher": "Eli",
         "subject": "Obra Final",
         "group": "2n COM",
@@ -164,7 +164,7 @@
         "duration": 2
       },
       {
-        "id": 3473801444,
+        "id": 3991418624,
         "teacher": "Imma",
         "subject": "ACADA",
         "group": "ACADA",
@@ -174,7 +174,7 @@
         "duration": 6
       },
       {
-        "id": 1181078341,
+        "id": 1590804024,
         "teacher": "Imma",
         "subject": "ACADA",
         "group": "ACADA",
@@ -184,7 +184,7 @@
         "duration": 6
       },
       {
-        "id": 1023963904,
+        "id": 444644917,
         "teacher": "Imma",
         "subject": "ACADA",
         "group": "ACADA",
@@ -194,7 +194,7 @@
         "duration": 6
       },
       {
-        "id": 995166774,
+        "id": 880032119,
         "teacher": "Inno",
         "subject": "Edició web",
         "group": "2n APGI",
@@ -204,7 +204,7 @@
         "duration": 6
       },
       {
-        "id": 2143953430,
+        "id": 2208151449,
         "teacher": "Alfred",
         "subject": "GPP",
         "group": "2n APGI",
@@ -214,7 +214,7 @@
         "duration": 6
       },
       {
-        "id": 2673013768,
+        "id": 1014525459,
         "teacher": "Cristina",
         "subject": "GPP",
         "group": "GP",
@@ -224,7 +224,7 @@
         "duration": 6
       },
       {
-        "id": 297705175,
+        "id": 4294592083,
         "teacher": "Noëlle",
         "subject": "Foto UF3",
         "group": "GP",
@@ -234,7 +234,7 @@
         "duration": 4
       },
       {
-        "id": 604429045,
+        "id": 2847454893,
         "teacher": "Bego",
         "subject": "Ll. Tec. Audio UF3 2Q",
         "group": "GI, GP",
@@ -244,7 +244,7 @@
         "duration": 6
       },
       {
-        "id": 503551921,
+        "id": 1545267609,
         "teacher": "Sara",
         "subject": "PFI M4 Mon Professional",
         "group": "PFI",
@@ -254,7 +254,7 @@
         "duration": 2
       },
       {
-        "id": 3686013674,
+        "id": 2856516131,
         "teacher": "Judit",
         "subject": "PFI Tutoria",
         "group": "PFI",
@@ -264,7 +264,7 @@
         "duration": 2
       },
       {
-        "id": 536406621,
+        "id": 2879131751,
         "teacher": "Marc F.",
         "subject": "PFI Taller",
         "group": "PFI",
@@ -274,7 +274,7 @@
         "duration": 6
       },
       {
-        "id": 864225463,
+        "id": 4197455601,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "2n COM",
@@ -284,7 +284,7 @@
         "duration": 6
       },
       {
-        "id": 1611023019,
+        "id": 4212544128,
         "teacher": "Núria",
         "subject": "Render de producte",
         "group": "2n COM",
@@ -294,7 +294,7 @@
         "duration": 2
       },
       {
-        "id": 334926327,
+        "id": 288534433,
         "teacher": "Bego",
         "subject": "GPP",
         "group": "GI",
@@ -304,7 +304,7 @@
         "duration": 3
       },
       {
-        "id": 1946630631,
+        "id": 3927227189,
         "teacher": "Marc",
         "subject": "GPP",
         "group": "GI",
@@ -314,7 +314,7 @@
         "duration": 5
       },
       {
-        "id": 3167502766,
+        "id": 1346693771,
         "teacher": "Roger",
         "subject": "Hª del DG",
         "group": "GI",
@@ -324,7 +324,7 @@
         "duration": 4
       },
       {
-        "id": 3040813594,
+        "id": 2152049498,
         "teacher": "Bet",
         "subject": "Dx artístic",
         "group": "1r APGI",
@@ -334,7 +334,7 @@
         "duration": 4
       },
       {
-        "id": 221938603,
+        "id": 1693203236,
         "teacher": "Noëlle",
         "subject": "Fonaments DG",
         "group": "1r APGI",
@@ -344,7 +344,7 @@
         "duration": 3
       },
       {
-        "id": 651741982,
+        "id": 3478072475,
         "teacher": "Bego",
         "subject": "Multimèdia UF2",
         "group": "1r APGI",
@@ -354,7 +354,7 @@
         "duration": 5
       },
       {
-        "id": 2212742115,
+        "id": 1878323291,
         "teacher": "Inno",
         "subject": "Projectes UF2",
         "group": "Comú",
@@ -364,7 +364,7 @@
         "duration": 5
       },
       {
-        "id": 3799776470,
+        "id": 1999315965,
         "teacher": "Carme",
         "subject": "FOL UF1",
         "group": "Comú",
@@ -374,7 +374,7 @@
         "duration": 4
       },
       {
-        "id": 2568704686,
+        "id": 1769943294,
         "teacher": "Inno",
         "subject": "Ll. programació",
         "group": "Comú",
@@ -384,7 +384,7 @@
         "duration": 4
       },
       {
-        "id": 2391928406,
+        "id": 1320231660,
         "teacher": "Alfred",
         "subject": "1Q Proj UF1 + 2Q Art Experience",
         "group": "Comú",
@@ -394,7 +394,7 @@
         "duration": 4
       },
       {
-        "id": 1938713855,
+        "id": 3175719339,
         "teacher": "Sònia",
         "subject": "Mitjans informàtics",
         "group": "Comú",
@@ -404,7 +404,7 @@
         "duration": 3
       },
       {
-        "id": 1249498043,
+        "id": 4166045782,
         "teacher": "Alfred",
         "subject": "Tipografia",
         "group": "2n APGI",
@@ -414,7 +414,7 @@
         "duration": 2
       },
       {
-        "id": 48536074,
+        "id": 2798119248,
         "teacher": "Borja",
         "subject": "ANG UF1 Behance my friend 1Q",
         "group": "2n APGI",
@@ -424,7 +424,7 @@
         "duration": 4
       },
       {
-        "id": 153047578,
+        "id": 4232074672,
         "teacher": "Sònia",
         "subject": "Foto 1Q",
         "group": "2n APGI",
@@ -434,7 +434,7 @@
         "duration": 4
       },
       {
-        "id": 393580620,
+        "id": 222276369,
         "teacher": "Bet",
         "subject": "Dx Tècnic",
         "group": "1r APGI",
@@ -444,7 +444,7 @@
         "duration": 4
       },
       {
-        "id": 4249491537,
+        "id": 858877630,
         "teacher": "Noëlle",
         "subject": "Fonaments DG",
         "group": "1r APGI",
@@ -454,7 +454,7 @@
         "duration": 3
       },
       {
-        "id": 719523423,
+        "id": 3712649058,
         "teacher": "Borja",
         "subject": "Anglès UF1 Influences 2Q",
         "group": "1r APGI",
@@ -464,7 +464,7 @@
         "duration": 4
       },
       {
-        "id": 542464977,
+        "id": 257588365,
         "teacher": "Joan Carles",
         "subject": "Materials",
         "group": "1r COM",
@@ -474,7 +474,7 @@
         "duration": 2
       },
       {
-        "id": 1901414667,
+        "id": 1381664412,
         "teacher": "Borja",
         "subject": "Anglès UF2 Influences 1Q",
         "group": "1r COM",
@@ -484,7 +484,7 @@
         "duration": 4
       },
       {
-        "id": 3070799306,
+        "id": 2954117803,
         "teacher": "Núria",
         "subject": "Mitjans informàtics",
         "group": "1r COM",
@@ -494,7 +494,7 @@
         "duration": 4
       },
       {
-        "id": 1306752391,
+        "id": 729014659,
         "teacher": "Eli",
         "subject": "Projectes",
         "group": "1r COM",
@@ -504,7 +504,7 @@
         "duration": 4
       },
       {
-        "id": 1119074574,
+        "id": 4152217655,
         "teacher": "Eulàlia",
         "subject": "Dx artístic",
         "group": "1r COM",
@@ -514,7 +514,7 @@
         "duration": 4
       },
       {
-        "id": 1951075597,
+        "id": 2796544801,
         "teacher": "Bet",
         "subject": "Dx Tècnic",
         "group": "1r COM",
@@ -524,7 +524,7 @@
         "duration": 4
       },
       {
-        "id": 1971327026,
+        "id": 1730030606,
         "teacher": "Carme",
         "subject": "FOL UF1",
         "group": "1r COM",
@@ -534,7 +534,7 @@
         "duration": 4
       },
       {
-        "id": 2911864827,
+        "id": 1799523021,
         "teacher": "Inno",
         "subject": "Edició web",
         "group": "1r APGI",
@@ -544,7 +544,7 @@
         "duration": 4
       },
       {
-        "id": 3473800288,
+        "id": 878757364,
         "teacher": "Noëlle",
         "subject": "Foto 1Q",
         "group": "1r APGI",
@@ -554,7 +554,7 @@
         "duration": 4
       },
       {
-        "id": 843934496,
+        "id": 466842701,
         "teacher": "Roger",
         "subject": "Hª del DG",
         "group": "1r APGI",
@@ -564,7 +564,7 @@
         "duration": 4
       },
       {
-        "id": 2191175599,
+        "id": 3013035001,
         "teacher": "Cristina",
         "subject": "espais 1Q + 3D 2Q",
         "group": "2n COM",
@@ -574,7 +574,7 @@
         "duration": 4
       },
       {
-        "id": 393639660,
+        "id": 866232723,
         "teacher": "Eli",
         "subject": "GPP",
         "group": "2n COM",
@@ -584,7 +584,7 @@
         "duration": 4
       },
       {
-        "id": 625342352,
+        "id": 2062406300,
         "teacher": "Eulàlia",
         "subject": "Volum UF1 1Q",
         "group": "2n COM",
@@ -594,7 +594,7 @@
         "duration": 4
       },
       {
-        "id": 2230087403,
+        "id": 3412453109,
         "teacher": "Bet",
         "subject": "FOL UF3",
         "group": "2n COM",
@@ -604,7 +604,7 @@
         "duration": 2
       },
       {
-        "id": 1361139953,
+        "id": 1664921931,
         "teacher": "Noëlle",
         "subject": "Foto UF1 i 2",
         "group": "Comú",
@@ -614,7 +614,7 @@
         "duration": 4
       },
       {
-        "id": 1244730004,
+        "id": 3860921889,
         "teacher": "Eulàlia",
         "subject": "Ll. disp. Taller producció",
         "group": "Comú",
@@ -624,7 +624,7 @@
         "duration": 4
       },
       {
-        "id": 3413484844,
+        "id": 663610045,
         "teacher": "Bet",
         "subject": "Fonaments expressió",
         "group": "Comú",
@@ -634,7 +634,7 @@
         "duration": 3
       },
       {
-        "id": 2778067409,
+        "id": 3074459391,
         "teacher": "Noëlle",
         "subject": "Hª de la imatge UF1",
         "group": "Comú",
@@ -644,7 +644,7 @@
         "duration": 2
       },
       {
-        "id": 928190531,
+        "id": 3960029754,
         "teacher": "Noëlle",
         "subject": "GPP",
         "group": "GP",
@@ -654,7 +654,7 @@
         "duration": 4
       },
       {
-        "id": 1821054960,
+        "id": 2006406398,
         "teacher": "Roger",
         "subject": "Hª del DG",
         "group": "GP",
@@ -664,7 +664,7 @@
         "duration": 4
       },
       {
-        "id": 2451094694,
+        "id": 482780751,
         "teacher": "Inno",
         "subject": "FOL UF3",
         "group": "GP",
@@ -674,7 +674,7 @@
         "duration": 2
       },
       {
-        "id": 1789810931,
+        "id": 3839510415,
         "teacher": "Sònia",
         "subject": "Ll. disp. comunicació projecte 2Q",
         "group": "GI",
@@ -684,7 +684,7 @@
         "duration": 4
       },
       {
-        "id": 1895993744,
+        "id": 1907485764,
         "teacher": "Sònia",
         "subject": "Projecte Integrat",
         "group": "GI",
@@ -694,7 +694,7 @@
         "duration": 4
       },
       {
-        "id": 4045947711,
+        "id": 3362404818,
         "teacher": "Sònia",
         "subject": "Projectes 1Q",
         "group": "GI",
@@ -704,7 +704,7 @@
         "duration": 4
       },
       {
-        "id": 2612540368,
+        "id": 2071853714,
         "teacher": "Inno",
         "subject": "Ll. programació",
         "group": "GI",
@@ -714,7 +714,7 @@
         "duration": 4
       },
       {
-        "id": 2379567068,
+        "id": 2422497937,
         "teacher": "Marc",
         "subject": "Projectes",
         "group": "GI",
@@ -724,7 +724,7 @@
         "duration": 3
       },
       {
-        "id": 2497441746,
+        "id": 3599180272,
         "teacher": "Bego",
         "subject": "FOL GPP",
         "group": "GI",
@@ -734,7 +734,7 @@
         "duration": 2
       },
       {
-        "id": 3972315625,
+        "id": 3115551207,
         "teacher": "Cristina",
         "subject": "Projecte Integrat",
         "group": "GI",
@@ -744,7 +744,7 @@
         "duration": 2
       },
       {
-        "id": 3979498674,
+        "id": 942062586,
         "teacher": "Sònia",
         "subject": "Metodologia 2Q",
         "group": "1r APGI",
@@ -754,7 +754,7 @@
         "duration": 4
       },
       {
-        "id": 4128761079,
+        "id": 2330777465,
         "teacher": "Alfred",
         "subject": "Mitjans informàtics",
         "group": "1r APGI",
@@ -764,7 +764,7 @@
         "duration": 4
       },
       {
-        "id": 1217395591,
+        "id": 2656466005,
         "teacher": "Sònia",
         "subject": "Multimèdia UF1 1Q",
         "group": "1r APGI",
@@ -774,7 +774,7 @@
         "duration": 4
       },
       {
-        "id": 3758774354,
+        "id": 1946506148,
         "teacher": "Bet",
         "subject": "Dx artístic",
         "group": "2n APGI",
@@ -784,7 +784,7 @@
         "duration": 2
       },
       {
-        "id": 2333743096,
+        "id": 1156560478,
         "teacher": "Alfred",
         "subject": "Mitjans informàtics 1Q",
         "group": "2n APGI",
@@ -794,7 +794,7 @@
         "duration": 4
       },
       {
-        "id": 3377398918,
+        "id": 2778251881,
         "teacher": "Bego",
         "subject": "Multimèdia UF3 i UF4",
         "group": "2n APGI",
@@ -804,7 +804,7 @@
         "duration": 3
       },
       {
-        "id": 3395570533,
+        "id": 3642561283,
         "teacher": "Inno",
         "subject": "Obra Final",
         "group": "2n APGI",
@@ -814,7 +814,7 @@
         "duration": 4
       },
       {
-        "id": 2477104936,
+        "id": 1125537764,
         "teacher": "Bego",
         "subject": "Multimèdia UF3 i UF4",
         "group": "2n APGI",
@@ -824,7 +824,7 @@
         "duration": 3
       },
       {
-        "id": 2799087220,
+        "id": 1267044675,
         "teacher": "Sara",
         "subject": "PFI RRLL",
         "group": "PFI",
@@ -834,7 +834,7 @@
         "duration": 4
       },
       {
-        "id": 2045837838,
+        "id": 1731777894,
         "teacher": "Imma",
         "subject": "PFI M2 Social",
         "group": "PFI",
@@ -844,7 +844,7 @@
         "duration": 3
       },
       {
-        "id": 2625532022,
+        "id": 106854515,
         "teacher": "Marc F.",
         "subject": "PFI Taller",
         "group": "PFI",
@@ -854,7 +854,7 @@
         "duration": 4
       },
       {
-        "id": 229836902,
+        "id": 3812983301,
         "teacher": "Cristina",
         "subject": "Projecte Integrat",
         "group": "GP",
@@ -864,7 +864,7 @@
         "duration": 4
       },
       {
-        "id": 2966705170,
+        "id": 1393015453,
         "teacher": "Cristina",
         "subject": "Projectes UF4 1Q",
         "group": "GP",
@@ -874,7 +874,7 @@
         "duration": 4
       },
       {
-        "id": 4211350006,
+        "id": 2017492678,
         "teacher": "Marc",
         "subject": "Teoria publ i mkt",
         "group": "GP",
@@ -884,7 +884,7 @@
         "duration": 4
       },
       {
-        "id": 4164118445,
+        "id": 2743756419,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "1r COM",
@@ -894,7 +894,7 @@
         "duration": 4
       },
       {
-        "id": 2731593213,
+        "id": 1754467062,
         "teacher": "Bego",
         "subject": "Teoria de la  imatge",
         "group": "Comú",
@@ -904,7 +904,7 @@
         "duration": 4
       },
       {
-        "id": 501943533,
+        "id": 992042207,
         "teacher": "Bego",
         "subject": "Ll. Tec. Audio UF1",
         "group": "Comú",
@@ -914,7 +914,7 @@
         "duration": 3
       },
       {
-        "id": 1707710716,
+        "id": 3714034935,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "Comú",
@@ -924,7 +924,7 @@
         "duration": 3
       },
       {
-        "id": 2493586014,
+        "id": 694067296,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "GP",
@@ -934,7 +934,7 @@
         "duration": 4
       },
       {
-        "id": 3566783670,
+        "id": 3168408133,
         "teacher": "Eli",
         "subject": "Projecte Integrat",
         "group": "GP",
@@ -944,7 +944,7 @@
         "duration": 2
       },
       {
-        "id": 1426047370,
+        "id": 4243635420,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "1r APGI",
@@ -954,7 +954,7 @@
         "duration": 4
       },
       {
-        "id": 3540404960,
+        "id": 3159547629,
         "teacher": "Inno",
         "subject": "Edició web",
         "group": "1r APGI",
@@ -964,7 +964,7 @@
         "duration": 3
       },
       {
-        "id": 1676056626,
+        "id": 4137719493,
         "teacher": "Eulàlia",
         "subject": "Volum UF2",
         "group": "1r COM",
@@ -974,7 +974,7 @@
         "duration": 4
       },
       {
-        "id": 2376243020,
+        "id": 2273060139,
         "teacher": "Bet",
         "subject": "Fonaments expressió",
         "group": "Comú",
@@ -984,7 +984,7 @@
         "duration": 3
       },
       {
-        "id": 2201505804,
+        "id": 1370028906,
         "teacher": "Sònia",
         "subject": "Mitjans informàtics",
         "group": "Comú",
@@ -994,7 +994,7 @@
         "duration": 3
       },
       {
-        "id": 4174937197,
+        "id": 1569004585,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "Comú",
@@ -1004,7 +1004,7 @@
         "duration": 3
       },
       {
-        "id": 4109594469,
+        "id": 2903875340,
         "teacher": "Marc",
         "subject": "Màrqueting",
         "group": "Comú",
@@ -1014,7 +1014,7 @@
         "duration": 2
       },
       {
-        "id": 1130955688,
+        "id": 3412111890,
         "teacher": "Sònia",
         "subject": "Interfícies gràfiques",
         "group": "GI",
@@ -1024,7 +1024,7 @@
         "duration": 3
       },
       {
-        "id": 4284798351,
+        "id": 3982565454,
         "teacher": "Inno",
         "subject": "FOL UF3",
         "group": "2n APGI",
@@ -1034,7 +1034,7 @@
         "duration": 2
       },
       {
-        "id": 3083653289,
+        "id": 90405386,
         "teacher": "Bego",
         "subject": "Obra Final",
         "group": "2n APGI",
@@ -1044,7 +1044,7 @@
         "duration": 2
       },
       {
-        "id": 4284798352,
+        "id": 4294592084,
         "teacher": "",
         "subject": "Descans",
         "group": "PFI",
@@ -1054,7 +1054,7 @@
         "duration": 1
       },
       {
-        "id": 4284798353,
+        "id": 4294592085,
         "teacher": "",
         "subject": "Descans",
         "group": "1r COM",
@@ -1064,7 +1064,7 @@
         "duration": 1
       },
       {
-        "id": 4284798354,
+        "id": 4294592086,
         "teacher": "",
         "subject": "Descans",
         "group": "PFI",
@@ -1074,7 +1074,7 @@
         "duration": 1
       },
       {
-        "id": 4284798355,
+        "id": 4294592087,
         "teacher": "",
         "subject": "Descans",
         "group": "2n COM",
@@ -1084,7 +1084,7 @@
         "duration": 1
       },
       {
-        "id": 4284798356,
+        "id": 4294592088,
         "teacher": "",
         "subject": "Descans",
         "group": "2n COM",
@@ -1094,7 +1094,7 @@
         "duration": 1
       },
       {
-        "id": 4284798357,
+        "id": 4294592089,
         "teacher": "",
         "subject": "Descans",
         "group": "ACADA",
@@ -1104,7 +1104,7 @@
         "duration": 1
       },
       {
-        "id": 4284798358,
+        "id": 4294592090,
         "teacher": "",
         "subject": "Descans",
         "group": "2n APGI",
@@ -1114,7 +1114,7 @@
         "duration": 1
       },
       {
-        "id": 4284798359,
+        "id": 4294592091,
         "teacher": "",
         "subject": "Descans",
         "group": "GP",
@@ -1124,7 +1124,7 @@
         "duration": 1
       },
       {
-        "id": 4284798360,
+        "id": 4294592092,
         "teacher": "",
         "subject": "Descans",
         "group": "GI, GP",
@@ -1134,7 +1134,7 @@
         "duration": 1
       },
       {
-        "id": 4284798361,
+        "id": 4294592093,
         "teacher": "",
         "subject": "Descans",
         "group": "PFI",
@@ -1144,7 +1144,7 @@
         "duration": 1
       },
       {
-        "id": 4284798362,
+        "id": 4294592094,
         "teacher": "",
         "subject": "Descans",
         "group": "2n COM",
@@ -1154,7 +1154,7 @@
         "duration": 1
       },
       {
-        "id": 4284798363,
+        "id": 4294592095,
         "teacher": "",
         "subject": "Descans",
         "group": "GI",
@@ -1164,7 +1164,7 @@
         "duration": 1
       },
       {
-        "id": 4284798364,
+        "id": 4294592096,
         "teacher": "",
         "subject": "Descans",
         "group": "1r APGI",
@@ -1174,7 +1174,7 @@
         "duration": 1
       },
       {
-        "id": 4284798365,
+        "id": 4294592097,
         "teacher": "",
         "subject": "Descans",
         "group": "Comú",
@@ -1184,7 +1184,7 @@
         "duration": 1
       },
       {
-        "id": 4284798366,
+        "id": 4294592098,
         "teacher": "",
         "subject": "Descans",
         "group": "2n APGI",
@@ -1194,7 +1194,7 @@
         "duration": 1
       },
       {
-        "id": 4284798367,
+        "id": 4294592099,
         "teacher": "",
         "subject": "Descans",
         "group": "1r APGI",
@@ -1204,7 +1204,7 @@
         "duration": 1
       },
       {
-        "id": 4284798368,
+        "id": 4294592100,
         "teacher": "",
         "subject": "Descans",
         "group": "1r COM",
@@ -1214,7 +1214,7 @@
         "duration": 1
       },
       {
-        "id": 4284798369,
+        "id": 4294592101,
         "teacher": "",
         "subject": "Descans",
         "group": "1r COM",
@@ -1224,7 +1224,7 @@
         "duration": 1
       },
       {
-        "id": 4284798370,
+        "id": 4294592102,
         "teacher": "",
         "subject": "Descans",
         "group": "1r APGI",
@@ -1234,7 +1234,7 @@
         "duration": 1
       },
       {
-        "id": 4284798371,
+        "id": 4294592103,
         "teacher": "",
         "subject": "Descans",
         "group": "2n COM",
@@ -1244,7 +1244,7 @@
         "duration": 1
       },
       {
-        "id": 4284798372,
+        "id": 4294592104,
         "teacher": "",
         "subject": "Descans",
         "group": "GP",
@@ -1254,7 +1254,7 @@
         "duration": 1
       },
       {
-        "id": 4284798373,
+        "id": 4294592105,
         "teacher": "",
         "subject": "Descans",
         "group": "GI",
@@ -1264,7 +1264,7 @@
         "duration": 1
       },
       {
-        "id": 4284798374,
+        "id": 4294592106,
         "teacher": "",
         "subject": "Descans",
         "group": "GI",
@@ -1274,7 +1274,7 @@
         "duration": 1
       },
       {
-        "id": 4284798375,
+        "id": 4294592107,
         "teacher": "",
         "subject": "Descans",
         "group": "1r APGI",
@@ -1284,7 +1284,7 @@
         "duration": 1
       },
       {
-        "id": 4284798376,
+        "id": 4294592108,
         "teacher": "",
         "subject": "Descans",
         "group": "2n APGI",
@@ -1294,7 +1294,7 @@
         "duration": 1
       },
       {
-        "id": 4284798377,
+        "id": 4294592109,
         "teacher": "",
         "subject": "Descans",
         "group": "2n APGI",
@@ -1304,7 +1304,7 @@
         "duration": 1
       },
       {
-        "id": 4284798378,
+        "id": 4294592110,
         "teacher": "",
         "subject": "Descans",
         "group": "PFI",
@@ -1314,7 +1314,7 @@
         "duration": 1
       },
       {
-        "id": 4284798379,
+        "id": 4294592111,
         "teacher": "",
         "subject": "Descans",
         "group": "GP",
@@ -1324,7 +1324,7 @@
         "duration": 1
       },
       {
-        "id": 4284798380,
+        "id": 4294592112,
         "teacher": "",
         "subject": "Descans",
         "group": "Comú",
@@ -1334,7 +1334,7 @@
         "duration": 1
       },
       {
-        "id": 4284798381,
+        "id": 4294592113,
         "teacher": "",
         "subject": "Descans",
         "group": "GP",
@@ -1344,7 +1344,7 @@
         "duration": 1
       },
       {
-        "id": 4284798382,
+        "id": 4294592114,
         "teacher": "",
         "subject": "Descans",
         "group": "1r APGI",
@@ -1354,7 +1354,7 @@
         "duration": 1
       },
       {
-        "id": 4284798383,
+        "id": 4294592115,
         "teacher": "",
         "subject": "Descans",
         "group": "Comú",
@@ -1367,7 +1367,7 @@
     "score": 84.0,
     "warnings": [
       {
-        "id": 716081753,
+        "id": 3825104340,
         "label": "No s'ha pogut col·locar FOL UF1 · Carme · 1r APGI",
         "subject": "FOL UF1",
         "teacher": "Carme",
@@ -1387,7 +1387,7 @@
         ]
       },
       {
-        "id": 325174323,
+        "id": 1597936878,
         "label": "No s'ha pogut col·locar packaging 2Q · Alfred · 2n APGI",
         "subject": "packaging 2Q",
         "teacher": "Alfred",
@@ -1408,7 +1408,7 @@
         ]
       },
       {
-        "id": 634367560,
+        "id": 3517753918,
         "label": "No s'ha pogut col·locar PFI Taller · Joan Carles · PFI",
         "subject": "PFI Taller",
         "teacher": "Joan Carles",
@@ -1430,7 +1430,7 @@
         ]
       },
       {
-        "id": 243755366,
+        "id": 3439543025,
         "label": "No s'ha pogut col·locar GPP · Bego · GI",
         "subject": "GPP",
         "teacher": "Bego",
@@ -1451,7 +1451,7 @@
         ]
       },
       {
-        "id": 3049564766,
+        "id": 472642032,
         "label": "No s'ha pogut col·locar Ll. Tec. Audio UF1 · Bego · Comú",
         "subject": "Ll. Tec. Audio UF1",
         "teacher": "Bego",
@@ -1472,7 +1472,7 @@
         ]
       },
       {
-        "id": 365075424,
+        "id": 3148567293,
         "label": "No s'ha pogut col·locar Projectes · Marc · GI",
         "subject": "Projectes",
         "teacher": "Marc",
@@ -1499,7 +1499,7 @@
       "scheduled_activities": [
         {
           "teaching_block": {
-            "id": "856b0086-839f-4cac-b78f-e4d14599aca9",
+            "id": "7a1aff99-1c33-45c3-b640-728025fcbb93",
             "duration": 6.0,
             "order": 1,
             "duration_blocks": 12,
@@ -1531,7 +1531,7 @@
         },
         {
           "teaching_block": {
-            "id": "37b54605-3804-4366-aee9-9926baafdd48",
+            "id": "bc6a35e0-f783-4737-a459-8761d38c54af",
             "duration": 4.0,
             "order": 1,
             "duration_blocks": 8,
@@ -1563,7 +1563,7 @@
         },
         {
           "teaching_block": {
-            "id": "73a9fe84-8cc4-445c-ac03-dc8e0c72b1ee",
+            "id": "75b1d838-859c-4539-bdde-9f9c19be3a9b",
             "duration": 4.0,
             "order": 1,
             "duration_blocks": 8,
@@ -1595,7 +1595,7 @@
         },
         {
           "teaching_block": {
-            "id": "51b12f89-d42a-453f-ad6b-cd3e03b9f22a",
+            "id": "905089f3-9824-4e72-a97c-b58ec7cc31b5",
             "duration": 4.0,
             "order": 1,
             "duration_blocks": 8,
@@ -1627,7 +1627,7 @@
         },
         {
           "teaching_block": {
-            "id": "dded1cd3-9067-4ebf-a041-c5abd16ca109",
+            "id": "b0fb0c7c-f06c-4cbb-8cc7-6e5f7092bdc9",
             "duration": 3.5,
             "order": 1,
             "duration_blocks": 7,
@@ -1659,7 +1659,7 @@
         },
         {
           "teaching_block": {
-            "id": "71cedb92-58fa-4a11-b503-6ee340e87495",
+            "id": "756b7b4c-d9d6-4de7-866a-2f7cc9bae581",
             "duration": 3.5,
             "order": 1,
             "duration_blocks": 7,
@@ -1691,7 +1691,7 @@
         },
         {
           "teaching_block": {
-            "id": "27536499-0f6f-4773-99b4-e74e492fe4ee",
+            "id": "2a8c74ca-b904-425d-a0a0-369719051870",
             "duration": 3.5,
             "order": 1,
             "duration_blocks": 7,
@@ -1723,7 +1723,7 @@
         },
         {
           "teaching_block": {
-            "id": "de2cf113-d4b2-4669-a59a-17581bc7d743",
+            "id": "103f24ad-88c1-4254-9a25-a5d86ef4ee4a",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -1755,7 +1755,7 @@
         },
         {
           "teaching_block": {
-            "id": "7f0eedee-f98c-46da-bada-69e6115e21b5",
+            "id": "f1bf4b1b-7952-4ee5-9f93-11dc91dc2f36",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -1787,7 +1787,7 @@
         },
         {
           "teaching_block": {
-            "id": "33c95532-cddb-4b1e-85f4-b1856d7169ff",
+            "id": "fcb6a919-c279-434f-919b-37bcbd032c80",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -1819,7 +1819,7 @@
         },
         {
           "teaching_block": {
-            "id": "bae3054f-80e1-4da3-bf84-0bc3fb016105",
+            "id": "a2af1a86-8e1b-456a-94b8-4beff368076f",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -1851,7 +1851,7 @@
         },
         {
           "teaching_block": {
-            "id": "f33d6209-7795-481e-8655-37adadf88eee",
+            "id": "af86a058-e89c-4787-b71c-48936438ee3c",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -1883,7 +1883,7 @@
         },
         {
           "teaching_block": {
-            "id": "031cb010-ff79-4e5c-a7ae-761158ab0933",
+            "id": "59f211cb-2b88-42f5-996c-58aeda13df3f",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -1915,7 +1915,7 @@
         },
         {
           "teaching_block": {
-            "id": "4acc6352-b83a-4f07-b487-15c2f0bcbf26",
+            "id": "7cbf9116-fbf9-4204-8822-7b26e2ad54b2",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -1947,7 +1947,7 @@
         },
         {
           "teaching_block": {
-            "id": "c530626a-fbf4-4680-aa74-280585e64328",
+            "id": "e34ddabc-ea81-4714-a630-355db93abb28",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -1979,7 +1979,7 @@
         },
         {
           "teaching_block": {
-            "id": "01d48a45-3b0e-4969-b7dd-b50f2137fe05",
+            "id": "4b958e23-1f30-4615-9f63-eec6455815a2",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -2011,7 +2011,7 @@
         },
         {
           "teaching_block": {
-            "id": "b7ed49ef-2fd9-486d-a917-7899140127de",
+            "id": "26419c08-c62e-476c-aa42-cda963dcb55c",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -2043,7 +2043,7 @@
         },
         {
           "teaching_block": {
-            "id": "9e376d89-e7a6-47b0-a515-8e8cdd70639e",
+            "id": "1c2304a2-768f-44a6-b808-38f2016d1cf6",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -2075,7 +2075,7 @@
         },
         {
           "teaching_block": {
-            "id": "99f412e4-993d-49d6-b53a-68576704293f",
+            "id": "4c097778-6b5b-4984-ad12-c6d21502d59a",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -2107,7 +2107,7 @@
         },
         {
           "teaching_block": {
-            "id": "00050189-204e-4c5c-8539-04f23c1c1794",
+            "id": "de61bf79-a462-4117-9d74-c6223366c254",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -2139,7 +2139,7 @@
         },
         {
           "teaching_block": {
-            "id": "4aa7392b-dc03-4c51-8373-d69fa487fe8c",
+            "id": "f2bbdae4-d3ec-4e07-8c1c-f6f53031e392",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -2171,7 +2171,7 @@
         },
         {
           "teaching_block": {
-            "id": "56f89691-90cd-470e-ad1a-c44a1468891e",
+            "id": "cdde50c4-2ba4-4e61-b8fe-c1fcb7a42eba",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2203,7 +2203,7 @@
         },
         {
           "teaching_block": {
-            "id": "0df1371e-a846-4f57-b7b1-96304d09e38c",
+            "id": "a023c5b8-2f6d-45a0-be7c-0179aafd63e0",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2235,7 +2235,7 @@
         },
         {
           "teaching_block": {
-            "id": "0d2765b2-798f-46c4-a737-41f0c0e5815c",
+            "id": "7de936ac-e755-4af8-8dec-f00583cefb0f",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2267,7 +2267,7 @@
         },
         {
           "teaching_block": {
-            "id": "01550547-2174-42ee-a69e-8ffbad0372f9",
+            "id": "2adeab8d-88de-4c35-b9fa-0726a126f25e",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2299,7 +2299,7 @@
         },
         {
           "teaching_block": {
-            "id": "0af7d500-b2d1-47ae-a988-73cc49d8724d",
+            "id": "ad2aaffa-0e69-4e40-b82f-2599ed256889",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2331,7 +2331,7 @@
         },
         {
           "teaching_block": {
-            "id": "a00cd90f-0c69-450b-92cc-55f985ad7a4d",
+            "id": "023012ef-f1e6-4e70-821b-af653d12c44b",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2363,7 +2363,7 @@
         },
         {
           "teaching_block": {
-            "id": "d6a3bcc6-4f25-433e-8d9d-6c01013c5bdb",
+            "id": "3981d8e8-0c07-4a90-9428-fa8eb1bab01b",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2395,7 +2395,7 @@
         },
         {
           "teaching_block": {
-            "id": "2ae87cfe-0a3d-403a-9fd8-4ba052f7ff81",
+            "id": "3391c1aa-d900-463e-81c4-eafa18f38443",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2427,7 +2427,7 @@
         },
         {
           "teaching_block": {
-            "id": "1cb739e8-5da1-4ddc-b432-7ca2a3a73440",
+            "id": "2a958498-83ef-4588-b4b0-8146aa51a947",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2459,7 +2459,7 @@
         },
         {
           "teaching_block": {
-            "id": "81174612-3b97-47a0-a854-3afc9f082c69",
+            "id": "0c03d94c-9e1d-4340-bbff-495b68f2939f",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2491,7 +2491,7 @@
         },
         {
           "teaching_block": {
-            "id": "929c368b-389e-41be-863d-93e1dc2a4225",
+            "id": "acb71f3e-7f14-4a48-b964-1af35ac3c028",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2523,7 +2523,7 @@
         },
         {
           "teaching_block": {
-            "id": "841eba6d-24b5-4cb5-95d4-5b241ac49814",
+            "id": "a033611a-a32e-49d4-a8d7-1124a40a3afa",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2555,7 +2555,7 @@
         },
         {
           "teaching_block": {
-            "id": "62c2921c-8746-4367-b2fd-a79d9b4de587",
+            "id": "3db6b704-592b-49cd-88d2-ffcd19ef2e20",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2587,7 +2587,7 @@
         },
         {
           "teaching_block": {
-            "id": "dd397e67-615a-4127-b9b9-ac81c9dc91e4",
+            "id": "778a1deb-951d-4852-bcdb-a271624a32d0",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2619,7 +2619,7 @@
         },
         {
           "teaching_block": {
-            "id": "66b69dae-a795-4823-9cf6-0c45b0bc34fe",
+            "id": "234dc14e-dd16-4d57-8272-00a330ba71c8",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2651,7 +2651,7 @@
         },
         {
           "teaching_block": {
-            "id": "22094596-5302-43b4-b352-00d6da9dbce5",
+            "id": "d295232f-7372-4a11-ab65-30b39d68eff4",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2683,7 +2683,7 @@
         },
         {
           "teaching_block": {
-            "id": "81771b72-fe33-46d0-88f0-e779d2e8e91d",
+            "id": "aeb25645-bc44-4f8f-bf65-6215850e0b08",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2715,7 +2715,7 @@
         },
         {
           "teaching_block": {
-            "id": "0d1192ee-6143-46a5-b1d3-ec5e5c08b532",
+            "id": "a2b1834a-e7ac-4205-b8f5-4c37bee751e2",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2747,7 +2747,7 @@
         },
         {
           "teaching_block": {
-            "id": "6249ae43-436b-4087-956f-711bae20b4ca",
+            "id": "23b23db9-690a-4e8a-b6f4-b9014e0e11c7",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2779,7 +2779,7 @@
         },
         {
           "teaching_block": {
-            "id": "c8cdfe37-9788-4374-bf42-c871fe558660",
+            "id": "c7b4b432-30e2-40cc-9c09-5e8ba340c5b5",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2811,7 +2811,7 @@
         },
         {
           "teaching_block": {
-            "id": "9f506315-0e17-43d9-b99a-2fdc3fdb3bad",
+            "id": "55142f08-e49f-478d-9cd9-19188c4fb997",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2843,7 +2843,7 @@
         },
         {
           "teaching_block": {
-            "id": "e08ee170-e92a-4f2b-8bb5-25b27964e066",
+            "id": "bcdda840-81ee-47e7-b540-29e8cedcf60e",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2875,7 +2875,7 @@
         },
         {
           "teaching_block": {
-            "id": "14dc910c-bfc5-4ec5-908c-40c4abdf4917",
+            "id": "3e7e95b7-6b78-487f-b3fa-5ab46743ee92",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2907,7 +2907,7 @@
         },
         {
           "teaching_block": {
-            "id": "71b5ed98-041c-431d-853d-e75b3005abfe",
+            "id": "d1c38716-d330-494b-aa28-f929773679cb",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2939,7 +2939,7 @@
         },
         {
           "teaching_block": {
-            "id": "88760bdd-36eb-4dae-a499-903d2bc4291b",
+            "id": "a96431b6-464e-48c9-804a-2629a5e5cd73",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2971,7 +2971,7 @@
         },
         {
           "teaching_block": {
-            "id": "f2f492e6-ecd9-40e0-9032-ed2ef721f01d",
+            "id": "9d23774d-c72f-4e08-b586-875d07782810",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3003,7 +3003,7 @@
         },
         {
           "teaching_block": {
-            "id": "0c8ba90c-ecce-4701-bfcd-eadca11f539c",
+            "id": "e14553cc-6991-4c42-9d43-abb87dbec0fe",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3035,7 +3035,7 @@
         },
         {
           "teaching_block": {
-            "id": "27d89375-64bf-447d-81fb-df30acba60c2",
+            "id": "ad02dc02-94ef-4839-a395-3509ac39b3cf",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3067,7 +3067,7 @@
         },
         {
           "teaching_block": {
-            "id": "a54cdeb7-e8c7-46cb-8859-df70909be378",
+            "id": "34c62929-9a4b-485a-8cca-5c926a2f2b7d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3099,7 +3099,7 @@
         },
         {
           "teaching_block": {
-            "id": "465fe9ec-c986-433c-9d6a-1c9a209369de",
+            "id": "9fd9f849-bf70-4ba9-bb8a-f71644e4a43a",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3131,7 +3131,7 @@
         },
         {
           "teaching_block": {
-            "id": "1365b31d-d023-4b06-b9c9-1b48ffeea08b",
+            "id": "f389301e-1439-4b72-b9e5-aeeff6d760d3",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3163,7 +3163,7 @@
         },
         {
           "teaching_block": {
-            "id": "31597a38-361b-44db-8645-41db7602cdda",
+            "id": "6d675b0e-e1ab-42a2-9b3e-6f7335e8b536",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3195,7 +3195,7 @@
         },
         {
           "teaching_block": {
-            "id": "d3c838a6-178b-4031-8c94-12707a82cca2",
+            "id": "1da46ee8-c0ad-40ce-a669-d3a2842618f8",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3227,7 +3227,7 @@
         },
         {
           "teaching_block": {
-            "id": "892af13a-4589-4205-b31d-4abbbb32b5ec",
+            "id": "7d038685-7d37-487a-93fc-8a74f8f8d98d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3259,7 +3259,7 @@
         },
         {
           "teaching_block": {
-            "id": "939774c8-672d-4f09-a2e7-01a2fc643ff0",
+            "id": "64deffd0-73ba-4fba-8001-50d1dddf03ec",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3291,7 +3291,7 @@
         },
         {
           "teaching_block": {
-            "id": "d11aee5e-72f2-46b6-8322-4f495ebdbabb",
+            "id": "40753255-fc8e-4b34-812f-a79484e1abea",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3323,7 +3323,7 @@
         },
         {
           "teaching_block": {
-            "id": "85ff90c5-7844-4ca7-bac8-8aa0fc70c460",
+            "id": "4770cd4e-8b64-4dd7-adef-46d79b6b57e1",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3355,7 +3355,7 @@
         },
         {
           "teaching_block": {
-            "id": "2f08e41e-c61c-466f-b8df-f76f7b6ee452",
+            "id": "5b557058-8de3-465e-88de-fbbad88672bb",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3387,7 +3387,7 @@
         },
         {
           "teaching_block": {
-            "id": "2a102ed3-bac7-400c-b3e6-78387700be1f",
+            "id": "1524174a-194b-46d5-80c2-45da89a7ff95",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3419,7 +3419,7 @@
         },
         {
           "teaching_block": {
-            "id": "cd1e561d-c7a5-482a-a433-12be24bd09e1",
+            "id": "8bb93667-e860-4ffc-a73d-18694eb9212d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3451,7 +3451,7 @@
         },
         {
           "teaching_block": {
-            "id": "5d1c29e6-0e1f-48d0-8b19-dd1ddaae81b9",
+            "id": "42176cab-845e-43fc-ad5a-74506b6477de",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3483,7 +3483,7 @@
         },
         {
           "teaching_block": {
-            "id": "0e90e4cd-c216-4575-a5eb-7b2879e784b9",
+            "id": "31227088-5636-4274-9b57-018972e3fcb3",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3515,7 +3515,7 @@
         },
         {
           "teaching_block": {
-            "id": "7f410fcd-d6f4-41aa-b104-c674343d3034",
+            "id": "e9a2c7bd-59da-4fc9-a577-f3db3fe93ba1",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3547,7 +3547,7 @@
         },
         {
           "teaching_block": {
-            "id": "e6ff1a75-7c42-4534-997c-f29d0d9809ae",
+            "id": "f6a1f572-c3d0-41f5-8ecf-dfdd182c37fd",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3579,7 +3579,7 @@
         },
         {
           "teaching_block": {
-            "id": "29d743ce-cc72-4031-b0cf-a6e8a72e0182",
+            "id": "c4a7fa70-1c73-4776-9a2a-bc2a095da7fa",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3611,7 +3611,7 @@
         },
         {
           "teaching_block": {
-            "id": "3fbeb245-dfba-4d16-bb5e-9edfb3426797",
+            "id": "eec3233f-f4b6-4e27-b03a-29b4a13647e2",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3643,7 +3643,7 @@
         },
         {
           "teaching_block": {
-            "id": "cae795b9-bc84-416a-80cf-917e6e6fd040",
+            "id": "e18b5149-cafe-42b0-885c-ba2d7b6675e0",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3675,7 +3675,7 @@
         },
         {
           "teaching_block": {
-            "id": "19b0936f-2590-4e79-b01a-1e4f140610d8",
+            "id": "bc400c1f-6754-4719-a610-59d880bde54a",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3707,7 +3707,7 @@
         },
         {
           "teaching_block": {
-            "id": "1a4f65e5-cc97-41e4-b933-6adc33bf5c27",
+            "id": "a0534260-2e7c-44c6-9149-ebb05e5873e8",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3739,7 +3739,7 @@
         },
         {
           "teaching_block": {
-            "id": "9cb22fad-3116-47cb-96e0-0b20064c9986",
+            "id": "804c818a-ba86-4e82-9a6d-8888f06bde48",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3771,7 +3771,7 @@
         },
         {
           "teaching_block": {
-            "id": "fe3fc375-df73-4a8a-b471-32aa26b44ddf",
+            "id": "5ae70fd5-4e46-43dc-896a-b9de87c80932",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3803,7 +3803,7 @@
         },
         {
           "teaching_block": {
-            "id": "bf96abda-9f42-4e54-86c6-b33e7d2335ce",
+            "id": "5c7a358c-30b8-4b22-af04-f46dfe228642",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3835,7 +3835,7 @@
         },
         {
           "teaching_block": {
-            "id": "a206cfea-294f-4bd3-88b3-e4a78152c682",
+            "id": "26a9762d-dc56-40b1-b0d0-e4291b82ca98",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3867,7 +3867,7 @@
         },
         {
           "teaching_block": {
-            "id": "0451bd7c-a815-4816-9aaf-cf8c5cac2169",
+            "id": "ae6dc2b9-d761-4462-8e7f-78e93fe4c802",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3899,7 +3899,7 @@
         },
         {
           "teaching_block": {
-            "id": "0de6787f-299d-46f2-a152-605e0f84a770",
+            "id": "257e4ed4-d187-451d-ab58-d0c87fc39273",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3931,7 +3931,7 @@
         },
         {
           "teaching_block": {
-            "id": "89032c0f-336c-4213-ae70-8495ce942d55",
+            "id": "cc6a1057-5955-4ad3-b8d8-8c8dcb4e5a0a",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3963,7 +3963,7 @@
         },
         {
           "teaching_block": {
-            "id": "afcf7cc4-3aa6-495c-afbd-ac80df329da9",
+            "id": "94235a0c-4b69-44dd-b3ff-68446200485b",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -3995,7 +3995,7 @@
         },
         {
           "teaching_block": {
-            "id": "16d2388b-f617-4b2e-94cb-eb28fa8813e7",
+            "id": "1d9bb945-66d7-452c-8469-33a2bca64cec",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -4027,7 +4027,7 @@
         },
         {
           "teaching_block": {
-            "id": "5f1e1ffb-e32b-400a-a6ce-50fb22cfc396",
+            "id": "70044b86-5cff-487e-8cd0-589657828c6b",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -4059,7 +4059,7 @@
         },
         {
           "teaching_block": {
-            "id": "6675e3ff-eab1-45ac-b188-dfc1ac585fc0",
+            "id": "eadae084-d8f8-4b00-b52d-03050fa2499a",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -4091,7 +4091,7 @@
         },
         {
           "teaching_block": {
-            "id": "1b2e965d-3e68-49e7-8231-af282843dc8c",
+            "id": "81ff9d23-04b6-4a29-9ecd-716d49b332b9",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -4123,7 +4123,7 @@
         },
         {
           "teaching_block": {
-            "id": "c7123002-c04c-41fe-9b84-c2910404eaaa",
+            "id": "112e3653-612b-4430-b089-17bff0dd2532",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -4155,7 +4155,7 @@
         },
         {
           "teaching_block": {
-            "id": "b43b2723-732b-4b54-8fca-79704f6fbfb3",
+            "id": "862f1be7-afa0-4e7d-a986-51b0834126c2",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -4187,7 +4187,7 @@
         },
         {
           "teaching_block": {
-            "id": "c0632881-7955-4dbc-a967-647143260c5d",
+            "id": "cba5c341-336c-4366-8798-a6dc8dcd7550",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -4219,7 +4219,7 @@
         },
         {
           "teaching_block": {
-            "id": "182c484f-3130-4e03-96f4-b28d6bebd1a9",
+            "id": "a7a8d737-88e8-4ef8-875b-56aa90219bb6",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -4251,7 +4251,7 @@
         },
         {
           "teaching_block": {
-            "id": "a8cb5513-f5d9-4fa5-a7c4-37d847898700",
+            "id": "d1abc2a8-0204-47d6-b093-1c6f383e6a9e",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4283,7 +4283,7 @@
         },
         {
           "teaching_block": {
-            "id": "112acf24-ae47-4c47-9388-0132763cf895",
+            "id": "a6917ffb-9a1c-45f7-9b0e-443fb3678b8e",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4315,7 +4315,7 @@
         },
         {
           "teaching_block": {
-            "id": "0c6eccac-4297-4e86-84cc-419a68afe83d",
+            "id": "bfab1caa-d737-42c3-9264-bc6955d412df",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4347,7 +4347,7 @@
         },
         {
           "teaching_block": {
-            "id": "d028affd-b3c4-4d75-993d-51f054e3e23f",
+            "id": "cf8268ae-ddbd-4fc1-a25c-56c34158b330",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4379,7 +4379,7 @@
         },
         {
           "teaching_block": {
-            "id": "0287a108-6254-4e22-8734-70da4f132eac",
+            "id": "c4a21335-6ae0-44d2-ab00-6456762c6138",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4411,7 +4411,7 @@
         },
         {
           "teaching_block": {
-            "id": "fd4ca3ea-414d-4495-9de5-cbe939bd62e7",
+            "id": "6aba3f02-f8d3-406d-bf14-bc0e1b2e93cd",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4443,7 +4443,7 @@
         },
         {
           "teaching_block": {
-            "id": "c1020a8a-27ef-46d0-99d2-e24fba9f9790",
+            "id": "4027afed-c332-4f3d-84e7-5ff72cef2263",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4475,7 +4475,7 @@
         },
         {
           "teaching_block": {
-            "id": "48804cdb-d991-4e0e-b282-c8c3b5417fcc",
+            "id": "5f303a15-0e5e-4d60-87ea-d139a702b516",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4507,7 +4507,7 @@
         },
         {
           "teaching_block": {
-            "id": "bdeb48a6-f966-4d14-b9ec-78618a7b078a",
+            "id": "296ef93d-a3d7-4642-9221-d7f83adf6b31",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4539,7 +4539,7 @@
         },
         {
           "teaching_block": {
-            "id": "575223e0-aa3f-46b8-bbd5-684094606a5f",
+            "id": "11d950f6-fb5f-4547-9b6e-56a9e0577d2d",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4571,7 +4571,7 @@
         },
         {
           "teaching_block": {
-            "id": "4c11c087-1370-4588-841b-e77a2be98546",
+            "id": "32c815fb-38ba-4d57-85a5-b3e4639c4a6b",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4603,7 +4603,7 @@
         },
         {
           "teaching_block": {
-            "id": "dfec051e-8b3f-4917-bd0e-7919e230b7ea",
+            "id": "1ad37b8d-1f64-4bdb-886d-1a6b66dc8f1a",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4635,7 +4635,7 @@
         },
         {
           "teaching_block": {
-            "id": "7acfd603-323f-4e5e-ac0f-d75f0dda076c",
+            "id": "c9ea6b40-5d68-4f35-8d9e-ddf7a3335055",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4667,7 +4667,7 @@
         },
         {
           "teaching_block": {
-            "id": "d3c9511b-62d6-4c1b-a4dd-ed5845fe7307",
+            "id": "c160fb1f-de08-42f8-8977-3351eb44f040",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4699,7 +4699,7 @@
         },
         {
           "teaching_block": {
-            "id": "a0f439d3-22cc-40c8-bc1c-544d3a580f6e",
+            "id": "f4f5741d-4682-47ba-af14-6173acfcf681",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4731,7 +4731,7 @@
         },
         {
           "teaching_block": {
-            "id": "d7509881-960a-4c94-b872-781a73ee345d",
+            "id": "ce293962-5ab3-4d55-ac38-41e75775b284",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4763,7 +4763,7 @@
         },
         {
           "teaching_block": {
-            "id": "36e857c9-eaab-44f2-89ec-d1c2b75ea017",
+            "id": "aa8c74c9-e911-468a-8779-289cb2bbce76",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4795,7 +4795,7 @@
         },
         {
           "teaching_block": {
-            "id": "4dbad69c-65ae-4961-a035-3551736222ae",
+            "id": "54e67676-df01-4b8e-886c-813faa517faa",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -4840,7 +4840,7 @@
       },
       "unscheduled_activities": [
         {
-          "id": 716081753,
+          "id": 3825104340,
           "teacher": "Carme",
           "subject": "FOL UF1",
           "group": "1r APGI",
@@ -4849,7 +4849,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 325174323,
+          "id": 1597936878,
           "teacher": "Alfred",
           "subject": "packaging 2Q",
           "group": "2n APGI",
@@ -4858,7 +4858,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 634367560,
+          "id": 3517753918,
           "teacher": "Joan Carles",
           "subject": "PFI Taller",
           "group": "PFI",
@@ -4867,7 +4867,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 243755366,
+          "id": 3439543025,
           "teacher": "Bego",
           "subject": "GPP",
           "group": "GI",
@@ -4876,7 +4876,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 3049564766,
+          "id": 472642032,
           "teacher": "Bego",
           "subject": "Ll. Tec. Audio UF1",
           "group": "Comú",
@@ -4885,7 +4885,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 365075424,
+          "id": 3148567293,
           "teacher": "Marc",
           "subject": "Projectes",
           "group": "GI",
@@ -4906,7 +4906,7 @@
   },
   "unscheduled_activities": [
     {
-      "id": 716081753,
+      "id": 3825104340,
       "teacher": "Carme",
       "subject": "FOL UF1",
       "group": "1r APGI",
@@ -4915,7 +4915,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 325174323,
+      "id": 1597936878,
       "teacher": "Alfred",
       "subject": "packaging 2Q",
       "group": "2n APGI",
@@ -4924,7 +4924,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 634367560,
+      "id": 3517753918,
       "teacher": "Joan Carles",
       "subject": "PFI Taller",
       "group": "PFI",
@@ -4933,7 +4933,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 243755366,
+      "id": 3439543025,
       "teacher": "Bego",
       "subject": "GPP",
       "group": "GI",
@@ -4942,7 +4942,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 3049564766,
+      "id": 472642032,
       "teacher": "Bego",
       "subject": "Ll. Tec. Audio UF1",
       "group": "Comú",
@@ -4951,7 +4951,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 365075424,
+      "id": 3148567293,
       "teacher": "Marc",
       "subject": "Projectes",
       "group": "GI",
