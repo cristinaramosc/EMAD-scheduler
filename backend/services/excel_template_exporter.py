@@ -4,26 +4,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 from zipfile import ZipFile
 
 try:
-    from time_units import blocks_to_hours
+    from backend.repositories.academic_data_repository import AcademicDataRepository
+    from backend.repositories.school_calendar_repository import SchoolCalendarRepository
 except ModuleNotFoundError:  # pragma: no cover
-    from backend.time_units import blocks_to_hours
-
-
-def _text(element: ET.Element, tag: str) -> str | None:
-    node = element.find(tag)
-    return node.text if node is not None else None
-
-
-def _is_active(element: ET.Element) -> bool:
-    active_value = _text(element, "Active")
-    if active_value is None:
-        return True
-    return active_value.strip().lower() != "false"
+    from repositories.academic_data_repository import AcademicDataRepository
+    from repositories.school_calendar_repository import SchoolCalendarRepository
 
 
 def _col_name(index: int) -> str:
@@ -158,106 +147,80 @@ class TemplateExportResult:
 
 
 class ExcelTemplateExporter:
-    def __init__(self, fet_file: Path, output_root: Path) -> None:
-        self._fet_file = fet_file
+    def __init__(
+        self,
+        academic_data_repo: AcademicDataRepository,
+        school_calendar_repo: SchoolCalendarRepository,
+        output_root: Path,
+    ) -> None:
+        self._academic_data_repo = academic_data_repo
+        self._school_calendar_repo = school_calendar_repo
         self._output_root = output_root
 
     def export_templates(self) -> TemplateExportResult:
-        root = ET.parse(self._fet_file).getroot()
+        settings = self._school_calendar_repo.load_settings()
+        day_names = list(settings.day_names)
+        hour_names = list(settings.hour_names)
 
-        day_names = [name for name in (_text(day, "Name") for day in root.findall("./Days_List/Day")) if name]
-        hour_names = [name for name in (_text(hour, "Name") for hour in root.findall("./Hours_List/Hour")) if name]
-
-        activity_rooms: dict[int, str] = {}
-        for constraint in root.iter("ConstraintActivityPreferredRoom"):
-            if not _is_active(constraint):
-                continue
-            activity_id = int(_text(constraint, "Activity_Id") or 0)
-            room_name = _text(constraint, "Room")
-            if activity_id and room_name:
-                activity_rooms[activity_id] = room_name
-
-        activity_fixed_slots: dict[int, str] = {}
-        for constraint in root.iter("ConstraintActivityPreferredStartingTime"):
-            if not _is_active(constraint):
-                continue
-            activity_id = int(_text(constraint, "Activity_Id") or 0)
-            day = _text(constraint, "Day")
-            hour = _text(constraint, "Hour")
-            if activity_id and day and hour:
-                activity_fixed_slots[activity_id] = f"{day} {hour}"
-
-        excluded_subjects = {"descans", "dinar", "pati", "esbarjo"}
+        teacher_records = self._academic_data_repo.list_teachers()
+        group_records = self._academic_data_repo.list_groups()
+        room_records = self._academic_data_repo.list_rooms()
+        assignment_records = self._academic_data_repo.active_canonical_assignments()
 
         activities: list[dict[str, Any]] = []
-        for activity in root.iter("Activity"):
-            subject_text = _text(activity, "Subject") or ""
-            if subject_text.strip().lower() in excluded_subjects:
+        for index, assignment in enumerate(assignment_records, start=1):
+            subject = assignment.get("subject", "") or ""
+            if subject.strip().lower() in {"descans", "dinar", "pati", "esbarjo"}:
                 continue
 
-            activity_id = int(_text(activity, "Id") or 0)
-            duration = int(_text(activity, "Duration") or 1)
-            teacher_names = ", ".join(node.text for node in activity.findall("Teacher") if node.text)
+            teacher = assignment.get("teacher", "") or ""
+            group = assignment.get("group", "") or ""
+            preferred_room = assignment.get("preferred_room", "") or assignment.get("room", "") or ""
+            fixed_slot = ""
+            if assignment.get("fixed_day") and assignment.get("fixed_start"):
+                fixed_slot = f"{assignment['fixed_day']} {assignment['fixed_start']}"
+
+            weekly_hours = assignment.get("weekly_hours") or 0
+            duration = assignment.get("duration") or weekly_hours
             activities.append(
                 {
-                    "id": activity_id,
-                    "teacher": teacher_names,
-                    "subject": _text(activity, "Subject") or "",
-                    "group": _text(activity, "Students") or "",
+                    "id": assignment.get("id") or index,
+                    "teacher": teacher,
+                    "subject": subject,
+                    "group": group,
                     "duration": duration,
-                    "weekly_hours": blocks_to_hours(duration),
-                    "preferred_room": activity_rooms.get(activity_id, ""),
-                    "fixed_slot": activity_fixed_slots.get(activity_id, ""),
+                    "weekly_hours": weekly_hours,
+                    "preferred_room": preferred_room,
+                    "fixed_slot": fixed_slot,
                 }
             )
 
-        teacher_names = {
-            name
-            for name in (_text(teacher, "Name") for teacher in root.findall("./Teachers_List/Teacher"))
-            if name
-        }
+        teacher_names = {record.get("name", "") for record in teacher_records if record.get("name")}
         teacher_names.update(activity["teacher"] for activity in activities if activity["teacher"])
 
-        group_names = {activity["group"] for activity in activities if activity["group"]}
+        group_names = {record.get("name", "") for record in group_records if record.get("name")}
+        group_names.update(activity["group"] for activity in activities if activity["group"])
 
         teacher_unavailable: dict[str, set[str]] = {teacher: set() for teacher in teacher_names}
-        for constraint in root.iter("ConstraintTeacherNotAvailableTimes"):
-            if not _is_active(constraint):
-                continue
-            teacher = _text(constraint, "Teacher") or ""
+        for restriction in self._academic_data_repo.list_teacher_restrictions():
+            teacher = (restriction.get("teacher") or "").strip()
             if not teacher:
                 continue
-            teacher_unavailable.setdefault(teacher, set())
-            for slot in constraint.findall("Not_Available_Time"):
-                day = _text(slot, "Day")
-                hour = _text(slot, "Hour")
-                if day and hour:
-                    teacher_unavailable[teacher].add(f"{day} {hour}")
+            teacher_unavailable.setdefault(teacher, set()).update(restriction.get("unavailable_slots") or [])
 
         group_unavailable: dict[str, set[str]] = {group: set() for group in group_names}
-        for constraint in root.iter("ConstraintStudentsSetNotAvailableTimes"):
-            if not _is_active(constraint):
-                continue
-            group = _text(constraint, "Students") or ""
+        for restriction in self._academic_data_repo.list_group_restrictions():
+            group = (restriction.get("group") or "").strip()
             if not group:
                 continue
-            group_unavailable.setdefault(group, set())
-            for slot in constraint.findall("Not_Available_Time"):
-                day = _text(slot, "Day")
-                hour = _text(slot, "Hour")
-                if day and hour:
-                    group_unavailable[group].add(f"{day} {hour}")
+            group_unavailable.setdefault(group, set()).update(restriction.get("unavailable_slots") or [])
 
         group_fixed_slots: dict[str, set[str]] = {group: set() for group in group_names}
         for activity in activities:
             if activity["group"] and activity["fixed_slot"]:
                 group_fixed_slots.setdefault(activity["group"], set()).add(activity["fixed_slot"])
 
-        room_names = {
-            room
-            for room in (_text(room_node, "Name") for room_node in root.findall("./Rooms_List/Room"))
-            if room
-        }
+        room_names = {record.get("name", "") for record in room_records if record.get("name")}
         room_names.update(activity["preferred_room"] for activity in activities if activity["preferred_room"])
 
         output_folder = self._build_output_folder()

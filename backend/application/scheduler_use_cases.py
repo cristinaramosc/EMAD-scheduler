@@ -117,8 +117,6 @@ class SchedulerUseCases:
         proposal_store: Dict[str, ScheduleProposal],
         school_calendar: SchoolCalendar | None = None,
         time_labels: Dict[str, List[str]] | None = None,
-        fet_generation_inputs_fn: Any | None = None,
-        fet_file: Any | None = None,
         academic_data_repo: AcademicDataRepository | None = None,
         working_timetable_repo: WorkingTimetableRepository | None = None,
     ) -> None:
@@ -127,8 +125,6 @@ class SchedulerUseCases:
         self._proposal_store = proposal_store
         self._school_calendar = school_calendar or SchoolCalendar()
         self._time_labels = time_labels or {"day_names": [], "hour_names": []}
-        self._fet_generation_inputs_fn = fet_generation_inputs_fn
-        self._fet_file = fet_file
         self._academic_data_repo = academic_data_repo
         self._working_timetable_repo = working_timetable_repo
         self._move_history: Dict[str, List[Any]] = {}
@@ -157,7 +153,7 @@ class SchedulerUseCases:
         if not requirement_ids:
             if self._academic_data_repo is not None and self._academic_data_repo.active_teaching_assignments():
                 return self.generate_proposals_from_academic_data()
-            return self.generate_proposals_from_fet()
+            return self._generate_empty_generation_result()
 
         requirements: List[TeachingRequirement] = []
         for requirement_id in requirement_ids:
@@ -203,11 +199,11 @@ class SchedulerUseCases:
 
     def generate_proposals_from_academic_data(self) -> Dict[str, Any]:
         if self._academic_data_repo is None:
-            return self.generate_proposals_from_fet()
+            return self._generate_empty_generation_result()
 
         assignments = self._academic_data_repo.active_teaching_assignments()
         if not assignments:
-            return self.generate_proposals_from_fet()
+            return self._generate_empty_generation_result()
 
         day_names = self._time_labels.get("day_names", [])
         hour_names = self._time_labels.get("hour_names", [])
@@ -241,7 +237,6 @@ class SchedulerUseCases:
             self._academic_data_repo.active_teacher_restrictions(),
             self._academic_data_repo.active_group_restrictions(),
         )
-        blocked_activities += self._load_fet_blocked_activities()
         blocked_activities += fixed_scheduled_activities
 
         split_groups = {
@@ -1029,202 +1024,166 @@ class SchedulerUseCases:
             aligned = False
 
             if act_a.duration == act_b.duration:
-                earliest = self._earliest_common_slot_for_pair(act_a, act_b, activities, baseline_keys)
-                if earliest is not None:
-                    day, start = earliest
-                    act_a.day, act_a.start = day, start
-                    act_b.day, act_b.start = day, start
-                    aligned = True
+                def generate_proposals_from_academic_data(self) -> Dict[str, Any]:
+                    if self._academic_data_repo is None:
+                        return self._generate_empty_generation_result()
 
-            if not aligned:
-                for first, second in ((act_a, act_b), (act_b, act_a)):
-                    original_day, original_start = second.day, second.start
-                    second.day, second.start = first.day, first.start
+                    assignments = self._academic_data_repo.active_teaching_assignments()
+                    if not assignments:
+                        return self._generate_empty_generation_result()
 
-                    candidate_schedule = self._build_schedule(activities)
-                    candidate_conflicts = self._scheduler_engine.validate(candidate_schedule)
-                    new_keys = [
-                        conflict for conflict in candidate_conflicts
-                        if self._conflict_key(conflict) not in baseline_keys
+                    day_names = self._time_labels.get("day_names", [])
+                    hour_names = self._time_labels.get("hour_names", [])
+                    day_indexes = {name: index for index, name in enumerate(day_names)}
+                    hour_indexes = {name: index for index, name in enumerate(hour_names)}
+
+                    flexible_assignments = []
+                    fixed_scheduled_activities: List[ScheduledActivity] = []
+                    for assignment in assignments:
+                        fixed_day = (assignment.get("fixed_day") or "").strip()
+                        fixed_start = (assignment.get("fixed_start") or "").strip()
+                        if fixed_day and fixed_start and fixed_day in day_indexes and fixed_start in hour_indexes:
+                            fixed_scheduled_activities.append(
+                                self._build_fixed_activity_from_assignment(
+                                    assignment, day_indexes[fixed_day], hour_indexes[fixed_start]
+                                )
+                            )
+                        else:
+                            flexible_assignments.append(assignment)
+
+                    restricted_teacher_names = {
+                        (restriction.get("teacher") or "").strip()
+                        for restriction in self._academic_data_repo.active_teacher_restrictions()
+                        if restriction.get("unavailable_slots") or restriction.get("preferred_availability")
+                    }
+                    requirements = [
+                        self._build_requirement_from_assignment(index, assignment, restricted_teacher_names)
+                        for index, assignment in enumerate(flexible_assignments, start=1)
                     ]
-                    if not new_keys:
-                        break
-
-                    second.day, second.start = original_day, original_start
-
-        final_schedule = self._build_schedule(activities)
-        final_conflicts = self._scheduler_engine.validate(final_schedule)
-
-        return ScheduleProposal(
-            id=proposal.id,
-            activities=activities,
-            score=proposal.score,
-            conflicts=final_conflicts,
-            warnings=proposal.warnings,
-            score_breakdown=getattr(proposal, "score_breakdown", None),
-            metadata=dict(proposal.metadata or {}),
-        )
-
-    def _earliest_common_slot_for_pair(
-        self,
-        act_a: Activity,
-        act_b: Activity,
-        activities: List[Activity],
-        baseline_keys: set,
-    ) -> Optional[Tuple[str, str]]:
-        """Recorre tot el calendari escolar (dia a dia, franja a franja) i
-        retorna el primer (day, start) -en el mateix format de text que fan
-        servir Activity.day/Activity.start- on es pot moure la parella
-        sencera sense que apareguin conflictes nous respecte a
-        baseline_keys. Retorna None si no en troba cap."""
-        day_names = self._time_labels.get("day_names", [])
-        hour_names = self._time_labels.get("hour_names", [])
-        if not day_names or not hour_names:
-            return None
-
-        original_a = (act_a.day, act_a.start)
-        original_b = (act_b.day, act_b.start)
-        required_slots = act_a.duration or 1
-
-        for day_index in self._school_calendar.days:
-            if day_index >= len(day_names):
-                continue
-            for slot in self._school_calendar.periods_for_day(day_index):
-                if slot.period + required_slots > self._school_calendar.periods_per_day:
-                    continue
-                if slot.period >= len(hour_names):
-                    continue
-
-                day_label = day_names[day_index]
-                start_label = hour_names[slot.period]
-
-                if (day_label, start_label) == original_a and (day_label, start_label) == original_b:
-                    continue
-
-                act_a.day, act_a.start = day_label, start_label
-                act_b.day, act_b.start = day_label, start_label
-
-                candidate_schedule = self._build_schedule(activities)
-                candidate_conflicts = self._scheduler_engine.validate(candidate_schedule)
-                new_keys = [
-                    conflict for conflict in candidate_conflicts
-                    if self._conflict_key(conflict) not in baseline_keys
-                ]
-
-                act_a.day, act_a.start = original_a
-                act_b.day, act_b.start = original_b
-
-                if not new_keys:
-                    return day_label, start_label
-
-        return None
-
-    def _build_requirement_from_assignment(
-        self, index: int, assignment: Dict[str, Any], restricted_teacher_names: set | None = None
-    ) -> TeachingRequirement:
-        preferred_room = assignment.get("preferred_room", "")
-        fixed_day = assignment.get("fixed_day") or None
-        fixed_start = assignment.get("fixed_start") or None
-        session_hours = float(assignment["weekly_hours"])
-        teacher_name = str(assignment["teacher"]).strip()
-        is_restricted_teacher = bool(restricted_teacher_names) and teacher_name in restricted_teacher_names
-        # Prioritat més alta (nombre més baix) per a professors amb
-        # restriccions de dies: es col·loquen primer perquè tenen menys
-        # marge de maniobra, i així el motor no es queda sense franges
-        # vàlides per a ells un cop col·locada la resta.
-        priority = 1 if is_restricted_teacher else 2
-        return TeachingRequirement(
-            id=f"academic-{index}",
-            group_id=str(assignment["group"]),
-            subject_id=str(assignment["subject"]),
-            teacher_id=teacher_name,
-            weekly_hours=session_hours,
-            min_days=1,
-            max_days=1,
-            min_block_duration=session_hours,
-            max_consecutive_hours=max(session_hours, 2.0),
-            allow_half_hour_blocks=True,
-            preferred_rooms=[preferred_room] if preferred_room else [],
-            fixed_teacher=True,
-            priority=priority,
-            fixed_day=fixed_day,
-            fixed_start=fixed_start,
-        )
-
-    def _build_blocked_activities_from_restrictions(
-        self,
-        teacher_restrictions: List[Dict[str, Any]],
-        group_restrictions: List[Dict[str, Any]],
-    ) -> List[ScheduledActivity]:
-        day_names = self._time_labels.get("day_names", [])
-        hour_names = self._time_labels.get("hour_names", [])
-        day_indexes = {name: index for index, name in enumerate(day_names)}
-        hour_indexes = {name: index for index, name in enumerate(hour_names)}
-
-        blocked: List[ScheduledActivity] = []
-
-        for record in teacher_restrictions:
-            teacher = record.get("teacher", "")
-            for slot in record.get("unavailable_slots", []):
-                indexes = self._slot_to_indexes(slot, day_indexes, hour_indexes)
-                if indexes is None:
-                    continue
-                day_index, hour_index = indexes
-                blocked.append(
-                    ScheduledActivity(
-                        teaching_block=TeachingBlock(
-                            id=f"teacher-blocked-{teacher}-{day_index}-{hour_index}",
-                            duration=0.5,
-                            order=0,
-                            duration_blocks=1,
-                            preferred_teacher_id=teacher,
-                            metadata={"synthetic": True, "constraint": "teacher_not_available"},
-                        ),
-                        day=day_index,
-                        start_timeslot=TimeSlot(day=day_index, period=hour_index),
-                        duration=1,
-                        teacher_id=teacher,
-                        metadata={"synthetic": True, "constraint": "teacher_not_available"},
+                    blocked_activities = self._build_blocked_activities_from_restrictions(
+                        self._academic_data_repo.active_teacher_restrictions(),
+                        self._academic_data_repo.active_group_restrictions(),
                     )
-                )
+                    blocked_activities += fixed_scheduled_activities
 
-        for record in group_restrictions:
-            group = record.get("group", "")
-            slots = list(record.get("unavailable_slots", [])) + list(record.get("fixed_slots", []))
-            for slot in slots:
-                indexes = self._slot_to_indexes(slot, day_indexes, hour_indexes)
-                if indexes is None:
-                    continue
-                day_index, hour_index = indexes
-                blocked.append(
-                    ScheduledActivity(
-                        teaching_block=TeachingBlock(
-                            id=f"group-blocked-{group}-{day_index}-{hour_index}",
-                            duration=0.5,
-                            order=0,
-                            duration_blocks=1,
-                            metadata={"synthetic": True, "constraint": "group_not_available"},
-                        ),
-                        day=day_index,
-                        start_timeslot=TimeSlot(day=day_index, period=hour_index),
-                        duration=1,
-                        group_id=group,
-                        metadata={"synthetic": True, "constraint": "group_not_available"},
+                    split_groups = {
+                        (group.get("name") or "").strip()
+                        for group in self._academic_data_repo.list_groups()
+                        if group.get("is_split")
+                    }
+
+                    context = GenerationContext(
+                        school_calendar=self._school_calendar,
+                        existing_scheduled_activities=tuple(blocked_activities),
+                        fixed_activities=tuple(fixed_scheduled_activities),
+                        blocked_time_slots=(),
+                        configuration={
+                            "room_constraints_enabled": True,
+                            "day_names": day_names,
+                            "hour_names": hour_names,
+                            "split_groups": split_groups,
+                        },
                     )
-                )
 
-        return blocked
+                    generator = SchedulerGenerator()
+                    generation_result = generator.generate(requirements, context)
+                    if not generation_result.valid or not generation_result.proposals:
+                        raise RuntimeError("generation_failed")
 
-    def _slot_to_indexes(
-        self,
-        slot: str,
-        day_indexes: Dict[str, int],
-        hour_indexes: Dict[str, int],
-    ) -> tuple[int, int] | None:
-        token = str(slot).strip()
-        if not token:
-            return None
+                    fixed_activities = [
+                        self._scheduled_to_activity(activity, day_names, hour_names) for activity in fixed_scheduled_activities
+                    ]
+                    payload_for_merge = {"fixed_activities": fixed_scheduled_activities, "floating_blocks": []}
+                    proposals = [
+                        self._merge_fixed_activities_into_proposal(
+                            proposal,
+                            payload_for_merge,
+                            fixed_activities,
+                            day_names,
+                            hour_names,
+                        )
+                        for proposal in generation_result.proposals
+                    ]
+                    proposals = [
+                        self._apply_consecutive_group_preferences(proposal, assignments, hour_names)
+                        for proposal in proposals
+                    ]
+                    proposals = [self._apply_quarter_pair_alignment(proposal) for proposal in proposals]
+                    for proposal in proposals:
+                        compacted_activities, _ = self._compact_activities(list(proposal.activities))
+                        proposal.activities = self._insert_default_group_breaks(compacted_activities)
+                    proposals.sort(key=lambda proposal: proposal.score, reverse=True)
 
+                    for proposal in proposals:
+                        self._proposal_store[proposal.id] = proposal
+
+                    best_proposal = proposals[0]
+
+                    unscheduled_from_warnings = [
+                        {
+                            "id": warning.get("id"),
+                            "teacher": warning.get("teacher", ""),
+                            "subject": warning.get("subject", ""),
+                            "group": warning.get("group", ""),
+                            "room": "",
+                            "duration": warning.get("duration", 1),
+                            "reason": warning.get("reason", ""),
+                        }
+                        for warning in (best_proposal.warnings or [])
+                        if isinstance(warning, dict) and warning.get("id") is not None
+                    ]
+                    for proposal in proposals:
+                        proposal.metadata = {**(proposal.metadata or {}), "unscheduled_activities": unscheduled_from_warnings}
+
+                    self._persist_proposal_state(
+                        best_proposal,
+                        {
+                            **generation_result.statistics,
+                            "source": "academic_workbook",
+                            "fixed_activities_total": len(fixed_activities),
+                        },
+                        unscheduled_from_warnings,
+                    )
+
+                    return {
+                        "valid": generation_result.valid,
+                        "best_proposal": serialize_proposal(best_proposal),
+                        "proposals": [serialize_proposal(proposal) for proposal in proposals],
+                        "scores": [proposal.score for proposal in proposals],
+                        "conflicts": [
+                            [serialize_conflict(conflict) for conflict in proposal.conflicts]
+                            for proposal in proposals
+                        ],
+                        "statistics": {
+                            **generation_result.statistics,
+                            "source": "academic_workbook",
+                            "fixed_activities_total": len(fixed_activities),
+                        },
+                        "unscheduled_activities": unscheduled_from_warnings,
+                    }
+
+                def _generate_empty_generation_result(self) -> Dict[str, Any]:
+                    context = GenerationContext(
+                        school_calendar=self._school_calendar,
+                        existing_scheduled_activities=(),
+                        fixed_activities=(),
+                        blocked_time_slots=(),
+                        configuration={"room_constraints_enabled": False, "day_names": self._time_labels.get("day_names", []), "hour_names": self._time_labels.get("hour_names", [])},
+                    )
+                    generator = SchedulerGenerator()
+                    generation_result = generator.generate([], context)
+                    proposal = generation_result.schedule_proposal or generation_result.proposals[0]
+                    self._proposal_store[proposal.id] = proposal
+                    self._persist_proposal_state(proposal, {**generation_result.statistics, "source": "academic_workbook", "fixed_activities_total": 0}, [])
+                    return {
+                        "valid": generation_result.valid,
+                        "best_proposal": serialize_proposal(proposal),
+                        "proposals": [serialize_proposal(item) for item in generation_result.proposals],
+                        "scores": [item.score for item in generation_result.proposals],
+                        "conflicts": [[serialize_conflict(conflict) for conflict in item.conflicts] for item in generation_result.proposals],
+                        "statistics": {**generation_result.statistics, "source": "academic_workbook", "fixed_activities_total": 0},
+                        "unscheduled_activities": [],
+                    }
         parts = token.rsplit(" ", 1)
         if len(parts) != 2:
             return None
@@ -1280,53 +1239,9 @@ class SchedulerUseCases:
             )
         )
 
-    def get_fet_restrictions(self) -> Dict[str, Dict[str, List[str]]]:
-        """Retorna les franges no disponibles definides al fitxer FET
-        (ConstraintTeacherNotAvailableTimes / ConstraintStudentsSetNotAvailableTimes),
-        convertides al format "Dia Hora" i agrupades per professor i per grup,
-        perquè el frontend les pugui mostrar marcades encara que no s'hagin
-        desat manualment a l'Excel/panell de restriccions."""
-        day_names = self._time_labels.get("day_names", [])
-        hour_names = self._time_labels.get("hour_names", [])
-
-        teachers: Dict[str, List[str]] = {}
-        groups: Dict[str, List[str]] = {}
-
-        for blocked in self._load_fet_blocked_activities():
-            day_idx = blocked.start_timeslot.day
-            hour_idx = blocked.start_timeslot.period
-            if day_idx >= len(day_names) or hour_idx >= len(hour_names):
-                continue
-            slot = f"{day_names[day_idx]} {hour_names[hour_idx]}"
-
-            if blocked.teacher_id:
-                bucket = teachers.setdefault(blocked.teacher_id, [])
-                if slot not in bucket:
-                    bucket.append(slot)
-            elif blocked.group_id:
-                bucket = groups.setdefault(blocked.group_id, [])
-                if slot not in bucket:
-                    bucket.append(slot)
-
-        return {"teachers": teachers, "groups": groups}
-
-    def _load_fet_blocked_activities(self) -> List[ScheduledActivity]:
-        """Llegeix directament del fitxer FET les franges no disponibles de
-        professors i grups (ConstraintTeacherNotAvailableTimes /
-        ConstraintStudentsSetNotAvailableTimes) i les retorna com a activitats
-        bloquejades, perquè es respectin també quan la generació parteix de
-        les dades acadèmiques (Excel) i no directament del FET."""
-        if self._fet_generation_inputs_fn is None or self._fet_file is None:
-            return []
-        try:
-            payload = self._fet_generation_inputs_fn(self._fet_file)
-        except Exception:
-            return []
-        return list(payload.get("blocked_activities", []))
-
     def _collect_blocked_slots(self) -> Dict[tuple[str, str], set]:
         """Retorna un mapa {(\"teacher\"|\"group\", nom): {(day_index, hour_index), ...}}
-        combinant restriccions de l'Excel acadèmic i del fitxer FET."""
+        combinant restriccions de l'Excel acadèmic."""
         teacher_restrictions = (
             self._academic_data_repo.active_teacher_restrictions() if self._academic_data_repo else []
         )
@@ -1336,7 +1251,6 @@ class SchedulerUseCases:
         blocked_activities = self._build_blocked_activities_from_restrictions(
             teacher_restrictions, group_restrictions
         )
-        blocked_activities += self._load_fet_blocked_activities()
 
         blocked: Dict[tuple[str, str], set] = {}
         for blocked_activity in blocked_activities:
