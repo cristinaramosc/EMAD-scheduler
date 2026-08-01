@@ -10,3 +10,4 @@ class Activity:
     day: str
     start: str
     duration: int
+    fixed: bool = False

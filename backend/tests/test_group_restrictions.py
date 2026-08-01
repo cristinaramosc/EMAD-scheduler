@@ -42,6 +42,8 @@ def test_group_restrictions_can_be_persisted() -> None:
             "max_consecutive_hours": 2,
             "preferred_availability": ["Dilluns-8:00"],
             "unavailable_slots": ["Dimarts-9:00"],
+            "daily_start_time": "8:00",
+            "daily_max_end_time": "14:00",
         },
     )
     assert patch_response.status_code == 200
@@ -55,6 +57,8 @@ def test_group_restrictions_can_be_persisted() -> None:
     assert data["max_consecutive_hours"] == 2
     assert data["preferred_availability"] == ["Dilluns-8:00"]
     assert "Dimarts-9:00" in data["unavailable_slots"]
+    assert data["daily_start_time"] == "8:00"
+    assert data["daily_max_end_time"] == "14:00"
 
     stored = next((item for item in repo.list_group_restrictions() if item["group"] == group), None)
     assert stored is not None
@@ -64,3 +68,5 @@ def test_group_restrictions_can_be_persisted() -> None:
     assert stored["max_consecutive_hours"] == 2
     assert stored["preferred_availability"] == ["Dilluns-8:00"]
     assert stored["unavailable_slots"] == ["Dimarts-9:00"]
+    assert stored["daily_start_time"] == "8:00"
+    assert stored["daily_max_end_time"] == "14:00"

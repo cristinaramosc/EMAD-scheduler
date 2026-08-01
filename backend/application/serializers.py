@@ -18,6 +18,7 @@ def serialize_activity(activity: Activity) -> Dict[str, Any]:
         "day": activity.day,
         "start": activity.start,
         "duration": activity.duration,
+        "fixed": bool(getattr(activity, "fixed", False)),
     }
 
 

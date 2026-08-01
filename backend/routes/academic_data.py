@@ -328,17 +328,22 @@ def update_group_restrictions(name: str, payload: GroupRestrictionUpdateDTO):
     if current is None:
         raise HTTPException(status_code=404, detail="group_not_found")
 
+    existing_restriction = next(
+        (item for item in repo.list_group_restrictions() if item.get("group") == name),
+        {},
+    )
+
     record = {
         "group": payload.group or name,
         "no_gaps": payload.no_gaps if payload.no_gaps is not None else False,
         "max_hours_per_day": payload.max_hours_per_day,
         "max_consecutive_hours": payload.max_consecutive_hours,
-        "preferred_availability": payload.preferred_availability if payload.preferred_availability is not None else [],
-        "unavailable_slots": payload.unavailable_slots if payload.unavailable_slots is not None else current.get("unavailable_slots", []),
-        "fixed_slots": current.get("fixed_slots", []),
-        "daily_start_time": payload.daily_start_time if payload.daily_start_time is not None else current.get("daily_start_time", ""),
-        "daily_max_end_time": payload.daily_max_end_time if payload.daily_max_end_time is not None else current.get("daily_max_end_time", ""),
-        "exception_slots": payload.exception_slots if payload.exception_slots is not None else current.get("exception_slots", []),
+        "preferred_availability": payload.preferred_availability if payload.preferred_availability is not None else existing_restriction.get("preferred_availability", []),
+        "unavailable_slots": payload.unavailable_slots if payload.unavailable_slots is not None else existing_restriction.get("unavailable_slots", []),
+        "fixed_slots": existing_restriction.get("fixed_slots", []),
+        "daily_start_time": payload.daily_start_time if payload.daily_start_time is not None else existing_restriction.get("daily_start_time", ""),
+        "daily_max_end_time": payload.daily_max_end_time if payload.daily_max_end_time is not None else existing_restriction.get("daily_max_end_time", ""),
+        "exception_slots": payload.exception_slots if payload.exception_slots is not None else existing_restriction.get("exception_slots", []),
     }
     repo.upsert_group_restriction(record)
     return {"ok": True}

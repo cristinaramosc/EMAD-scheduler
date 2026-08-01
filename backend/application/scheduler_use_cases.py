@@ -100,6 +100,7 @@ class SchedulerUseCases:
                     day=day,
                     start=start,
                     duration=target_activity.duration,
+                    fixed=bool(getattr(target_activity, "fixed", False)),
                 )
                 schedule = self._build_schedule(base_activities + [candidate])
                 conflicts = self._scheduler_engine.validate(schedule)
@@ -226,24 +227,32 @@ class SchedulerUseCases:
             else:
                 flexible_assignments.append(assignment)
 
+        teacher_restrictions = self._academic_data_repo.active_teacher_restrictions()
+        group_restrictions = self._academic_data_repo.active_group_restrictions()
+
         restricted_teacher_names = {
             name
-            for restriction in self._academic_data_repo.active_teacher_restrictions()
+            for restriction in teacher_restrictions
             if restriction.get("unavailable_slots") or restriction.get("preferred_availability")
             for name in teacher_names(restriction.get("teacher"))
         }
         restricted_group_names = {
             (restriction.get("group") or "").strip()
-            for restriction in self._academic_data_repo.active_group_restrictions()
-            if restriction.get("unavailable_slots") or restriction.get("preferred_availability")
+            for restriction in group_restrictions
+            if (
+                restriction.get("unavailable_slots")
+                or restriction.get("preferred_availability")
+                or restriction.get("daily_start_time")
+                or restriction.get("daily_max_end_time")
+            )
         }
         requirements = [
             self._build_requirement_from_assignment(index, assignment, restricted_teacher_names, restricted_group_names)
             for index, assignment in enumerate(flexible_assignments, start=1)
         ]
         blocked_activities = self._build_blocked_activities_from_restrictions(
-            self._academic_data_repo.active_teacher_restrictions(),
-            self._academic_data_repo.active_group_restrictions(),
+            teacher_restrictions,
+            group_restrictions,
         )
         blocked_activities += fixed_scheduled_activities
 
@@ -263,6 +272,7 @@ class SchedulerUseCases:
                 "day_names": day_names,
                 "hour_names": hour_names,
                 "split_groups": split_groups,
+                "group_time_window_constraints": self._build_group_time_window_constraints(group_restrictions, hour_names),
             },
         )
 
@@ -410,6 +420,7 @@ class SchedulerUseCases:
                 day=activity.day,
                 start=activity.start,
                 duration=activity.duration,
+                fixed=bool(getattr(activity, "fixed", False)),
             )
             for activity in proposal.activities
         ]
@@ -540,6 +551,7 @@ class SchedulerUseCases:
                 day=activity.day,
                 start=activity.start,
                 duration=activity.duration,
+                fixed=bool(getattr(activity, "fixed", False)),
             )
             for activity in proposal.activities
         ]
@@ -676,6 +688,7 @@ class SchedulerUseCases:
                 day=activity.day,
                 start=activity.start,
                 duration=activity.duration,
+                fixed=bool(getattr(activity, "fixed", False)),
             )
             for activity in proposal.activities
         ]
@@ -726,6 +739,7 @@ class SchedulerUseCases:
             if scheduled_activity.start_timeslot.period < len(hour_names)
             else f"Period {scheduled_activity.start_timeslot.period}",
             duration=scheduled_activity.duration,
+            fixed=bool(getattr(scheduled_activity.teaching_block, "fixed", False)),
         )
 
     def _merge_fixed_activities_into_proposal(
@@ -742,12 +756,14 @@ class SchedulerUseCases:
         merged_activities = list(fixed_activities) + generated_activities
         for activity in merged_activities:
             full_schedule.add(activity)
+        group_restrictions = self._academic_data_repo.active_group_restrictions()
         full_schedule.configuration = {
             "split_groups": {
                 (group.get("name") or "").strip()
                 for group in self._academic_data_repo.list_groups()
                 if group.get("is_split")
-            }
+            },
+            "group_time_window_constraints": self._build_group_time_window_constraints(group_restrictions, hour_names),
         }
 
         updated_metadata = dict(proposal.metadata or {})
@@ -811,6 +827,9 @@ class SchedulerUseCases:
             duration_blocks=duration_blocks,
             preferred_room_id=assignment.get("preferred_room", "") or "",
             preferred_teacher_id=teacher,
+            fixed=True,
+            fixed_day=str(assignment.get("fixed_day") or "") or None,
+            fixed_start=str(assignment.get("fixed_start") or "") or None,
             metadata=metadata,
         )
         return ScheduledActivity(
@@ -823,6 +842,65 @@ class SchedulerUseCases:
             group_id=group,
             metadata=metadata,
         )
+
+    def _build_group_time_window_constraints(
+        self,
+        group_restrictions: List[Dict[str, Any]],
+        hour_names: List[str],
+    ) -> Dict[str, Tuple[int, int]]:
+        constraints: Dict[str, Tuple[int, int]] = {}
+
+        for restriction in group_restrictions:
+            group_name = (restriction.get("group") or "").strip()
+            if not group_name:
+                continue
+
+            start_minutes = self._parse_time_to_minutes(restriction.get("daily_start_time"), hour_names)
+            end_minutes = self._parse_time_to_minutes(restriction.get("daily_max_end_time"), hour_names)
+
+            if start_minutes is None or end_minutes is None:
+                preferred_slots = restriction.get("preferred_availability") or []
+                preferred_minutes: List[int] = []
+                for slot in preferred_slots:
+                    _, _, slot_time = str(slot).partition("-")
+                    minutes = self._parse_time_to_minutes(slot_time, hour_names)
+                    if minutes is not None:
+                        preferred_minutes.append(minutes)
+                if preferred_minutes:
+                    start_minutes = min(preferred_minutes)
+                    end_minutes = max(preferred_minutes)
+
+            if start_minutes is None or end_minutes is None:
+                continue
+
+            if start_minutes > end_minutes:
+                start_minutes, end_minutes = end_minutes, start_minutes
+
+            constraints[group_name.upper()] = (start_minutes, end_minutes)
+
+        return constraints
+
+    def _parse_time_to_minutes(self, value: Any, hour_names: List[str]) -> Optional[int]:
+        if value is None:
+            return None
+
+        text = str(value).strip()
+        if not text:
+            return None
+
+        if ":" in text:
+            hour_text, minute_text = text.split(":", 1)
+            try:
+                return int(hour_text) * 60 + int(minute_text)
+            except ValueError:
+                return None
+
+        if text.isdigit() and hour_names:
+            index = int(text)
+            if 0 <= index < len(hour_names):
+                return self._parse_time_to_minutes(hour_names[index], hour_names)
+
+        return None
 
     def _build_requirement_from_assignment(
         self,
@@ -1155,12 +1233,15 @@ class SchedulerUseCases:
         schedule = Schedule()
         for activity in activities:
             schedule.add(activity)
+        group_restrictions = self._academic_data_repo.active_group_restrictions()
+        hour_names = self._time_labels.get("hour_names", [])
         schedule.configuration = {
             "split_groups": {
                 (group.get("name") or "").strip()
                 for group in self._academic_data_repo.list_groups()
                 if group.get("is_split")
-            }
+            },
+            "group_time_window_constraints": self._build_group_time_window_constraints(group_restrictions, hour_names),
         }
         return schedule
 

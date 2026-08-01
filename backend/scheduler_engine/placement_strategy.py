@@ -289,6 +289,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
         start_slot: TimeSlot,
         context: GenerationContext,
     ) -> bool:
+        if teaching_block.fixed and teaching_block.fixed_day and teaching_block.fixed_start:
+            return False
+
         group_id = None
         if teaching_block.metadata:
             group_id = teaching_block.metadata.get("group_id") or teaching_block.metadata.get("group")

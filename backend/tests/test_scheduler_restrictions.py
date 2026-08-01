@@ -90,6 +90,33 @@ def test_group_time_window_constraint_rejects_activity_extending_beyond_window()
     assert placement is None
 
 
+def test_group_time_window_constraint_allows_fixed_activity_exception():
+    strategy = GreedyPlacementStrategy()
+    block = TeachingBlock(
+        id="fixed-b1",
+        duration=1.0,
+        order=1,
+        duration_blocks=1,
+        preferred_room_id=None,
+        preferred_teacher_id="T1",
+        fixed=True,
+        fixed_day="Day 0",
+        fixed_start="Period 0",
+        metadata={"teacher": "T1", "group": "GP"},
+    )
+    ctx = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=8),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={"group_time_window_constraints": {"GP": (5, 6)}},
+    )
+
+    placement = strategy.place(block, ctx, ())
+
+    assert placement is not None
+
+
 def test_teacher_conflict_checks_all_assigned_teachers():
     strategy = GreedyPlacementStrategy()
     block = make_block(id="b1", teacher="T1, T2", group="G1", duration_blocks=2)
