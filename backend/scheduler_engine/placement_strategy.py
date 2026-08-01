@@ -11,6 +11,7 @@ except ModuleNotFoundError:  # pragma: no cover
 from .constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair, normalize_group_name
 from .constraints.group_time_window import get_group_time_window
 from .models import GenerationContext, ScheduledActivity, TimeSlot
+from .teacher_utils import teacher_label, teacher_names
 
 
 class PlacementStrategy(ABC):
@@ -111,7 +112,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
         all_activities = list(existing_activities) + list(current_scheduled_activities)
 
         metadata = teaching_block.metadata or {}
-        teacher_label = metadata.get("teacher") or teaching_block.preferred_teacher_id or "El professor"
+        teacher_name_label = metadata.get("teacher") or teacher_label(teaching_block.preferred_teacher_id) or "El professor"
         group_label = metadata.get("group") or metadata.get("group_id") or "El grup"
         room_label = teaching_block.preferred_room_id or metadata.get("room")
 
@@ -140,7 +141,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
                     add(f"El grup {group_label} ja té una altra activitat {day_name} en aquesta franja.")
 
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
-                    add(f"El professor {teacher_label} no està disponible {day_name}.")
+                    add(f"El professor {teacher_name_label} no està disponible {day_name}.")
 
                 if self._group_time_window_conflict_exists(teaching_block, slot, context):
                     add(f"El grup {group_label} supera la franja horària permesa {day_name}.")
@@ -208,14 +209,15 @@ class GreedyPlacementStrategy(PlacementStrategy):
         start_slot: TimeSlot,
         activities: Sequence[ScheduledActivity],
     ) -> bool:
-        teacher_id = teaching_block.preferred_teacher_id
-        if not teacher_id:
+        teacher_ids = teacher_names(teaching_block.preferred_teacher_id)
+        if not teacher_ids:
             return False
 
         for activity in activities:
             if activity.day != start_slot.day:
                 continue
-            if activity.teacher_id != teacher_id:
+            activity_teacher_ids = teacher_names(activity.teacher_id)
+            if not activity_teacher_ids or set(activity_teacher_ids).isdisjoint(teacher_ids):
                 continue
             activity_end = activity.start_timeslot.period + activity.duration
             candidate_end = start_slot.period + (teaching_block.duration_blocks or 1)
@@ -270,11 +272,10 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 # two simultaneous activities as long as the teacher and the
                 # room are both different (each subgroup goes its own way).
                 if group_is_split:
-                    candidate_teacher = teaching_block.preferred_teacher_id
+                    candidate_teacher_ids = teacher_names(teaching_block.preferred_teacher_id)
                     candidate_room = teaching_block.preferred_room_id
-                    different_teacher = (
-                        candidate_teacher and activity.teacher_id and candidate_teacher != activity.teacher_id
-                    )
+                    activity_teacher_ids = teacher_names(activity.teacher_id)
+                    different_teacher = bool(candidate_teacher_ids) and bool(activity_teacher_ids) and set(candidate_teacher_ids).isdisjoint(activity_teacher_ids)
                     different_room = candidate_room and activity.room_id and candidate_room != activity.room_id
                     if different_teacher and different_room:
                         continue

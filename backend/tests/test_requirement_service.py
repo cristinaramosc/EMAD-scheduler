@@ -108,6 +108,35 @@ def test_legacy_distribution_fields_remain_supported():
     assert created.max_days == 2
 
 
+def test_create_accepts_multiple_teachers():
+    repo = RequirementRepository()
+    svc = RequirementService(repo)
+    created = svc.create({**valid_payload(), "teacher_id": ["t1", "t2"]})
+
+    assert created.teacher_id == "t1, t2"
+
+
+def test_create_defaults_to_single_day_distribution_when_unspecified():
+    repo = RequirementRepository()
+    svc = RequirementService(repo)
+    created = svc.create(
+        {
+            "group_id": "g1",
+            "subject_id": "s1",
+            "teacher_id": "t1",
+            "weekly_hours": 2.0,
+            "min_block_duration": 0.5,
+            "max_consecutive_hours": 2.0,
+            "allow_half_hour_blocks": True,
+        }
+    )
+
+    assert created.min_distribution_days == 1
+    assert created.max_distribution_days == 1
+    assert created.min_days == 1
+    assert created.max_days == 1
+
+
 def test_generate_blocks_not_found():
     repo = RequirementRepository()
     svc = RequirementService(repo)

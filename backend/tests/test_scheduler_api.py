@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from backend.bootstrap import reset_dependencies
 from backend.dependencies import get_proposal_store, get_requirement_service
 from backend.routes.academic_workbook import AcademicWorkbookImportRequest, import_academic_workbook
+from backend.routes.requirements import RequirementCreateDTO, create_requirement
 from backend.routes.scheduler import GenerateRequest, accept_proposal, generate_proposals, move_proposal_activity
 from backend.scheduler_engine.engine_instance import engine as shared_engine
 from backend.scheduler_engine.models import Activity, Schedule, ScheduleProposal
@@ -40,6 +41,26 @@ def test_scheduler_generation_endpoint_returns_proposals_from_requirements() -> 
     assert body["statistics"]["proposals_generated"] >= 1
     assert body["statistics"]["blocks_total"] >= 1
     assert body["unscheduled_activities"] == []
+
+
+def test_requirements_create_endpoint_defaults_to_single_day_distribution() -> None:
+    reset_dependencies()
+
+    created = create_requirement(
+        RequirementCreateDTO(
+            group_id="g1",
+            subject_id="s1",
+            teacher_id="t1",
+            weekly_hours=2.0,
+            min_block_duration=0.5,
+            max_consecutive_hours=2.0,
+        )
+    )
+
+    assert created["min_distribution_days"] == 1
+    assert created["max_distribution_days"] == 1
+    assert created["min_days"] == 1
+    assert created["max_days"] == 1
 
 
 def test_scheduler_generation_endpoint_uses_fet_bootstrap_when_request_is_empty() -> None:

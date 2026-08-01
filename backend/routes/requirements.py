@@ -17,12 +17,12 @@ router = APIRouter()
 class RequirementCreateDTO(BaseModel):
     group_id: str
     subject_id: str
-    teacher_id: str
+    teacher_id: str | list[str]
     weekly_hours: float
     min_days: int = 1
-    max_days: int = 2
+    max_days: int = 1
     min_distribution_days: int = 1
-    max_distribution_days: int = 2
+    max_distribution_days: int = 1
     min_block_duration: float
     max_consecutive_hours: float
     allow_half_hour_blocks: bool = False
@@ -35,7 +35,7 @@ class RequirementCreateDTO(BaseModel):
 class RequirementUpdateDTO(BaseModel):
     group_id: Optional[str] = None
     subject_id: Optional[str] = None
-    teacher_id: Optional[str] = None
+    teacher_id: Optional[str | list[str]] = None
     weekly_hours: Optional[float] = None
     min_days: Optional[int] = None
     max_days: Optional[int] = None

@@ -1,6 +1,7 @@
 import pytest
 
 from backend.application.scheduler_use_cases import SchedulerUseCases
+from backend.repositories.academic_data_repository import AcademicDataRepository
 from backend.repositories.requirement_repository import RequirementRepository
 from backend.scheduler_engine.engine import SchedulerEngine
 from backend.scheduler_engine.models import SchoolCalendar
@@ -32,3 +33,57 @@ def test_scheduler_use_cases_respects_injected_school_calendar() -> None:
 
     with pytest.raises(RuntimeError):
         use_cases.generate_proposals([requirement.id])
+
+
+def test_academic_assignment_priority_is_elevated_when_any_teacher_is_restricted() -> None:
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=1),
+        academic_data_repo=AcademicDataRepository(),
+    )
+
+    requirement = use_cases._build_requirement_from_assignment(
+        1,
+        {
+            "teacher": "Ana, Biel",
+            "subject": "Dibuix",
+            "group": "1A",
+            "weekly_hours": 2.0,
+            "min_block_duration": 0.5,
+            "max_consecutive_hours": 2.0,
+        },
+        {"Biel"},
+        set(),
+    )
+
+    assert requirement.priority == 1
+    assert requirement.fixed_teacher is True
+
+
+def test_academic_assignment_priority_is_elevated_when_group_is_restricted() -> None:
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=1),
+        academic_data_repo=AcademicDataRepository(),
+    )
+
+    requirement = use_cases._build_requirement_from_assignment(
+        1,
+        {
+            "teacher": "Ana",
+            "subject": "Dibuix",
+            "group": "1A",
+            "weekly_hours": 2.0,
+            "min_block_duration": 0.5,
+            "max_consecutive_hours": 2.0,
+        },
+        set(),
+        {"1A"},
+    )
+
+    assert requirement.priority == 1
+    assert requirement.fixed_teacher is False

@@ -5,12 +5,14 @@ try:
     from backend.models.teaching_requirement import TeachingRequirement
     from backend.repositories.requirement_repository import RequirementRepository
     from backend.services.block_generator import BlockGenerator
+    from backend.scheduler_engine.teacher_utils import teacher_label
     from time_units import blocks_to_hours, hours_to_blocks
 except ModuleNotFoundError:  # pragma: no cover
     from models.teaching_block import TeachingBlock
     from models.teaching_requirement import TeachingRequirement
     from repositories.requirement_repository import RequirementRepository
     from services.block_generator import BlockGenerator
+    from scheduler_engine.teacher_utils import teacher_label
     from time_units import blocks_to_hours, hours_to_blocks
 
 
@@ -32,13 +34,14 @@ class RequirementService:
                 normalized[field] = blocks_to_hours(blocks)
 
         min_distribution_days = normalized.get("min_distribution_days", normalized.get("min_days", 1))
-        max_distribution_days = normalized.get("max_distribution_days", normalized.get("max_days", 2))
+        max_distribution_days = normalized.get("max_distribution_days", normalized.get("max_days", 1))
         normalized["min_distribution_days"] = int(min_distribution_days)
         normalized["max_distribution_days"] = int(max_distribution_days)
 
         # Keep legacy aliases populated for backward compatibility.
         normalized["min_days"] = normalized["min_distribution_days"]
         normalized["max_days"] = normalized["max_distribution_days"]
+        normalized["teacher_id"] = teacher_label(normalized.get("teacher_id", ""))
 
         return normalized
 

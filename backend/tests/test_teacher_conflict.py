@@ -74,3 +74,40 @@ def test_teacher_conflict_detects_adjacent_slot_overlap():
     conflicts = engine.get_conflicts()
 
     assert any(c.type == "teacher_conflict" for c in conflicts)
+
+
+def test_teacher_conflict_detects_overlap_when_activity_has_multiple_teachers():
+    schedule = Schedule()
+
+    schedule.add(
+        Activity(
+            id=1,
+            teacher="Joan, Maria",
+            subject="Dibuix",
+            group="1A",
+            room="A1",
+            day="Monday",
+            start="08:00",
+            duration=2,
+        )
+    )
+
+    schedule.add(
+        Activity(
+            id=2,
+            teacher="Maria",
+            subject="Color",
+            group="2A",
+            room="A2",
+            day="Monday",
+            start="08:00",
+            duration=2,
+        )
+    )
+
+    engine = SchedulerEngine()
+    engine.load(schedule)
+
+    conflicts = engine.get_conflicts()
+
+    assert any(c.type == "teacher_conflict" for c in conflicts)

@@ -16,6 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from services.block_generator import BlockGenerator
 from .models import Activity, Conflict, GenerationContext, GenerationResult, ScheduleProposal, ScheduledActivity
 from .placement_strategy import GreedyPlacementStrategy, PlacementStrategy
+from .teacher_utils import teacher_label, teacher_names
 from .proposal_scorer import ProposalScorer
 
 
@@ -43,6 +44,7 @@ class SchedulerGenerator:
         generated_scheduled_activities: List[ScheduledActivity] = []
 
         if teaching_blocks and isinstance(teaching_blocks[0], TeachingRequirement):
+            teaching_blocks = sorted(teaching_blocks, key=lambda requirement: requirement.priority)
             teaching_blocks = self._build_blocks_from_requirements(teaching_blocks, context)
 
         total_blocks = len(teaching_blocks)
@@ -133,7 +135,7 @@ class SchedulerGenerator:
                 "teacher_id": requirement.teacher_id,
                 "group": str(requirement.group_id),
                 "subject": str(requirement.subject_id),
-                "teacher": str(requirement.teacher_id),
+                "teacher": teacher_label(requirement.teacher_id),
             }
 
             chosen_teaching_blocks: Optional[List[TeachingBlock]] = None
@@ -205,20 +207,30 @@ class SchedulerGenerator:
         activity_by_key: dict[tuple[str, str, str], Activity] = {}
 
         for activity in proposal.activities:
-            key = (activity.teacher, activity.day, activity.start)
-            existing = activity_by_key.get(key)
-            if existing is not None:
+            teacher_ids = teacher_names(activity.teacher)
+            conflict_found = None
+            for teacher_id in teacher_ids:
+                key = (teacher_id, activity.day, activity.start)
+                existing = activity_by_key.get(key)
+                if existing is not None and existing.id != activity.id:
+                    conflict_found = existing
+                    break
+
+            if conflict_found is not None:
                 conflicts.append(
                     Conflict(
                         type="teacher_conflict",
-                        message=f"Teacher {activity.teacher} has overlapping activities",
-                        teacher=activity.teacher,
+                        message=f"Teacher {teacher_label(activity.teacher)} has overlapping activities",
+                        teacher=teacher_label(activity.teacher),
                         day=activity.day,
                         start=activity.start,
-                        activities=[existing.id, activity.id],
+                        activities=[conflict_found.id, activity.id],
                     )
                 )
-            else:
+                continue
+
+            for teacher_id in teacher_ids:
+                key = (teacher_id, activity.day, activity.start)
                 activity_by_key[key] = activity
 
         return conflicts

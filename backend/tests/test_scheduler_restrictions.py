@@ -88,3 +88,25 @@ def test_group_time_window_constraint_rejects_activity_extending_beyond_window()
     placement = strategy.place(block, ctx, ())
 
     assert placement is None
+
+
+def test_teacher_conflict_checks_all_assigned_teachers():
+    strategy = GreedyPlacementStrategy()
+    block = make_block(id="b1", teacher="T1, T2", group="G1", duration_blocks=2)
+    existing = ScheduledActivity(
+        teaching_block=TeachingBlock(id="existing", duration=1.0, order=0, duration_blocks=2, preferred_teacher_id="T2", metadata={"synthetic": True}),
+        day=0,
+        start_timeslot=TimeSlot(day=0, period=0),
+        duration=2,
+        teacher_id="T2",
+        metadata={"synthetic": True},
+    )
+    ctx = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=2),
+        existing_scheduled_activities=(existing,),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    assert strategy.place(block, ctx, ()) is None
