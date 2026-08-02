@@ -598,6 +598,9 @@ export default function App() {
   const [proposals, setProposals] = useState([]);
   const [selectedProposalId, setSelectedProposalId] = useState(null);
   const [selectedActivityId, setSelectedActivityId] = useState(null);
+  const [flashActivityId, setFlashActivityId] = useState(null);
+  const [flashActivitySeverity, setFlashActivitySeverity] = useState("warning");
+  const [incidentSeverityFilter, setIncidentSeverityFilter] = useState("all");
   const [activityRestrictionDraft, setActivityRestrictionDraft] = useState(null);
   const [isSavingActivityRestriction, setIsSavingActivityRestriction] = useState(false);
   const [selectedExplanation, setSelectedExplanation] = useState(null);
@@ -649,10 +652,10 @@ export default function App() {
   const [roomEdit, setRoomEdit] = useState(null);
   const [roomEditValues, setRoomEditValues] = useState({ name: "", capacity: "" });
 
-  const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+  const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
   const [selectedAssignmentIds, setSelectedAssignmentIds] = useState([]);
   const [assignmentEdit, setAssignmentEdit] = useState(null);
-  const [assignmentEditValues, setAssignmentEditValues] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", allowed_session_lengths: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+  const [assignmentEditValues, setAssignmentEditValues] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", allowed_session_lengths: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
 
   function parseSessionLengths(value) {
     return value
@@ -1905,13 +1908,52 @@ export default function App() {
     }
   }
 
-  async function moveActivity(activityId, day, start) {
+  function conflictTypeLabel(conflictType) {
+    const type = String(conflictType || "").toLowerCase();
+    if (type.includes("teacher_conflict")) return "Professor";
+    if (type.includes("room_conflict")) return "Aula";
+    if (type.includes("group_conflict")) return "Grup";
+    if (type.includes("group_time_window") || type.includes("time_window")) return "Franja del grup";
+    return "Conflicte";
+  }
+
+  function buildValidationMessage(prefix, conflicts = [], suggestedSlots = []) {
+    const reasons = Array.from(
+      new Set(
+        (conflicts || [])
+          .map((conflict) => {
+            const message = String(conflict?.message || "").trim();
+            if (!message) return "";
+            return `${conflictTypeLabel(conflict?.type)}: ${message}`;
+          })
+          .filter(Boolean)
+      )
+    );
+    const suggestions = (suggestedSlots || []).map((s) => `${s.day} ${s.start}`);
+    let message = prefix;
+    if (reasons.length) {
+      message += ` ${reasons.join(" · ")}`;
+    }
+    if (suggestions.length) {
+      message += ` Prova: ${suggestions.join(", ")}.`;
+    }
+    return message;
+  }
+
+  async function moveActivity(activityId, day, start, options = {}) {
+    const {
+      silentError = false,
+      successText = "Moviment desat.",
+      resetDragState = true,
+    } = options;
     const prevActivities = activities ? activities.slice() : [];
     const prevConflicts = conflicts ? conflicts.slice() : [];
     const prevSelectedActivityId = selectedActivityId;
     setIsSaving(true);
-    setError("");
-    setSuccessMessage("");
+    if (!silentError) {
+      setError("");
+      setSuccessMessage("");
+    }
 
     try {
       const targetUrl = proposal?.id
@@ -1934,33 +1976,44 @@ export default function App() {
       console.log("MOVE RESPONSE", data);
 
       const rawConflicts = data.conflicts || data.proposal?.conflicts || [];
-      const relatedConflicts = (rawConflicts || []).filter((conf) => {
-        const ids = conf.activities || conf.data?.activities || [];
-        return ids.includes(activityId);
-      });
       if (!response.ok || data.ok !== true) {
         setActivities(prevActivities);
         setConflicts(prevConflicts);
         setSelectedActivityId(prevSelectedActivityId);
 
         if (data.error === "validation_failed") {
-          const reasons = (data.conflicts || []).map((c) => c.message).filter(Boolean);
-          const suggestions = (data.suggested_slots || []).map((s) => `${s.day} ${s.start}`);
-          let message = "El moviment no és vàlid.";
-          if (reasons.length) {
-            message += " " + reasons.join(" · ");
+          const validationMessage = buildValidationMessage(
+            "El moviment no és vàlid.",
+            data.conflicts || [],
+            data.suggested_slots || []
+          );
+          if (!silentError) {
+            setError(validationMessage);
           }
-          if (suggestions.length) {
-            message += ` Prova: ${suggestions.join(", ")}.`;
-          }
-          setError(message);
+          return {
+            ok: false,
+            error: "validation_failed",
+            conflicts: data.conflicts || [],
+            suggested_slots: data.suggested_slots || [],
+            validationMessage,
+          };
         } else {
-          setError("No s'ha pogut moure l'activitat.");
+          if (!silentError) {
+            setError("No s'ha pogut moure l'activitat.");
+          }
+          return {
+            ok: false,
+            error: data.error || "move_failed",
+            conflicts: data.conflicts || [],
+            suggested_slots: data.suggested_slots || [],
+            validationMessage: "No s'ha pogut moure l'activitat.",
+          };
         }
-        return;
       }
 
-      setSuccessMessage("Moviment desat.");
+      if (successText) {
+        setSuccessMessage(successText);
+      }
       const nextActivities = (data.activities || data.proposal?.activities || []).map(normalizeTimetableActivity);
 
       if (data.proposal) {
@@ -1975,26 +2028,56 @@ export default function App() {
       setActivities(nextActivities);
       setConflicts(rawConflicts);
       setSelectedActivityId(null);
+      return {
+        ok: true,
+        conflicts: rawConflicts,
+        suggested_slots: data.suggested_slots || [],
+      };
     } catch (err) {
       setActivities(prevActivities);
       setConflicts(prevConflicts);
       setSelectedActivityId(prevSelectedActivityId);
-      setError("No s'ha pogut desar el moviment.");
+      if (!silentError) {
+        setError("No s'ha pogut desar el moviment.");
+      }
+      return {
+        ok: false,
+        error: "request_failed",
+        conflicts: [],
+        suggested_slots: [],
+        validationMessage: "No s'ha pogut desar el moviment.",
+      };
     } finally {
       setIsSaving(false);
-      setDraggedActivityId(null);
-      setDropTarget(null);
+      if (resetDragState) {
+        setDraggedActivityId(null);
+        setDropTarget(null);
+      }
     }
   }
 
-  async function swapActivity(activityIdA, activityIdB) {
-    if (!proposal?.id) return;
+  async function swapActivity(activityIdA, activityIdB, options = {}) {
+    if (!proposal?.id) {
+      return {
+        ok: false,
+        error: "proposal_required",
+        conflicts: [],
+        validationMessage: "No es pot intercanviar fora d'una proposta activa.",
+      };
+    }
+    const {
+      silentError = false,
+      successText = "Activitats intercanviades.",
+      resetDragState = true,
+    } = options;
     const prevActivities = activities ? activities.slice() : [];
     const prevConflicts = conflicts ? conflicts.slice() : [];
     const prevSelectedActivityId = selectedActivityId;
     setIsSaving(true);
-    setError("");
-    setSuccessMessage("");
+    if (!silentError) {
+      setError("");
+      setSuccessMessage("");
+    }
 
     try {
       const response = await fetch(`${API_URL}/scheduler/proposal/${proposal.id}/swap`, {
@@ -2014,35 +2097,72 @@ export default function App() {
         setSelectedActivityId(prevSelectedActivityId);
 
         if (data.error === "validation_failed") {
-          const reasons = (data.conflicts || []).map((c) => c.message).filter(Boolean);
-          let message = "L'intercanvi no és vàlid.";
-          if (reasons.length) {
-            message += " " + reasons.join(" · ");
+          const validationMessage = buildValidationMessage("L'intercanvi no és vàlid.", data.conflicts || [], []);
+          if (!silentError) {
+            setError(validationMessage);
           }
-          setError(message);
+          return {
+            ok: false,
+            error: "validation_failed",
+            conflicts: data.conflicts || [],
+            validationMessage,
+          };
         } else if (data.error === "activity_not_found") {
-          setError("No s'ha trobat una de les dues activitats a intercanviar.");
+          const validationMessage = "No s'ha trobat una de les dues activitats a intercanviar.";
+          if (!silentError) {
+            setError(validationMessage);
+          }
+          return {
+            ok: false,
+            error: "activity_not_found",
+            conflicts: data.conflicts || [],
+            validationMessage,
+          };
         } else {
-          setError("No s'ha pogut intercanviar les activitats.");
+          const validationMessage = "No s'ha pogut intercanviar les activitats.";
+          if (!silentError) {
+            setError(validationMessage);
+          }
+          return {
+            ok: false,
+            error: data.error || "swap_failed",
+            conflicts: data.conflicts || [],
+            validationMessage,
+          };
         }
-        return;
       }
 
-      setSuccessMessage("Activitats intercanviades.");
+      if (successText) {
+        setSuccessMessage(successText);
+      }
       const nextActivities = (data.proposal?.activities || []).map(normalizeTimetableActivity);
       setProposal(data.proposal);
       setActivities(nextActivities);
       setConflicts(rawConflicts);
       setSelectedActivityId(null);
+      return {
+        ok: true,
+        conflicts: rawConflicts,
+      };
     } catch (err) {
       setActivities(prevActivities);
       setConflicts(prevConflicts);
       setSelectedActivityId(prevSelectedActivityId);
-      setError("No s'ha pogut desar l'intercanvi.");
+      if (!silentError) {
+        setError("No s'ha pogut desar l'intercanvi.");
+      }
+      return {
+        ok: false,
+        error: "request_failed",
+        conflicts: [],
+        validationMessage: "No s'ha pogut desar l'intercanvi.",
+      };
     } finally {
       setIsSaving(false);
-      setDraggedActivityId(null);
-      setDropTarget(null);
+      if (resetDragState) {
+        setDraggedActivityId(null);
+        setDropTarget(null);
+      }
     }
   }
 
@@ -2268,9 +2388,11 @@ export default function App() {
     setDropPreviewValid(result.valid);
   }
 
-  function handleDrop(event, day, start) {
+  async function handleDrop(event, day, start) {
     event.preventDefault();
     setDropPreviewValid(true);
+    setError("");
+    setSuccessMessage("");
 
     // Prefer dataTransfer id but fallback to draggedActivityId state
     const transferId = event?.dataTransfer?.getData("text/plain");
@@ -2292,34 +2414,81 @@ export default function App() {
       return;
     }
 
-    // If the target slot is already occupied by a single different activity,
-    // swap the two instead of attempting a move (which would just conflict).
+    // 1) Primer intenta el moviment directe.
     const occupyingActivities = (activities || []).filter(
       (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
     );
-    if (occupyingActivities.length === 1) {
-      const dragged = activities.find((item) => item.id === activityId)
-        || generatedUnscheduledActivities.find((item) => item.id === activityId)
-        || unscheduledActivities.find((item) => item.id === activityId);
-      const existing = occupyingActivities[0];
-      if (!(dragged && canShareSlot(existing, { ...dragged, day, start }))) {
-        setDropTarget(null);
-        setDraggedActivityId(null);
-        swapActivity(activityId, occupyingActivities[0].id);
-        return;
-      }
-    }
-
-    // client-side validation: prevent different subjects in same slot for same parent-group
-    if (!canMoveActivityToSlot(activityId, day, start)) {
-      // clear transient highlights and keep state consistent
+    const moveAttempt = await moveActivity(activityId, day, start, {
+      silentError: true,
+      resetDragState: false,
+      successText: "Moviment desat.",
+    });
+    if (moveAttempt?.ok) {
       setDropTarget(null);
       setDraggedActivityId(null);
       return;
     }
 
-    // passed client-side validation -> perform server move
-    moveActivity(activityId, day, start);
+    // 2) Si no passa, prova un swap quan només hi ha una activitat ocupant.
+    let swapAttempt = null;
+    if (occupyingActivities.length === 1) {
+      const dragged = activities.find((item) => item.id === activityId)
+        || generatedUnscheduledActivities.find((item) => item.id === activityId)
+        || unscheduledActivities.find((item) => item.id === activityId);
+      const existing = occupyingActivities[0];
+      const isQuarterShare = Boolean(dragged && canShareSlot(existing, { ...dragged, day, start }));
+
+      if (!isQuarterShare) {
+        swapAttempt = await swapActivity(activityId, existing.id, {
+          silentError: true,
+          resetDragState: false,
+          successText: "Intercanvi aplicat.",
+        });
+        if (swapAttempt?.ok) {
+          setDropTarget(null);
+          setDraggedActivityId(null);
+          return;
+        }
+      }
+    }
+
+    // 3) Si el moviment original tenia suggeriments del motor,
+    // prova una reorganització local al primer slot suggerit.
+    const suggestedSlots = moveAttempt?.suggested_slots || [];
+    if (suggestedSlots.length > 0) {
+      const firstSuggestion = suggestedSlots[0];
+      const reorgAttempt = await moveActivity(activityId, firstSuggestion.day, firstSuggestion.start, {
+        silentError: true,
+        resetDragState: false,
+        successText: `S'ha aplicat una reorganització local (${firstSuggestion.day} ${firstSuggestion.start}).`,
+      });
+      if (reorgAttempt?.ok) {
+        setDropTarget(null);
+        setDraggedActivityId(null);
+        return;
+      }
+    }
+
+    // 4) Si tot falla, explica el perquè amb causes i alternatives.
+    let message = "No s'ha pogut completar el moviment.";
+    if (moveAttempt?.validationMessage) {
+      message += ` Intent de moviment: ${moveAttempt.validationMessage}`;
+    }
+    if (swapAttempt?.validationMessage) {
+      message += ` Intent d'intercanvi: ${swapAttempt.validationMessage}`;
+    }
+    if (suggestedSlots.length > 0) {
+      const options = suggestedSlots.map((slot) => `${slot.day} ${slot.start}`).join(", ");
+      message += ` Alternatives: ${options}.`;
+    }
+
+    if (!suggestedSlots.length && !moveAttempt?.validationMessage && !swapAttempt?.validationMessage) {
+      message = "No s'ha pogut completar el moviment ni l'intercanvi, i no hi ha cap alternativa local disponible.";
+    }
+
+    setError(message);
+    setDropTarget(null);
+    setDraggedActivityId(null);
   }
 
   // Doble clic sobre una activitat -> popup amb la info b\u00e0sica i les
@@ -2373,6 +2542,8 @@ export default function App() {
     const hasConflict = conflictIds.has(activity.id);
     const conflictReasons = conflictMessages.get(activity.id) || [];
     const isSelected = selectedActivityId === activity.id;
+    const isFlashing = flashActivityId === activity.id;
+    const flashSeverityClass = isFlashing ? `activity-card--flash-${flashActivitySeverity}` : "";
     const normalizedSubject = (activity.subject || "").trim().toLowerCase();
     const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio";
     const groupColor = !hasConflict && !isBreakOrCoordination ? getGroupColor(activity.group) : null;
@@ -2384,6 +2555,8 @@ export default function App() {
           "activity-card",
           hasConflict ? "activity-card--conflict" : "",
           isSelected ? "activity-card--selected" : "",
+          isFlashing ? "activity-card--flash" : "",
+          flashSeverityClass,
           isBreakOrCoordination ? "activity-card--break" : "",
         ].filter(Boolean).join(" ")}
         draggable
@@ -2849,6 +3022,58 @@ export default function App() {
   async function splitMergedAssignment(id) {
     return apiJson("POST", `/academic-data/assignments/${encodeURIComponent(id)}/split`);
   }
+
+  function focusActivityFromIncident(conflict) {
+    const ids = conflict?.activities || conflict?.data?.activities || [];
+    const focusActivityId = ids.find((id) => activities.some((activity) => activity.id === id));
+
+    if (!focusActivityId) {
+      setError("No s'ha trobat cap activitat activa per centrar aquesta incidència.");
+      return;
+    }
+
+    const targetActivity = activities.find((activity) => activity.id === focusActivityId);
+    const severity = classifyConflictSeverity(conflict);
+
+    setCurrentScreen("timetable");
+    if (targetActivity?.group) {
+      setTeacherFilter("");
+      setSelectedGroup(getGroupParentName(targetActivity.group));
+    } else if (targetActivity?.teacher) {
+      setSelectedGroup("");
+      setTeacherFilter(targetActivity.teacher);
+    }
+
+    setSelectedActivityId(focusActivityId);
+    setFlashActivityId(focusActivityId);
+    setFlashActivitySeverity(severity);
+    setError("");
+    setSuccessMessage("Activitat centrada al calendari.");
+
+    window.setTimeout(() => {
+      setFlashActivityId((current) => {
+        if (current !== focusActivityId) {
+          return current;
+        }
+        setFlashActivitySeverity("warning");
+        return null;
+      });
+    }, 1400);
+
+    requestAnimationFrame(() => {
+      document.getElementById("timetable-grid")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => {
+        document.querySelector(".activity-card--selected")?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+      }, 80);
+    });
+  }
+
+  const filteredIncidents = useMemo(() => {
+    if (incidentSeverityFilter === "all") {
+      return conflicts;
+    }
+    return conflicts.filter((conflict) => classifyConflictSeverity(conflict) === incidentSeverityFilter);
+  }, [conflicts, incidentSeverityFilter]);
 
   return (
     <main className="app-shell">
@@ -3782,6 +4007,7 @@ export default function App() {
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("teacher", setAcademicSort)}>Professor{sortIndicator("teacher", academicSort)}</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("group", setAcademicSort)}>Grup d'alumnes{sortIndicator("group", academicSort)}</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("subject", setAcademicSort)}>Assignatura{sortIndicator("subject", academicSort)}</th>
+                      <th>Aula</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("weekly_hours", setAcademicSort)}>Hores setmanals{sortIndicator("weekly_hours", academicSort)}</th>
                       <th>Durades de sessió permeses</th>
                       <th>Màx. dies per repartir</th>
@@ -3864,6 +4090,21 @@ export default function App() {
                             </select>
                           ) : (
                             a.subject
+                          )}
+                        </td>
+                        <td>
+                          {assignmentEdit === a.id ? (
+                            <select
+                              value={assignmentEditValues.preferred_room}
+                              onChange={(event) => setAssignmentEditValues({ ...assignmentEditValues, preferred_room: event.target.value })}
+                            >
+                              <option value="">Sense aula preferida</option>
+                              {rooms.map((room) => (
+                                <option key={room.name} value={room.name}>{room.name}</option>
+                              ))}
+                            </select>
+                          ) : (
+                            a.preferred_room || "—"
                           )}
                         </td>
                         <td>
@@ -3954,6 +4195,7 @@ export default function App() {
                                   subject: assignmentEditValues.subject,
                                   group: assignmentEditValues.group,
                                   weekly_hours: parseFloat(assignmentEditValues.weekly_hours) || 0,
+                                  preferred_room: assignmentEditValues.preferred_room,
                                   fixed_day: assignmentEditValues.fixed_day,
                                   fixed_start: assignmentEditValues.fixed_start,
                                   max_session_days: assignmentEditValues.max_session_days,
@@ -3990,6 +4232,7 @@ export default function App() {
                                   subject: a.subject,
                                   group: a.group,
                                   weekly_hours: a.weekly_hours || "",
+                                  preferred_room: a.preferred_room || "",
                                   allowed_session_lengths: formatSessionLengths(a.allowed_session_lengths),
                                   fixed_day: a.fixed_day || "",
                                   fixed_start: a.fixed_start || "",
@@ -4067,6 +4310,17 @@ export default function App() {
                         </select>
                       </td>
                       <td>
+                        <select
+                          value={assignmentDraft.preferred_room}
+                          onChange={(event) => setAssignmentDraft({ ...assignmentDraft, preferred_room: event.target.value })}
+                        >
+                          <option value="">Sense aula preferida</option>
+                          {rooms.map((room) => (
+                            <option key={room.name} value={room.name}>{room.name}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
                         <input
                           type="number"
                           step="0.5"
@@ -4128,13 +4382,14 @@ export default function App() {
                             subject: assignmentDraft.subject,
                             group: assignmentDraft.group,
                             weekly_hours: parseFloat(assignmentDraft.weekly_hours) || 0,
+                            preferred_room: assignmentDraft.preferred_room,
                             fixed_day: assignmentDraft.fixed_day,
                             fixed_start: assignmentDraft.fixed_start,
                             max_session_days: assignmentDraft.max_session_days,
                             consecutive_group: assignmentDraft.consecutive_group,
                           });
                           if (res.ok) {
-                            setAssignmentDraft({ teacher: "", subject: "", group: "", weekly_hours: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+                            setAssignmentDraft({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
                             await refreshAcademicLists();
                           } else {
                             alert("No s'ha pogut crear l'assignació docent.");
@@ -4204,7 +4459,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="timetable" aria-label="Horari">
+          <div className="timetable" id="timetable-grid" aria-label="Horari">
           <div className="corner-cell" style={{ gridColumn: 1, gridRow: 1 }} />
 
           {DAYS.map((day, dayIndex) => (
@@ -4337,6 +4592,53 @@ export default function App() {
                         ))}
                       </select>
                     </label>
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: 12 }}>
+                  <h3>Disponibilitat preferida</h3>
+                  <p className="muted" style={{ marginTop: 0 }}>
+                    Marca les franges que el generador hauria de prioritzar per a aquest grup. Es reutilitza la mateixa restricció que ja consumeix el motor.
+                  </p>
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                    <button type="button" onClick={() => applyAvailabilityPreset("matí", groupRestrictionDraft, setGroupRestrictionDraft)}>Matí</button>
+                    <button type="button" onClick={() => applyAvailabilityPreset("tarda", groupRestrictionDraft, setGroupRestrictionDraft)}>Tarda</button>
+                    <button type="button" onClick={() => applyAvailabilityPreset("dia-complet", groupRestrictionDraft, setGroupRestrictionDraft)}>Dia complet</button>
+                    <button type="button" className="ghost" onClick={() => clearAvailabilitySelection(groupRestrictionDraft, setGroupRestrictionDraft)}>Neteja selecció</button>
+                  </div>
+                  <div className="muted">Clic simple per marcar/desmarcar una franja preferida. Maj + clic per seleccionar un rang.</div>
+                  <div className="availability-grid-wrap">
+                    <table className="availability-grid">
+                      <thead>
+                        <tr>
+                          <th>Dia</th>
+                          {HOURS.map((hour) => (
+                            <th key={hour}>{hour}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {DAYS.map((day) => (
+                          <tr key={day}>
+                            <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
+                            {HOURS.map((hour) => {
+                              const slotKey = `${day}-${hour}`;
+                              const isPreferred = groupRestrictionDraft.preferred_availability.includes(slotKey);
+                              return (
+                                <td key={slotKey}>
+                                  <button
+                                    type="button"
+                                    className={`availability-cell${isPreferred ? " availability-cell--preferred" : ""}`}
+                                    onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setAvailabilitySelectionAnchor(slotKey); }}
+                                    onClick={(event) => updateAvailabilitySelection(slotKey, event, groupRestrictionDraft, setGroupRestrictionDraft)}
+                                  />
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
@@ -4644,9 +4946,41 @@ export default function App() {
           </section>
 
           <section>
-            <h2>⚠️ Incidències {conflicts.length > 0 ? `(${conflicts.length})` : ""}</h2>
+            <h2>
+              ⚠️ Incidències {filteredIncidents.length > 0 ? `(${filteredIncidents.length})` : ""}
+              {incidentSeverityFilter !== "all" ? ` · de ${conflicts.length}` : ""}
+            </h2>
+            <div className="incident-severity-legend" aria-label="Llegenda de severitat de les incidències">
+              <button
+                type="button"
+                className={`incident-severity-pill ${incidentSeverityFilter === "all" ? "incident-severity-pill--active" : ""}`}
+                onClick={() => setIncidentSeverityFilter("all")}
+              >
+                Totes ({conflicts.length})
+              </button>
+              {Object.entries(INCIDENT_SEVERITY_STYLES).map(([key, severityStyle]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={`incident-severity-pill ${incidentSeverityFilter === key ? "incident-severity-pill--active" : ""}`}
+                  onClick={() => setIncidentSeverityFilter(key)}
+                  style={{
+                    borderColor: severityStyle.border,
+                    color: severityStyle.text,
+                    background: "rgba(255,255,255,0.72)",
+                  }}
+                >
+                  <span
+                    className="incident-severity-dot"
+                    style={{ background: severityStyle.border }}
+                    aria-hidden="true"
+                  />
+                  {severityStyle.label} ({conflicts.filter((conflict) => classifyConflictSeverity(conflict) === key).length})
+                </button>
+              ))}
+            </div>
 
-            {conflicts.length === 0 ? (
+            {filteredIncidents.length === 0 ? (
               <p className="muted">Cap incidència detectada.</p>
             ) : (
               <div
@@ -4657,15 +4991,34 @@ export default function App() {
                   gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
                 }}
               >
-                {conflicts.map((conflict, index) => {
+                {filteredIncidents.map((conflict, index) => {
                   const severity = classifyConflictSeverity(conflict);
                   const style = INCIDENT_SEVERITY_STYLES[severity];
                   const relatedActivities = resolveConflictActivities(conflict, activities);
+                  const focusActivityId = (conflict.activities || conflict.data?.activities || [])
+                    .find((id) => activities.some((activity) => activity.id === id));
                   const subjectLabel = formatConflictField(relatedActivities.map((activity) => activity.subject));
                   const groupLabel = formatConflictField(relatedActivities.map((activity) => activity.group));
                   const roomLabel = formatConflictField(relatedActivities.map((activity) => activity.room));
                   const teacherLabel =
                     conflict.teacher || formatConflictField(relatedActivities.map((activity) => activity.teacher));
+                  const causeChips = [conflictTypeLabel(conflict.type)];
+
+                  if (teacherLabel) {
+                    causeChips.push(`Professor: ${teacherLabel}`);
+                  }
+                  if (groupLabel) {
+                    causeChips.push(`Grup: ${groupLabel}`);
+                  }
+                  if (roomLabel) {
+                    causeChips.push(`Aula: ${roomLabel}`);
+                  }
+                  if (conflict.day || conflict.start) {
+                    const slotText = [conflict.day, conflict.start].filter(Boolean).join(" ");
+                    if (slotText) {
+                      causeChips.push(`Franja: ${slotText}`);
+                    }
+                  }
 
                   return (
                     <article
@@ -4699,6 +5052,33 @@ export default function App() {
                       </div>
 
                       <span>{conflict.message}</span>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                        <button
+                          type="button"
+                          className="incident-focus-button"
+                          onClick={() => focusActivityFromIncident(conflict)}
+                          disabled={!focusActivityId}
+                        >
+                          Centra al calendari
+                        </button>
+                      </div>
+
+                      <div className="incident-cause-chips" aria-label="Causes de la incidència">
+                        {causeChips.map((chip, chipIndex) => (
+                          <span
+                            key={`${conflict.type}-${index}-chip-${chipIndex}`}
+                            className="incident-cause-chip"
+                            style={{
+                              borderColor: style.border,
+                              color: style.text,
+                              background: "rgba(255,255,255,0.72)",
+                            }}
+                          >
+                            {chip}
+                          </span>
+                        ))}
+                      </div>
 
                       <div
                         style={{

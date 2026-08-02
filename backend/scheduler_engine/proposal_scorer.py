@@ -5,6 +5,13 @@ from typing import Dict
 from .constraint_evaluator import ConstraintEvaluator
 from .models import ConstraintReport, GenerationContext, ScheduleProposal, ScoreBreakdown
 
+try:
+    from backend.scheduler_engine.quarter_utils import quarter_suffix
+    from backend.scheduler_engine.teacher_utils import teacher_names
+except ModuleNotFoundError:  # pragma: no cover
+    from scheduler_engine.quarter_utils import quarter_suffix
+    from scheduler_engine.teacher_utils import teacher_names
+
 
 class ProposalScorer:
     """A lightweight, domain-only scorer for ScheduleProposal objects."""
@@ -17,14 +24,16 @@ class ProposalScorer:
         report.warnings.extend(proposal.warnings)
         compactness_score = self._compactness_score(report)
         distribution_score = self._distribution_score(proposal, context)
+        teacher_affinity_score = self._teacher_affinity_score(proposal)
         gap_penalty = self._gap_penalty(report)
         warning_penalty = self._warning_penalty(report)
 
-        total_score = compactness_score + distribution_score - gap_penalty - warning_penalty
+        total_score = compactness_score + distribution_score + teacher_affinity_score - gap_penalty - warning_penalty
         metadata = {
             "activity_count": len(proposal.activities),
             "warning_count": len(proposal.warnings),
             "soft_violation_count": len(report.soft_violations),
+            "teacher_affinity_score": round(teacher_affinity_score, 3),
         }
         return ScoreBreakdown(
             total_score=round(total_score, 3),
@@ -57,6 +66,39 @@ class ProposalScorer:
             return 0.0
 
         return max(0.0, 10.0 - (max(counts) - min(counts)) * 2.0)
+
+    def _teacher_affinity_score(self, proposal: ScheduleProposal) -> float:
+        if len(proposal.activities) < 2:
+            return 0.0
+
+        bonus = 0.0
+        activities = proposal.activities
+
+        for index, first in enumerate(activities):
+            first_teachers = set(teacher_names(first.teacher))
+            if not first_teachers:
+                continue
+
+            first_quarter = quarter_suffix(first.subject) or quarter_suffix(first.group)
+
+            for second in activities[index + 1 :]:
+                second_teachers = set(teacher_names(second.teacher))
+                if not second_teachers or first_teachers.isdisjoint(second_teachers):
+                    continue
+
+                pair_bonus = 0.1
+                if first.day == second.day:
+                    pair_bonus += 0.15
+
+                second_quarter = quarter_suffix(second.subject) or quarter_suffix(second.group)
+                if first_quarter and second_quarter:
+                    pair_bonus += 0.25
+                    if first_quarter != second_quarter:
+                        pair_bonus += 0.1
+
+                bonus += pair_bonus
+
+        return bonus
 
     def _gap_penalty(self, report: ConstraintReport) -> float:
         return len(report.soft_violations) * 0.5
