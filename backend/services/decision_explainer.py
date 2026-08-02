@@ -81,6 +81,7 @@ class DecisionExplainer:
                 "proposal_total_score": score.total_score,
                 "compactness_score": score.compactness_score,
                 "distribution_score": score.distribution_score,
+                "teacher_affinity_score": score.metadata.get("teacher_affinity_score", 0.0),
                 "gap_penalty": score.gap_penalty,
                 "warning_penalty": score.warning_penalty,
             },

@@ -286,6 +286,40 @@ def test_warning_penalties_reduce_score():
     assert breakdown.total_score < 0.0
 
 
+def test_same_teacher_quarter_pairs_get_a_score_bonus():
+    from scheduler_engine.proposal_scorer import ProposalScorer
+
+    scorer = ProposalScorer()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=6),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    quarter_pair = ScheduleProposal(
+        id="quarter-pair",
+        activities=[
+            Activity(id=1, teacher="Anna", subject="Mates 1Q", group="1A", room="", day="0", start="Period 0", duration=1),
+            Activity(id=2, teacher="Anna", subject="Física 2Q", group="1A", room="", day="0", start="Period 1", duration=1),
+        ],
+    )
+    non_quarter_pair = ScheduleProposal(
+        id="non-quarter-pair",
+        activities=[
+            Activity(id=1, teacher="Anna", subject="Mates", group="1A", room="", day="0", start="Period 0", duration=1),
+            Activity(id=2, teacher="Anna", subject="Física", group="1A", room="", day="0", start="Period 1", duration=1),
+        ],
+    )
+
+    quarter_breakdown = scorer.calculate(quarter_pair, context)
+    regular_breakdown = scorer.calculate(non_quarter_pair, context)
+
+    assert quarter_breakdown.metadata["teacher_affinity_score"] > regular_breakdown.metadata["teacher_affinity_score"]
+    assert quarter_breakdown.total_score > regular_breakdown.total_score
+
+
 def test_score_ordering_is_deterministic():
     generator = SchedulerGenerator()
     context = GenerationContext(

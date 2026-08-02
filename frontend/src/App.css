@@ -469,6 +469,34 @@ button.primary:hover:not(:disabled) {
   outline-offset: 2px;
 }
 
+.activity-card--flash {
+  animation: activityFlashPulse 1.2s ease-out;
+}
+
+.activity-card--flash-error {
+  --flash-rgb: 255, 59, 48;
+}
+
+.activity-card--flash-warning {
+  --flash-rgb: 255, 149, 0;
+}
+
+.activity-card--flash-info {
+  --flash-rgb: 30, 136, 229;
+}
+
+@keyframes activityFlashPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--flash-rgb, 255, 149, 0), 0.6);
+  }
+  45% {
+    box-shadow: 0 0 0 10px rgba(var(--flash-rgb, 255, 149, 0), 0.15);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(var(--flash-rgb, 255, 149, 0), 0);
+  }
+}
+
 .side-panel {
   display: flex;
   flex-direction: column;
@@ -958,4 +986,62 @@ button.primary:hover:not(:disabled) {
 
 .availability-cell--unavailable {
   background: var(--color-danger);
+}
+
+.incident-cause-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.incident-cause-chip {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+.incident-focus-button {
+  font-size: 12px;
+  min-height: 26px;
+  padding: 0 10px;
+}
+
+.incident-severity-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.incident-severity-pill {
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 600;
+  gap: 6px;
+  line-height: 1;
+  padding: 5px 10px;
+  transition: transform 0.05s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.incident-severity-pill:hover:not(:disabled) {
+  background: var(--color-surface-muted);
+}
+
+.incident-severity-pill--active {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+.incident-severity-dot {
+  border-radius: 50%;
+  display: inline-block;
+  height: 8px;
+  width: 8px;
 }
