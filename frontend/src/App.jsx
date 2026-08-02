@@ -71,6 +71,175 @@ const HOURS = [
   "21:00",
 ];
 
+function parseHourToMinutes(value) {
+  const [hourText, minuteText = "0"] = String(value || "").split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) {
+    return null;
+  }
+  return hour * 60 + minute;
+}
+
+function getSlotDurationMinutes(hours) {
+  if (!Array.isArray(hours) || hours.length < 2) {
+    return 30;
+  }
+  const first = parseHourToMinutes(hours[0]);
+  const second = parseHourToMinutes(hours[1]);
+  if (first === null || second === null || second <= first) {
+    return 30;
+  }
+  return second - first;
+}
+
+function normalizeGroupName(group) {
+  return String(group || "").trim().toUpperCase();
+}
+
+function getQuarterSuffixFromSubject(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/(?:\s|^)(1Q|2Q)$/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+function getActivityDurationSlots(activity) {
+  const duration = Number(activity?.duration);
+  if (!Number.isFinite(duration) || duration <= 0) {
+    return 1;
+  }
+  return Math.max(1, duration);
+}
+
+function isBreakActivity(activity) {
+  const normalizedSubject = String(activity?.subject || "").trim().toLowerCase();
+  return normalizedSubject === "descans";
+}
+
+function canShareSlot(firstActivity, secondActivity) {
+  if (!firstActivity || !secondActivity) {
+    return false;
+  }
+
+  const firstGroup = normalizeGroupName(firstActivity.group);
+  const secondGroup = normalizeGroupName(secondActivity.group);
+  if (!firstGroup || firstGroup !== secondGroup) {
+    return false;
+  }
+
+  if (String(firstActivity.day || "") !== String(secondActivity.day || "")) {
+    return false;
+  }
+
+  if (String(firstActivity.start || "") !== String(secondActivity.start || "")) {
+    return false;
+  }
+
+  const firstSuffix = getQuarterSuffixFromSubject(firstActivity.subject);
+  const secondSuffix = getQuarterSuffixFromSubject(secondActivity.subject);
+  if (!firstSuffix || !secondSuffix) {
+    return false;
+  }
+
+  return (
+    (firstSuffix === "1Q" && secondSuffix === "2Q")
+    || (firstSuffix === "2Q" && secondSuffix === "1Q")
+  );
+}
+
+function mergeConsecutiveActivities(activities, hours) {
+  const slotDurationMinutes = getSlotDurationMinutes(hours);
+  const grouped = new Map();
+
+  (activities || []).forEach((activity) => {
+    const day = String(activity?.day || "");
+    const key = [
+      day,
+      normalizeGroupName(activity?.group),
+      String(activity?.subject || "").trim().toUpperCase(),
+      String(activity?.teacher || "").trim().toUpperCase(),
+      String(activity?.room || "").trim().toUpperCase(),
+    ].join("|");
+
+    if (!grouped.has(key)) {
+      grouped.set(key, []);
+    }
+    grouped.get(key).push(activity);
+  });
+
+  const merged = [];
+
+  grouped.forEach((items) => {
+    const sorted = [...items].sort((a, b) => {
+      const aIndex = hours.indexOf(String(a.start || ""));
+      const bIndex = hours.indexOf(String(b.start || ""));
+      return aIndex - bIndex;
+    });
+
+    let current = null;
+    let currentEndIndex = -1;
+
+    sorted.forEach((activity) => {
+      const startIndex = hours.indexOf(String(activity.start || ""));
+      if (startIndex < 0) {
+        if (current) {
+          merged.push(current);
+          current = null;
+          currentEndIndex = -1;
+        }
+        merged.push(activity);
+        return;
+      }
+
+      const durationSlots = getActivityDurationSlots(activity);
+      const endIndex = startIndex + durationSlots;
+
+      if (!current) {
+        current = {
+          ...activity,
+          duration: durationSlots,
+          sourceActivityIds: [activity.id],
+        };
+        currentEndIndex = endIndex;
+        return;
+      }
+
+      if (startIndex === currentEndIndex) {
+        current = {
+          ...current,
+          duration: getActivityDurationSlots(current) + durationSlots,
+          sourceActivityIds: [...(current.sourceActivityIds || []), activity.id],
+        };
+        currentEndIndex = endIndex;
+        return;
+      }
+
+      merged.push(current);
+      current = {
+        ...activity,
+        duration: durationSlots,
+        sourceActivityIds: [activity.id],
+      };
+      currentEndIndex = endIndex;
+    });
+
+    if (current) {
+      merged.push(current);
+    }
+  });
+
+  return merged.map((activity) => {
+    const durationSlots = getActivityDurationSlots(activity);
+    const durationMinutes = durationSlots * slotDurationMinutes;
+    return {
+      ...activity,
+      duration: durationSlots,
+      duration_minutes: durationMinutes,
+      slot_duration_minutes: slotDurationMinutes,
+    };
+  });
+}
+
 function activityKey(activity) {
   return `${activity.day}-${activity.start}`;
 }
@@ -382,27 +551,6 @@ function getVisibleActivitiesForSlot(slotActivities, selectedGroup) {
   return visibleActivities.filter((activity) => isSubgroupGroupName(activity?.group));
 }
 
-function getQuarterSuffix(value) {
-  const text = String(value || "").trim();
-  const match = text.match(/(?:\s|^)(1Q|2Q)$/i);
-  return match ? match[1].toUpperCase() : null;
-}
-
-function canShareSlotWithQuarter(existingActivity, candidateActivity) {
-  if (!existingActivity || !candidateActivity) {
-    return false;
-  }
-
-  if (getGroupParentName(existingActivity.group) !== getGroupParentName(candidateActivity.group)) {
-    return false;
-  }
-
-  const existingSuffix = getQuarterSuffix(existingActivity.subject) || getQuarterSuffix(existingActivity.group);
-  const candidateSuffix = getQuarterSuffix(candidateActivity.subject) || getQuarterSuffix(candidateActivity.group);
-
-  return existingSuffix && candidateSuffix && existingSuffix !== candidateSuffix;
-}
-
 export default function App() {
   const workbookInputRef = useRef(null);
   const academicSpreadsheetInputRef = useRef(null);
@@ -460,6 +608,7 @@ export default function App() {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
   const [teacherScheduleActivities, setTeacherScheduleActivities] = useState([]);
+  const [hiddenBreakDaysByGroup, setHiddenBreakDaysByGroup] = useState({});
   const [currentScreen, setCurrentScreen] = useState("timetable");
   const [academicTab, setAcademicTab] = useState("teachers");
 
@@ -555,7 +704,8 @@ export default function App() {
       setProposal(data.proposal || null);
       setGenerationStats(data.generation_stats || null);
       setGeneratedUnscheduledActivities(data.unscheduled_activities || []);
-    } catch {
+    } catch (err) {
+      console.error("[scheduler][loadData] No s'ha pogut carregar l'horari.", err);
       setError("No s'ha pogut carregar l'horari.");
     } finally {
       setIsLoading(false);
@@ -576,9 +726,44 @@ export default function App() {
       }
       const data = await response.json();
       setTeacherScheduleActivities((data.activities || []).map(normalizeTimetableActivity));
-    } catch {
+    } catch (err) {
+      console.error("[scheduler][loadTeacherSchedule] Error carregant l'horari del professor.", err);
       setTeacherScheduleActivities([]);
     }
+  }
+
+  function getHiddenBreakDaysForGroup(groupName) {
+    return new Set(hiddenBreakDaysByGroup[normalizeGroupName(groupName)] || []);
+  }
+
+  function getBreakDebugSnapshot(day, groupName = selectedGroup) {
+    const activeGroup = String(groupName || "").trim();
+    const hiddenBreakDays = getHiddenBreakDaysForGroup(activeGroup);
+    const allDaySessions = (activities || []).filter((activity) => {
+      return String(activity?.day || "") === String(day)
+        && getGroupParentName(activity?.group) === activeGroup;
+    });
+    const sessionsAfterFilters = allDaySessions.filter((activity) => {
+      return !(isBreakActivity(activity) && hiddenBreakDays.has(String(day)));
+    });
+    const occupiedSlots = new Set(allDaySessions.map((activity) => String(activity?.start || "")));
+    const freeSlots = HOURS.filter((hour) => !occupiedSlots.has(hour));
+
+    return {
+      selectedGroup: activeGroup,
+      day,
+      allDaySessions,
+      sessionsAfterFilters,
+      freeSlots,
+      hiddenBreakDays: Array.from(hiddenBreakDays),
+    };
+  }
+
+  function debugBreakFlow(location, day, extra = {}) {
+    console.debug(`[break-debug] ${location}`, {
+      ...getBreakDebugSnapshot(day),
+      ...extra,
+    });
   }
 
   async function clearActiveSchedule() {
@@ -1383,6 +1568,10 @@ export default function App() {
     loadTeacherSchedule(teacherFilter);
   }, [teacherFilter, activities]);
 
+  const hiddenBreakDaysForSelectedGroup = useMemo(() => {
+    return getHiddenBreakDaysForGroup(selectedGroup);
+  }, [hiddenBreakDaysByGroup, selectedGroup]);
+
   const filteredActivities = useMemo(() => {
     let nextActivities = teacherFilter && teacherScheduleActivities.length > 0
       ? teacherScheduleActivities
@@ -1396,8 +1585,30 @@ export default function App() {
       nextActivities = nextActivities.filter((activity) => activity.teacher === teacherFilter);
     }
 
+    if (selectedGroup && hiddenBreakDaysForSelectedGroup.size > 0) {
+      nextActivities = nextActivities.filter((activity) => {
+        return !(
+          isBreakActivity(activity)
+          && getGroupParentName(activity?.group) === selectedGroup
+          && hiddenBreakDaysForSelectedGroup.has(String(activity?.day || ""))
+        );
+      });
+    }
+
+    if (selectedGroup) {
+      console.debug("[break-debug] filteredActivities", {
+        selectedGroup,
+        hiddenBreakDays: Array.from(hiddenBreakDaysForSelectedGroup),
+        sessionsAfterFilters: nextActivities.filter((activity) => getGroupParentName(activity?.group) === selectedGroup),
+      });
+    }
+
     return nextActivities;
-  }, [activities, selectedGroup, teacherFilter, teacherScheduleActivities]);
+  }, [activities, hiddenBreakDaysForSelectedGroup, selectedGroup, teacherFilter, teacherScheduleActivities]);
+
+  const mergedRenderActivities = useMemo(() => {
+    return mergeConsecutiveActivities(filteredActivities, HOURS);
+  }, [filteredActivities]);
 
   const groupBreakDays = useMemo(() => {
     if (!selectedGroup) return new Set();
@@ -1413,7 +1624,7 @@ export default function App() {
   }, [activities, selectedGroup]);
 
   const activitiesBySlot = useMemo(() => {
-    return filteredActivities.reduce((slots, activity) => {
+    return mergedRenderActivities.reduce((slots, activity) => {
       const key = activityKey(activity);
 
       if (!slots[key]) {
@@ -1424,7 +1635,7 @@ export default function App() {
 
       return slots;
     }, {});
-  }, [filteredActivities]);
+  }, [mergedRenderActivities]);
 
   const visibleActivitiesBySlot = useMemo(() => {
     return Object.entries(activitiesBySlot).reduce((slots, [slotKey, slotActivities]) => {
@@ -1452,7 +1663,7 @@ export default function App() {
       if (hourRow === -1) {
         return;
       }
-      const maxDuration = Math.max(1, ...slotActivities.map((activity) => Number(activity.duration) || 1));
+      const maxDuration = Math.max(1, ...slotActivities.map((activity) => getActivityDurationSlots(activity)));
       const rowSpan = Math.min(maxDuration, HOURS.length - hourRow);
 
       if (!blocksByDay[day]) {
@@ -1590,15 +1801,59 @@ export default function App() {
       } else if (!silent) {
         setSuccessMessage(`S'han afegit ${addedCount} hores de dinar.`);
       }
-    } catch {
+    } catch (err) {
+      console.error("[scheduler][assignLunchBreaks] No s'han pogut assignar les hores de dinar.", err);
       setError("No s'han pogut assignar les hores de dinar.");
     }
+  }
+
+  function toggleBreakVisibility(day) {
+    if (!selectedGroup) {
+      return;
+    }
+
+    const groupKey = normalizeGroupName(selectedGroup);
+    const actualBreakDays = new Set(
+      (activities || [])
+        .filter((activity) => getGroupParentName(activity?.group) === selectedGroup && isBreakActivity(activity))
+        .map((activity) => String(activity.day || ""))
+    );
+    const hasBreakOnDay = actualBreakDays.has(String(day));
+
+    debugBreakFlow("toggleBreakVisibility:before", day, {
+      hasBreakOnDay,
+      action: hasBreakOnDay ? "toggle-visual" : "no-break-present",
+    });
+
+    if (!hasBreakOnDay) {
+      return;
+    }
+
+    setHiddenBreakDaysByGroup((prev) => {
+      const currentDays = new Set(prev[groupKey] || []);
+      const willHide = !currentDays.has(String(day));
+
+      if (willHide) {
+        currentDays.add(String(day));
+      } else {
+        currentDays.delete(String(day));
+      }
+
+      const next = { ...prev, [groupKey]: Array.from(currentDays) };
+      console.debug("[break-debug] toggleBreakVisibility:after", {
+        ...getBreakDebugSnapshot(day),
+        willHide,
+        nextHiddenBreakDays: next[groupKey],
+      });
+      return next;
+    });
   }
 
   async function toggleGroupBreak(day) {
     if (!selectedGroup) {
       return;
     }
+    debugBreakFlow("toggleGroupBreak:before-request", day);
     setIsTogglingBreak(true);
     setError("");
     setSuccessMessage("");
@@ -1610,6 +1865,12 @@ export default function App() {
       });
       const data = await response.json();
       if (!data.ok) {
+        console.debug("[break-debug] toggleGroupBreak:error-message", {
+          location: "toggleGroupBreak:data.ok === false",
+          backendError: data.error,
+          backendDetail: data.detail,
+          ...getBreakDebugSnapshot(day),
+        });
         setError(
           data.error === "no_free_slot"
             ? `No hi ha cap franja lliure per al descans${data.detail ? ` (${data.detail})` : ""}.`
@@ -1619,7 +1880,8 @@ export default function App() {
       }
       setActivities((data.activities || []).map(normalizeTimetableActivity));
       setConflicts(data.conflicts || []);
-    } catch {
+    } catch (err) {
+      console.error("[break-debug] toggleGroupBreak:exception", err, getBreakDebugSnapshot(day));
       setError("No s'ha pogut canviar el descans.");
     } finally {
       setIsTogglingBreak(false);
@@ -1900,28 +2162,6 @@ export default function App() {
     return draggedActivityId || null;
   }
 
-  function getQuarterSuffix(value) {
-    const text = String(value || "").trim();
-    const match = text.match(/(?:\s|^)(1Q|2Q)$/i);
-    return match ? match[1].toUpperCase() : null;
-  }
-
-  function canShareSlotWithQuarter(existingActivity, candidateActivity) {
-    if (!existingActivity || !candidateActivity) {
-      return false;
-    }
-
-    if (getGroupParentName(existingActivity.group) !== getGroupParentName(candidateActivity.group)) {
-      return false;
-    }
-
-    // Consider subject suffixes first, then group suffixes (match backend logic)
-    const existingSuffix = getQuarterSuffix(existingActivity.subject) || getQuarterSuffix(existingActivity.group);
-    const candidateSuffix = getQuarterSuffix(candidateActivity.subject) || getQuarterSuffix(candidateActivity.group);
-
-    return existingSuffix && candidateSuffix && existingSuffix !== candidateSuffix;
-  }
-
   function checkSlotAvailability(activityId, day, start) {
     // find candidate in active activities or in unscheduled/generated lists
     const activity = activities.find((item) => item.id === activityId)
@@ -1936,23 +2176,22 @@ export default function App() {
       (a) => String(a.day) === String(day) && String(a.start) === String(start)
     );
     const sameGroupActivities = slotActivities.filter(
-      (item) => getGroupParentName(item.group) === getGroupParentName(activity.group)
+      (item) => normalizeGroupName(item.group) === normalizeGroupName(activity.group)
     );
 
-    if (!sameGroupActivities.length) {
+    const sameGroupOtherActivities = sameGroupActivities.filter((item) => item.id !== activityId);
+
+    if (!sameGroupOtherActivities.length) {
       return { valid: true };
     }
 
-    if (sameGroupActivities.length > 1) {
+    if (sameGroupOtherActivities.length > 1) {
       return { valid: false, message: "Hi ha més d'una activitat en aquesta franja per al mateix grup." };
     }
 
-    const existing = sameGroupActivities[0];
-    if (existing.id === activityId) {
-      return { valid: true };
-    }
+    const existing = sameGroupOtherActivities[0];
 
-    if (canShareSlotWithQuarter(existing, activity)) {
+    if (canShareSlot(existing, { ...activity, day, start })) {
       return { valid: true };
     }
 
@@ -2013,6 +2252,14 @@ export default function App() {
       (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
     );
     if (occupyingActivities.length === 1) {
+      const dragged = activities.find((item) => item.id === activityId)
+        || generatedUnscheduledActivities.find((item) => item.id === activityId)
+        || unscheduledActivities.find((item) => item.id === activityId);
+      const existing = occupyingActivities[0];
+      if (dragged && canShareSlot(existing, { ...dragged, day, start })) {
+        setDropPreviewValid(true);
+        return;
+      }
       setDropPreviewValid(true);
       return;
     }
@@ -2051,10 +2298,16 @@ export default function App() {
       (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
     );
     if (occupyingActivities.length === 1) {
-      setDropTarget(null);
-      setDraggedActivityId(null);
-      swapActivity(activityId, occupyingActivities[0].id);
-      return;
+      const dragged = activities.find((item) => item.id === activityId)
+        || generatedUnscheduledActivities.find((item) => item.id === activityId)
+        || unscheduledActivities.find((item) => item.id === activityId);
+      const existing = occupyingActivities[0];
+      if (!(dragged && canShareSlot(existing, { ...dragged, day, start }))) {
+        setDropTarget(null);
+        setDraggedActivityId(null);
+        swapActivity(activityId, occupyingActivities[0].id);
+        return;
+      }
     }
 
     // client-side validation: prevent different subjects in same slot for same parent-group
@@ -2763,18 +3016,23 @@ export default function App() {
             <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: 8 }}>
               <span style={{ fontSize: 12, color: "#667085" }}>Descans:</span>
               {DAYS.map((day) => {
-                const isActive = groupBreakDays.has(day);
+                const hasBreak = groupBreakDays.has(day);
+                const isHidden = hiddenBreakDaysForSelectedGroup.has(day);
+                const isActive = hasBreak && !isHidden;
                 return (
                   <button
                     key={day}
                     type="button"
-                    onClick={() => toggleGroupBreak(day)}
-                    disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
-                    title={`Descans ${day} per ${selectedGroup} (desplaça 30 min les classes posteriors per obrir un forat, entre 1h després de començar i 1h30 abans d'acabar)`}
+                    onClick={() => toggleBreakVisibility(day)}
+                    disabled={isLoading || isSaving || isGenerating || !hasBreak}
+                    title={hasBreak
+                      ? `Mostra o oculta el bloc gris de descans de ${day} per ${selectedGroup}`
+                      : `No hi ha cap descans assignat a ${day} per ${selectedGroup}`}
                     style={{
                       padding: "0 6px",
                       background: isActive ? "#2f6f73" : "#ffffff",
                       color: isActive ? "#ffffff" : "#1f2937",
+                      opacity: hasBreak ? 1 : 0.45,
                     }}
                   >
                     {day.slice(0, 3)}
@@ -3989,6 +4247,10 @@ export default function App() {
               return null;
             }
 
+            const isQuarterPair =
+              block.activities.length === 2
+              && canShareSlot(block.activities[0], block.activities[1]);
+
             const totalColumns = block.totalColumns || 1;
             const widthPercent = 100 / totalColumns;
             const leftPercent = widthPercent * block.column;
@@ -3996,7 +4258,7 @@ export default function App() {
             return (
               <div
                 key={block.slotKey}
-                className="slot-activities"
+                className={`slot-activities${isQuarterPair ? " slot-activities--quarter-pair" : ""}`}
                 style={{
                   gridColumn: dayCol + 2,
                   gridRow: `${block.hourRow + 2} / span ${block.rowSpan}`,
