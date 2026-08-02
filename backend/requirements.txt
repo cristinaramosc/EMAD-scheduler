@@ -4,4 +4,5 @@ sqlalchemy
 lxml
 pytest
 openpyxl
-anthropicpython-multipart
+anthropic
+python-multipart
