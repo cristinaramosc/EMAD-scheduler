@@ -251,6 +251,30 @@ class LiveScheduleUseCases:
             return
         self._academic_data_repo.upsert_group_restriction(restriction)
 
+    def _activate_break_marker_only(
+        self,
+        restriction: Dict[str, Any],
+        break_days: List[str],
+        break_slots: List[str],
+        group: str,
+        day: str,
+        start_label: str,
+    ) -> Dict[str, Any]:
+        restriction["group"] = restriction.get("group") or group
+        restriction["break_days"] = sorted({*break_days, day})
+        clean_break_slots = [slot for slot in break_slots if not self._slot_matches_day(str(slot), day)]
+        clean_break_slots.append(f"{day} {start_label}")
+        restriction["break_slots"] = clean_break_slots
+        self._save_group_restriction(restriction)
+        self._persist_active_schedule(clear_proposal=False)
+        return {
+            "ok": True,
+            "active": True,
+            "marker_only": True,
+            "break_days": restriction["break_days"],
+            **self.state(),
+        }
+
     def toggle_group_break(self, group: str, day: str) -> Dict[str, Any]:
         """Activa/desactiva un descans de 30 min com a buit de calendari
         (restricció flexible), sense crear cap activitat "Descans".
@@ -290,6 +314,20 @@ class LiveScheduleUseCases:
 
             break_days = [value for value in break_days if not self._same_day(value, day)]
             break_slots = [slot for slot in break_slots if not self._slot_matches_day(str(slot), day)]
+
+            if removed_idx is not None:
+                # Només compactem si realment hi havia un forat físic obert
+                # en aquesta franja (mode "gap"). Si la franja estava
+                # ocupada per una classe (mode "marker_only"), no movem res.
+                has_activity_at_removed_idx = any(
+                    self._norm_name(item.group) == target_group
+                    and item.day == day
+                    and (item.subject or "").strip().lower() != "descans"
+                    and hour_index.get(item.start, -1) == removed_idx
+                    for item in self._engine.state.all()
+                )
+                if has_activity_at_removed_idx:
+                    removed_idx = None
 
             if removed_idx is not None:
                 later_items = sorted(
@@ -372,15 +410,20 @@ class LiveScheduleUseCases:
                 window_start_idx = max(window_start_idx, midday_idx)
 
         if window_start_idx > window_end_idx or window_start_idx >= len(hour_names):
-            return {
-                "ok": False,
-                "error": "no_free_slot",
-                "detail": f"classes de {hour_names[day_start_idx]} a {hour_names[day_end_idx - 1] if day_end_idx - 1 < len(hour_names) else '?'} "
-                          f"({(day_end_idx - day_start_idx) * 0.5}h seguides, calen minim 3h per deixar els dos marges "
-                          f"dins del mati o la tarda segons el grup)",
-                "active": False,
-                **self.state(),
-            }
+            fallback_start = hour_names[day_start_idx] if 0 <= day_start_idx < len(hour_names) else span_activities[0].start
+            result = self._activate_break_marker_only(
+                restriction=restriction,
+                break_days=break_days,
+                break_slots=break_slots,
+                group=group,
+                day=day,
+                start_label=fallback_start,
+            )
+            result["detail"] = (
+                f"classes de {hour_names[day_start_idx]} a {hour_names[day_end_idx - 1] if day_end_idx - 1 < len(hour_names) else '?'} "
+                f"({(day_end_idx - day_start_idx) * 0.5}h seguides): descans activat en mode solapat"
+            )
+            return result
 
         insertion_idx = window_start_idx
 
@@ -404,13 +447,17 @@ class LiveScheduleUseCases:
                     overlap_found = True
 
         if insertion_idx > window_end_idx or insertion_idx >= len(hour_names):
-            return {
-                "ok": False,
-                "error": "no_free_slot",
-                "detail": "no hi ha cap forat lliure dins del marge permès sense partir una classe en curs",
-                "active": False,
-                **self.state(),
-            }
+            fallback_start = hour_names[window_start_idx] if 0 <= window_start_idx < len(hour_names) else span_activities[0].start
+            result = self._activate_break_marker_only(
+                restriction=restriction,
+                break_days=break_days,
+                break_slots=break_slots,
+                group=group,
+                day=day,
+                start_label=fallback_start,
+            )
+            result["detail"] = "descans activat en mode solapat (sense forat lliure dins del marge)"
+            return result
 
         chosen_start = hour_names[insertion_idx]
 
@@ -445,10 +492,26 @@ class LiveScheduleUseCases:
             idx = hour_index.get(item.start, -1)
             new_idx = idx + 1
             if new_idx + item.duration > len(hour_names):
-                return {"ok": False, "error": "no_free_slot", "active": False, **self.state()}
+                fallback_start = hour_names[insertion_idx] if 0 <= insertion_idx < len(hour_names) else item.start
+                return self._activate_break_marker_only(
+                    restriction=restriction,
+                    break_days=break_days,
+                    break_slots=break_slots,
+                    group=group,
+                    day=day,
+                    start_label=fallback_start,
+                )
             result = self.move(item.id, item.day, hour_names[new_idx])
             if not result.get("ok"):
-                return {"ok": False, "error": result.get("error", "validation_failed"), "active": False, **self.state()}
+                fallback_start = hour_names[insertion_idx] if 0 <= insertion_idx < len(hour_names) else item.start
+                return self._activate_break_marker_only(
+                    restriction=restriction,
+                    break_days=break_days,
+                    break_slots=break_slots,
+                    group=group,
+                    day=day,
+                    start_label=fallback_start,
+                )
 
         restriction["group"] = restriction.get("group") or group
         restriction["break_days"] = sorted({*break_days, day})

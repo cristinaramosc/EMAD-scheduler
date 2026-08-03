@@ -107,3 +107,33 @@ def test_toggle_group_break_accepts_catalan_day_with_english_schedule_days():
     restriction = next((item for item in restrictions if item.get("group") == "1A"), None)
     assert restriction is not None
     assert "Dimecres" in (restriction.get("break_days") or [])
+
+
+def test_toggle_group_break_falls_back_to_marker_only_when_no_gap_window():
+    use_cases = _build_use_cases()
+    use_cases.load(
+        [
+            {
+                "id": 1,
+                "teacher": "A",
+                "subject": "Mat",
+                "group": "1A",
+                "room": "R1",
+                "day": "Dilluns",
+                "start": "8:00",
+                "duration": 2,
+            },
+        ]
+    )
+
+    activated = use_cases.toggle_group_break("1A", "Dilluns")
+    assert activated.get("ok") is True
+    assert activated.get("active") is True
+    assert activated.get("marker_only") is True
+
+    restriction = next(
+        (item for item in use_cases._academic_data_repo.list_group_restrictions() if item.get("group") == "1A"),
+        None,
+    )
+    assert restriction is not None
+    assert "Dilluns" in (restriction.get("break_days") or [])
