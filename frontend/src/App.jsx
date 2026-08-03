@@ -98,6 +98,8 @@ function createGroupRestrictionDraft(groupName = "") {
     unavailable_slots: [],
     daily_start_time: "",
     daily_max_end_time: "",
+    break_days: [],
+    break_slots: [],
   };
 }
 
@@ -346,7 +348,10 @@ function isSubgroupGroupName(groupName) {
 
 function getVisibleActivitiesForSlot(slotActivities, selectedGroup) {
   if (!selectedGroup) {
-    return [];
+    // Sense grup seleccionat estem en vista de professor: les activitats
+    // ja venen filtrades pel professor abans d'arribar aquí, així que no
+    // cal (ni es pot) aplicar la lògica de desduplicació per grup pare.
+    return slotActivities || [];
   }
 
   const matchingActivities = (slotActivities || []).filter((activity) => {
@@ -388,6 +393,11 @@ function getQuarterSuffix(value) {
   return match ? match[1].toUpperCase() : null;
 }
 
+function getSubjectBaseName(value) {
+  const text = String(value || "").trim();
+  return text.replace(/(?:\s|^)(1Q|2Q)$/i, "").replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 function canShareSlotWithQuarter(existingActivity, candidateActivity) {
   if (!existingActivity || !candidateActivity) {
     return false;
@@ -400,7 +410,17 @@ function canShareSlotWithQuarter(existingActivity, candidateActivity) {
   const existingSuffix = getQuarterSuffix(existingActivity.subject) || getQuarterSuffix(existingActivity.group);
   const candidateSuffix = getQuarterSuffix(candidateActivity.subject) || getQuarterSuffix(candidateActivity.group);
 
-  return existingSuffix && candidateSuffix && existingSuffix !== candidateSuffix;
+  const existingBase = getSubjectBaseName(existingActivity.subject);
+  const candidateBase = getSubjectBaseName(candidateActivity.subject);
+
+  return Boolean(
+    existingSuffix
+      && candidateSuffix
+      && existingSuffix !== candidateSuffix
+      && existingBase
+      && candidateBase
+      && existingBase === candidateBase
+  );
 }
 
 export default function App() {
@@ -989,6 +1009,8 @@ export default function App() {
         unavailable_slots: Array.isArray(data.unavailable_slots) ? data.unavailable_slots : [],
         daily_start_time: data.daily_start_time || "",
         daily_max_end_time: data.daily_max_end_time || "",
+        break_days: Array.isArray(data.break_days) ? data.break_days : [],
+        break_slots: Array.isArray(data.break_slots) ? data.break_slots : [],
       };
       setGroupRestrictionDraft(nextDraft);
       setGroupRestrictions((current) => {
@@ -1019,6 +1041,8 @@ export default function App() {
         unavailable_slots: updatedDraft.unavailable_slots || [],
         daily_start_time: updatedDraft.daily_start_time || "",
         daily_max_end_time: updatedDraft.daily_max_end_time || "",
+        break_days: updatedDraft.break_days || [],
+        break_slots: updatedDraft.break_slots || [],
       };
 
       const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(updatedDraft.group)}/restrictions`, {
@@ -1408,16 +1432,8 @@ export default function App() {
 
   const groupBreakDays = useMemo(() => {
     if (!selectedGroup) return new Set();
-    return new Set(
-      activities
-        .filter(
-          (activity) =>
-            activity.group === selectedGroup &&
-            (activity.subject || "").trim().toLowerCase() === "descans"
-        )
-        .map((activity) => activity.day)
-    );
-  }, [activities, selectedGroup]);
+    return new Set(groupRestrictionDraft.break_days || []);
+  }, [selectedGroup, groupRestrictionDraft.break_days]);
 
   const activitiesBySlot = useMemo(() => {
     return filteredActivities.reduce((slots, activity) => {
@@ -1626,6 +1642,7 @@ export default function App() {
       }
       setActivities((data.activities || []).map(normalizeTimetableActivity));
       setConflicts(data.conflicts || []);
+      await loadGroupRestrictions(selectedGroup);
     } catch {
       setError("No s'ha pogut canviar el descans.");
     } finally {
@@ -1913,6 +1930,11 @@ export default function App() {
     return match ? match[1].toUpperCase() : null;
   }
 
+  function getSubjectBaseName(value) {
+    const text = String(value || "").trim();
+    return text.replace(/(?:\s|^)(1Q|2Q)$/i, "").replace(/\s+/g, " ").trim().toLowerCase();
+  }
+
   function canShareSlotWithQuarter(existingActivity, candidateActivity) {
     if (!existingActivity || !candidateActivity) {
       return false;
@@ -1926,7 +1948,17 @@ export default function App() {
     const existingSuffix = getQuarterSuffix(existingActivity.subject) || getQuarterSuffix(existingActivity.group);
     const candidateSuffix = getQuarterSuffix(candidateActivity.subject) || getQuarterSuffix(candidateActivity.group);
 
-    return existingSuffix && candidateSuffix && existingSuffix !== candidateSuffix;
+    const existingBase = getSubjectBaseName(existingActivity.subject);
+    const candidateBase = getSubjectBaseName(candidateActivity.subject);
+
+    return Boolean(
+      existingSuffix
+        && candidateSuffix
+        && existingSuffix !== candidateSuffix
+        && existingBase
+        && candidateBase
+        && existingBase === candidateBase
+    );
   }
 
   function checkSlotAvailability(activityId, day, start) {

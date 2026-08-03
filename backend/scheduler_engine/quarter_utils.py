@@ -13,6 +13,7 @@ a `group_conflict.py` per apuntar-hi, en lloc de mantenir una còpia.
 
 from __future__ import annotations
 
+import re
 from typing import Optional, Tuple
 
 _QUARTER_1Q = "1q"
@@ -37,6 +38,21 @@ def strip_quarter_suffix(text: Optional[str]) -> str:
     if suffix is None:
         return value
     return value[: -len(suffix)].strip()
+
+
+def subject_base_name(text: Optional[str]) -> str:
+    """Retorna el nom base d'assignatura, sense sufix 1Q/2Q, normalitzat.
+
+    Es fa servir per assegurar que una compartició 1Q/2Q només sigui
+    possible quan ambdues activitats corresponen a la mateixa assignatura
+    (mateix nom base), i no a matèries diferents del mateix grup pare.
+    """
+    base = strip_quarter_suffix(text)
+    return re.sub(r"\s+", " ", base).strip().casefold()
+
+
+def normalize_group_name(text: Optional[str]) -> str:
+    return re.sub(r"\s+", " ", (text or "").strip()).casefold()
 
 
 def with_quarter_suffix(base_name: str, quarter: Optional[str]) -> str:
@@ -67,9 +83,9 @@ def parent_and_quarter(group: Optional[str], subject: Optional[str]) -> Tuple[st
     group_text = (group or "").strip()
     group_quarter = quarter_suffix(group_text)
     if group_quarter is not None:
-        return strip_quarter_suffix(group_text), group_quarter
+        return normalize_group_name(strip_quarter_suffix(group_text)), group_quarter
 
-    return group_text, quarter_suffix(subject)
+    return normalize_group_name(group_text), quarter_suffix(subject)
 
 
 def is_valid_quarter_pair(
@@ -79,10 +95,20 @@ def is_valid_quarter_pair(
     second_subject: Optional[str],
 ) -> bool:
     """Dues activitats del mateix grup pare només poden coexistir a la
-    mateixa franja horària si una correspon al 1r quadrimestre i l'altra
-    al 2n (marcat al nom del grup o, si no, al de l'assignatura)."""
+    mateixa franja horària si:
+    - corresponen al mateix grup pare,
+    - una és 1Q i l'altra 2Q,
+    - i la base de l'assignatura és la mateixa (p.ex. "Foto 1Q" + "Foto 2Q").
+    """
     parent_a, quarter_a = parent_and_quarter(first_group, first_subject)
     parent_b, quarter_b = parent_and_quarter(second_group, second_subject)
     if parent_a != parent_b:
         return False
-    return quarter_a is not None and quarter_b is not None and quarter_a != quarter_b
+    if not (quarter_a is not None and quarter_b is not None and quarter_a != quarter_b):
+        return False
+
+    first_base = subject_base_name(first_subject)
+    second_base = subject_base_name(second_subject)
+    if not first_base or not second_base:
+        return False
+    return first_base == second_base

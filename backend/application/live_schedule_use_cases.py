@@ -209,40 +209,68 @@ class LiveScheduleUseCases:
     def _norm_name(value: str) -> str:
         return (value or "").strip().lower()
 
+    def _get_group_restriction(self, group: str) -> Dict[str, Any]:
+        if self._academic_data_repo is None:
+            return {"group": group}
+
+        target = self._norm_name(group)
+        for restriction in self._academic_data_repo.list_group_restrictions():
+            if self._norm_name(restriction.get("group", "")) == target:
+                return dict(restriction)
+        return {"group": group}
+
+    def _save_group_restriction(self, restriction: Dict[str, Any]) -> None:
+        if self._academic_data_repo is None:
+            return
+        self._academic_data_repo.upsert_group_restriction(restriction)
+
     def toggle_group_break(self, group: str, day: str) -> Dict[str, Any]:
-        """Activa/desactiva un descans de 30 min per a un grup en un dia
-        concret. Si cal, desplaça 30 min més tard totes les classes
-        d'aquell grup a partir del punt d'inserció per obrir un forat
-        lliure de veritat (no es limita a buscar-ne un que ja existeixi).
-        El punt d'inserció és com a mínim 1h després de l'inici de la
-        primera classe del dia i com a màxim 1h30 abans del final de
-        l'última, i a més es limita al matí o la tarda segons el grup
-        (1r/2n APGI, PFI, 1r/2n COM -> matí; Comú, GP, GI -> tarda).
-        En desactivar-lo, torna a ajuntar l'horari desplaçant cap enrere
-        les classes que hi havia després."""
+        """Activa/desactiva un descans de 30 min com a buit de calendari
+        (restricció flexible), sense crear cap activitat "Descans".
+
+        En activar-lo, obre un forat real desplaçant la cadena necessària
+        d'activitats; en desactivar-lo, compacta les classes posteriors.
+        El dia actiu i la franja s'emmagatzemen a la restricció del grup
+        (`break_days` i `break_slots`)."""
         hour_names, hour_index = self._half_hour_grid()
         target_group = self._norm_name(group)
 
-        existing = next(
-            (
-                item
-                for item in self._engine.state.all()
+        restriction = self._get_group_restriction(group)
+        break_days = list(restriction.get("break_days") or [])
+        break_slots = list(restriction.get("break_slots") or [])
+
+        active_slot_label = next((slot for slot in break_slots if str(slot).startswith(f"{day} ")), None)
+        is_active = day in break_days
+
+        if is_active:
+            removed_idx = None
+            if active_slot_label:
+                _, _, start_label = str(active_slot_label).partition(" ")
+                removed_idx = hour_index.get(start_label, None)
+
+            # Neteja de compatibilitat: si encara hi havia un "Descans"
+            # antic al calendari, s'elimina en desactivar.
+            legacy_breaks = [
+                item for item in self._engine.state.all()
                 if self._norm_name(item.group) == target_group
                 and item.day == day
                 and (item.subject or "").strip().lower() == "descans"
-            ),
-            None,
-        )
+            ]
+            for legacy in legacy_breaks:
+                self._engine.state.remove(legacy)
+                if removed_idx is None:
+                    removed_idx = hour_index.get(legacy.start, None)
 
-        if existing is not None:
-            removed_idx = hour_index.get(existing.start, None)
-            self._engine.state.remove(existing)
+            break_days = [value for value in break_days if value != day]
+            break_slots = [slot for slot in break_slots if not str(slot).startswith(f"{day} ")]
+
             if removed_idx is not None:
                 later_items = sorted(
                     (
                         item
                         for item in self._engine.state.all()
-                        if self._norm_name(item.group) == target_group and item.day == day
+                        if self._norm_name(item.group) == target_group
+                        and item.day == day
                         and hour_index.get(item.start, -1) > removed_idx
                     ),
                     key=lambda item: hour_index.get(item.start, -1),
@@ -253,9 +281,14 @@ class LiveScheduleUseCases:
                         continue
                     result = self.move(item.id, day, hour_names[idx - 1])
                     if not result.get("ok"):
-                        break  # es queda on és si no es pot desplaçar (p.ex. xoca amb el professor en un altre grup)
+                        break
+
+            restriction["group"] = restriction.get("group") or group
+            restriction["break_days"] = break_days
+            restriction["break_slots"] = break_slots
+            self._save_group_restriction(restriction)
             self._persist_active_schedule(clear_proposal=False)
-            return {"ok": True, "active": False, **self.state()}
+            return {"ok": True, "active": False, "break_days": break_days, **self.state()}
 
         day_activities = [
             item for item in self._engine.state.all()
@@ -274,15 +307,15 @@ class LiveScheduleUseCases:
 
         exceptions = set()
         if self._academic_data_repo is not None:
-            restriction = next(
+            group_restriction_entry = next(
                 (
                     r for r in self._academic_data_repo.list_group_restrictions()
                     if self._norm_name(r.get("group")) == target_group
                 ),
                 None,
             )
-            if restriction:
-                exceptions = set(restriction.get("exception_slots") or [])
+            if group_restriction_entry:
+                exceptions = set(group_restriction_entry.get("exception_slots") or [])
 
         span_activities = [item for item in day_activities if f"{item.day} {item.start}" not in exceptions] or day_activities
 
@@ -317,16 +350,64 @@ class LiveScheduleUseCases:
             }
 
         insertion_idx = window_start_idx
+
+        # Si el punt d'inserció cau enmig d'una activitat que ja està en
+        # curs (comença abans però la seva durada arriba fins aquí; és el
+        # cas típic d'una parella 1Q/2Q alineada a la mateixa franja),
+        # endarrereix el punt d'inserció fins que aquesta activitat acabi,
+        # perquè el descans mai es col·loqui a sobre d'una classe que ja
+        # hi és. Es repeteix fins que no hi hagi cap solapament, per si
+        # l'endarreriment fa caure el punt dins d'una altra activitat.
+        overlap_found = True
+        while overlap_found:
+            overlap_found = False
+            for item in day_activities:
+                item_idx = hour_index.get(item.start, -1)
+                if item_idx == -1:
+                    continue
+                item_end_idx = item_idx + item.duration
+                if item_idx < insertion_idx < item_end_idx:
+                    insertion_idx = item_end_idx
+                    overlap_found = True
+
+        if insertion_idx > window_end_idx or insertion_idx >= len(hour_names):
+            return {
+                "ok": False,
+                "error": "no_free_slot",
+                "detail": "no hi ha cap forat lliure dins del marge permès sense partir una classe en curs",
+                "active": False,
+                **self.state(),
+            }
+
         chosen_start = hour_names[insertion_idx]
 
-        # Desplaça 30 min més tard totes les activitats d'aquest grup/dia
-        # que comencin al punt d'inserció o després, començant per la
-        # darrera perquè no xoquin entre elles durant el desplaçament.
-        to_shift = sorted(
-            (item for item in day_activities if hour_index.get(item.start, -1) >= insertion_idx),
-            key=lambda item: hour_index.get(item.start, -1),
-            reverse=True,
-        )
+        # Desplaça 30 min més tard NOMÉS la cadena d'activitats contigües que
+        # comencin exactament al punt d'inserció (o que quedin ocupant-lo en
+        # cascada). Si aquella franja ja és un forat lliure de manera natural
+        # (per exemple perquè aquell dia hi ha una classe més curta que la
+        # resta i deixa un buit abans del descans), no cal desplaçar res:
+        # el descans s'hi col·loca directament sense tocar la resta del dia.
+        occupied_slots = set()
+        item_at_start_idx = {}
+        for item in day_activities:
+            idx = hour_index.get(item.start, -1)
+            if idx == -1:
+                continue
+            item_at_start_idx[idx] = item
+            duration = max(int(getattr(item, "duration", 1) or 1), 1)
+            for offset in range(duration):
+                occupied_slots.add(idx + offset)
+
+        to_shift = []
+        cursor = insertion_idx
+        while cursor in occupied_slots:
+            item = item_at_start_idx.get(cursor)
+            if item is None:
+                break  # franja ocupada per la cua d'una activitat que ja comença abans
+            to_shift.append(item)
+            cursor = hour_index.get(item.start, -1) + max(int(getattr(item, "duration", 1) or 1), 1)
+
+        to_shift.sort(key=lambda item: hour_index.get(item.start, -1), reverse=True)
         for item in to_shift:
             idx = hour_index.get(item.start, -1)
             new_idx = idx + 1
@@ -336,17 +417,15 @@ class LiveScheduleUseCases:
             if not result.get("ok"):
                 return {"ok": False, "error": result.get("error", "validation_failed"), "active": False, **self.state()}
 
-        result = self.add_manual_activity(
-            subject="Descans",
-            day=day,
-            start=chosen_start,
-            duration=1,
-            group=group,
-        )
-        if not result.get("ok"):
-            return {"ok": False, "error": result.get("error", "validation_failed"), "active": False, **self.state()}
+        restriction["group"] = restriction.get("group") or group
+        restriction["break_days"] = sorted({*break_days, day})
+        break_slots = [slot for slot in break_slots if not str(slot).startswith(f"{day} ")]
+        break_slots.append(f"{day} {chosen_start}")
+        restriction["break_slots"] = break_slots
+        self._save_group_restriction(restriction)
 
-        return {"ok": True, "active": True, **self.state()}
+        self._persist_active_schedule(clear_proposal=False)
+        return {"ok": True, "active": True, "break_days": restriction["break_days"], **self.state()}
 
     _LUNCH_WINDOW_STARTS = ["12:00", "12:30", "13:00", "13:30", "14:00", "14:30", "15:00"]
     _LUNCH_MORNING_BEFORE = "12:00"

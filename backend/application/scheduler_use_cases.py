@@ -1102,6 +1102,34 @@ class SchedulerUseCases:
             metadata=dict(proposal.metadata or {}),
         )
 
+    def _match_quarter_pairs(
+        self, ones: List[Activity], twos: List[Activity]
+    ) -> List[Tuple[Activity, Activity]]:
+        """Aparella cada activitat marcada 1Q amb una de 2Q del mateix grup
+        pare (mai 1Q amb 1Q ni 2Q amb 2Q). Quan un grup té més d'una parella
+        possible, prioritza les combinacions on coincideix el professor;
+        la resta s'aparellen en l'ordre en què apareixen com a darrer recurs,
+        perquè cap activitat 1Q o 2Q es quedi sense parella si n'hi ha una
+        de disponible. L'ordre retornat és sempre (activitat_1Q, activitat_2Q)."""
+        remaining_ones = list(ones)
+        remaining_twos = list(twos)
+        pairs: List[Tuple[Activity, Activity]] = []
+
+        for one in list(remaining_ones):
+            match = next(
+                (two for two in remaining_twos if (one.teacher or "").strip() and one.teacher == two.teacher),
+                None,
+            )
+            if match is not None:
+                pairs.append((one, match))
+                remaining_ones.remove(one)
+                remaining_twos.remove(match)
+
+        for one, two in zip(remaining_ones, remaining_twos):
+            pairs.append((one, two))
+
+        return pairs
+
     def _apply_quarter_pair_alignment(self, proposal: ScheduleProposal) -> ScheduleProposal:
         """Si dues activitats són la variant 1Q i 2Q del mateix grup pare,
         intenta que comparteixin exactament la mateixa casella (dia i hora),
@@ -1117,14 +1145,17 @@ class SchedulerUseCases:
         anterior: prova només les dues franges on ja es troben."""
         activities = list(proposal.activities)
 
-        by_parent: Dict[str, List[Activity]] = {}
+        by_parent: Dict[str, Dict[str, List[Activity]]] = {}
         for activity in activities:
             parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
             if quarter_marker is None:
                 continue
-            by_parent.setdefault(parent, []).append(activity)
+            by_parent.setdefault(parent, {"1q": [], "2q": []})[quarter_marker].append(activity)
 
-        pairs_to_align = [members for members in by_parent.values() if len(members) == 2]
+        pairs_to_align: List[Tuple[Activity, Activity]] = []
+        for buckets in by_parent.values():
+            pairs_to_align.extend(self._match_quarter_pairs(buckets["1q"], buckets["2q"]))
+
         if not pairs_to_align:
             return proposal
 
@@ -1367,14 +1398,9 @@ class SchedulerUseCases:
     _AFTERNOON_BREAK_GROUPS = {"comú", "gp", "gi"}
 
     def _insert_default_group_breaks(self, activities: List[Activity]) -> List[Activity]:
-        """Insereix per defecte un descans de 30 min cada dia per a cada
-        grup, desplaçant les classes posteriors d'aquell grup/dia per
-        obrir-hi lloc de veritat. El descans es col·loca com a mínim 1h
-        després de començar i com a màxim 1h30 abans d'acabar, limitat al
-        matí (abans de les 14:00) o la tarda (a partir de les 14:00)
-        segons el grup (_MORNING_BREAK_GROUPS / _AFTERNOON_BREAK_GROUPS).
-        Si un dia no hi ha prou marge, aquell grup es queda sense descans
-        aquell dia en lloc de forçar-lo malament."""
+        """Obre un buit de 30 min (descans flexible) en dies marcats a la
+        restricció del grup (`break_days`), desplaçant les classes
+        posteriors quan cal. No crea activitats `Descans`."""
         day_names = self._time_labels.get("day_names", [])
         hour_names = self._time_labels.get("hour_names", [])
         day_index = {name: index for index, name in enumerate(day_names)}
@@ -1387,20 +1413,18 @@ class SchedulerUseCases:
                 by_group_day.setdefault((activity.group, activity.day), []).append(activity)
 
         exception_slots_by_group: Dict[str, set] = {}
+        break_days_by_group: Dict[str, set] = {}
         if self._academic_data_repo is not None:
             for restriction in self._academic_data_repo.list_group_restrictions():
                 key = (restriction.get("group") or "").strip().lower()
                 exception_slots_by_group[key] = set(restriction.get("exception_slots") or [])
-
-        existing_ids = [item.id for item in activities]
-        next_id = (max(existing_ids) + 1) if existing_ids else 1
-        new_breaks: List[Activity] = []
+                break_days_by_group[key] = set(restriction.get("break_days") or [])
 
         for (group, day), group_activities in by_group_day.items():
-            if any((a.subject or "").strip().lower() == "descans" for a in group_activities):
-                continue  # ja en té un
-
             group_key = (group or "").strip().lower()
+            if day not in break_days_by_group.get(group_key, set()):
+                continue
+
             exceptions = exception_slots_by_group.get(group_key, set())
             # Les classes marcades com a excepció (permeses fora de l'horari
             # habitual del grup) no compten per calcular la franja del dia,
@@ -1439,19 +1463,7 @@ class SchedulerUseCases:
             for a in to_shift:
                 a.start = hour_names[hour_index[a.start] + 1]
 
-            new_breaks.append(Activity(
-                id=next_id,
-                teacher="",
-                subject="Descans",
-                group=group,
-                room="",
-                day=day,
-                start=hour_names[insertion_idx],
-                duration=1,
-            ))
-            next_id += 1
-
-        return activities + new_breaks
+        return activities
 
     def compact_active_schedule(self) -> Dict[str, Any]:
         """Elimina els forats de l'horari actiu ('sense buits')."""

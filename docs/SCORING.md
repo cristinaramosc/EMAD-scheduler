@@ -13,6 +13,7 @@ Examples of hard constraints:
 - Requirement minimum/maximum days: a requirement must be split across the allowed number of days.
 - Block duration limits: each generated block must respect minimum block duration and maximum consecutive hours.
 - Availability: a slot must be lective and not blocked by `SchoolCalendar` breaks.
+- **Group quarter-pair conflict**: for a given parent group, a timeslot may only be shared between exactly two subjects, and only when one is marked `1Q` and the other `2Q` (suffix on the group name or, failing that, on the subject name — see `quarter_utils.py`). Two `1Q` subjects can never share a slot, two `2Q` subjects can never share a slot, and a shared slot can never hold more than one activity from each quarter. A subject with no compatible `1Q`/`2Q` counterpart is simply scheduled alone. Enforced both at placement time (`placement_strategy.GreedyPlacementStrategy._group_conflict_exists`) and by the post-hoc validator (`constraints/group_conflict.py`). This constraint only shapes the **group** view of the timetable — the teacher view always lists each teacher's activities individually, since teacher availability is validated separately by the teacher-conflict hard constraint.
 
 ## Soft constraints
 
@@ -20,6 +21,7 @@ Soft constraints are desirable preferences. Violations do not necessarily invali
 
 Examples of soft constraints:
 
+- **Quarter-pair teacher match (highest priority)**: when a timeslot is validly shared by a `1Q`/`2Q` pair (see the hard constraint above), the proposal is scored much higher if both subjects are taught by the same teacher. Implemented in `ProposalScorer._quarter_pair_teacher_priority_score`, weighted well above every other soft component (`_QUARTER_PAIR_TEACHER_MATCH_WEIGHT`) so it wins the ranking among generated proposals whenever a same-teacher pairing is achievable without breaking a hard constraint.
 - Preferred rooms: honoring a requirement's preferred room list.
 - Preferred distribution: matching the documented preferred block shape.
 - Teacher workload spread: avoiding too many consecutive hours for one teacher when possible.
@@ -40,6 +42,8 @@ The current v1 formula is:
 
 - `compactness_score`
 - `+ distribution_score`
+- `+ teacher_affinity_score`
+- `+ quarter_pair_teacher_score` (highest-weighted soft component — see above)
 - `- gap_penalty`
 - `- warning_penalty`
 
