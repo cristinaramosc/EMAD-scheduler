@@ -87,6 +87,8 @@ class GroupRestrictionDTO(BaseModel):
     daily_start_time: Optional[str] = ""
     daily_max_end_time: Optional[str] = ""
     exception_slots: Optional[List[str]] = []
+    break_days: Optional[List[str]] = []
+    break_slots: Optional[List[str]] = []
 
 
 class GroupRestrictionUpdateDTO(BaseModel):
@@ -99,6 +101,8 @@ class GroupRestrictionUpdateDTO(BaseModel):
     daily_start_time: Optional[str] = None
     daily_max_end_time: Optional[str] = None
     exception_slots: Optional[List[str]] = None
+    break_days: Optional[List[str]] = None
+    break_slots: Optional[List[str]] = None
 
 
 class SubjectDTO(BaseModel):
@@ -344,6 +348,8 @@ def update_group_restrictions(name: str, payload: GroupRestrictionUpdateDTO):
         "daily_start_time": payload.daily_start_time if payload.daily_start_time is not None else existing_restriction.get("daily_start_time", ""),
         "daily_max_end_time": payload.daily_max_end_time if payload.daily_max_end_time is not None else existing_restriction.get("daily_max_end_time", ""),
         "exception_slots": payload.exception_slots if payload.exception_slots is not None else existing_restriction.get("exception_slots", []),
+        "break_days": payload.break_days if payload.break_days is not None else existing_restriction.get("break_days", []),
+        "break_slots": payload.break_slots if payload.break_slots is not None else existing_restriction.get("break_slots", []),
     }
     repo.upsert_group_restriction(record)
     return {"ok": True}
