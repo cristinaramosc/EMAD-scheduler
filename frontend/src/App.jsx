@@ -6,6 +6,18 @@ import "./App.css";
 const API_URL = "http://127.0.0.1:8000";
 
 const DAYS = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"];
+const DAY_ALIASES = {
+  dilluns: "Dilluns",
+  dimarts: "Dimarts",
+  dimecres: "Dimecres",
+  dijous: "Dijous",
+  divendres: "Divendres",
+  monday: "Dilluns",
+  tuesday: "Dimarts",
+  wednesday: "Dimecres",
+  thursday: "Dijous",
+  friday: "Divendres",
+};
 
 // Fase 2 (dades acadèmiques com a taula editable): columnes per a la graella
 // d'Assignatures, calcades dels camps reals que ja accepta AssignmentDTO al
@@ -188,6 +200,8 @@ function normalizeTimetableActivity(activity) {
   if (dayMatch) {
     const dayIndex = Number(dayMatch[1]);
     normalized.day = DAYS[dayIndex] ?? dayValue;
+  } else {
+    normalized.day = DAY_ALIASES[dayValue.trim().toLowerCase()] || dayValue;
   }
 
   const startMatch = startValue.match(/period\s*(\d+)/i);
@@ -197,6 +211,11 @@ function normalizeTimetableActivity(activity) {
   }
 
   return normalized;
+}
+
+function normalizeDayLabel(value) {
+  const text = String(value || "").trim().toLowerCase();
+  return DAY_ALIASES[text] || String(value || "").trim();
 }
 
 function conflictActivityIds(conflicts) {
@@ -1430,13 +1449,65 @@ export default function App() {
     return nextActivities;
   }, [activities, selectedGroup, teacherFilter, teacherScheduleActivities]);
 
+  const syntheticBreakActivities = useMemo(() => {
+    if (!selectedGroup || teacherFilter) {
+      return [];
+    }
+
+    const breakSlots = groupRestrictionDraft.break_slots || [];
+    if (!breakSlots.length) {
+      return [];
+    }
+
+    return breakSlots
+      .map((slotLabel) => {
+        const [rawDay, rawStart] = String(slotLabel || "").split(" ");
+        const day = normalizeDayLabel(rawDay);
+        const start = String(rawStart || "").trim();
+        if (!DAYS.includes(day) || !HOURS.includes(start)) {
+          return null;
+        }
+
+        const alreadyExists = (activities || []).some((item) => {
+          const subject = String(item?.subject || "").trim().toLowerCase();
+          return (
+            subject === "descans"
+            && getGroupParentName(item?.group) === selectedGroup
+            && normalizeDayLabel(item?.day) === day
+            && String(item?.start) === start
+          );
+        });
+        if (alreadyExists) {
+          return null;
+        }
+
+        return {
+          id: `break-${selectedGroup}-${day}-${start}`,
+          subject: "Descans",
+          teacher: "",
+          group: selectedGroup,
+          room: "",
+          day,
+          start,
+          duration: 1,
+          isSyntheticBreak: true,
+        };
+      })
+      .filter(Boolean);
+  }, [activities, groupRestrictionDraft.break_slots, selectedGroup, teacherFilter]);
+
+  const visibleTimetableActivities = useMemo(
+    () => [...filteredActivities, ...syntheticBreakActivities],
+    [filteredActivities, syntheticBreakActivities]
+  );
+
   const groupBreakDays = useMemo(() => {
     if (!selectedGroup) return new Set();
     return new Set(groupRestrictionDraft.break_days || []);
   }, [selectedGroup, groupRestrictionDraft.break_days]);
 
   const activitiesBySlot = useMemo(() => {
-    return filteredActivities.reduce((slots, activity) => {
+    return visibleTimetableActivities.reduce((slots, activity) => {
       const key = activityKey(activity);
 
       if (!slots[key]) {
@@ -1447,7 +1518,7 @@ export default function App() {
 
       return slots;
     }, {});
-  }, [filteredActivities]);
+  }, [visibleTimetableActivities]);
 
   const visibleActivitiesBySlot = useMemo(() => {
     return Object.entries(activitiesBySlot).reduce((slots, [slotKey, slotActivities]) => {
@@ -2160,6 +2231,7 @@ export default function App() {
     const conflictReasons = conflictMessages.get(activity.id) || [];
     const isSelected = selectedActivityId === activity.id;
     const normalizedSubject = (activity.subject || "").trim().toLowerCase();
+    const isSyntheticBreak = Boolean(activity.isSyntheticBreak);
     const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio";
     const groupColor = !hasConflict && !isBreakOrCoordination ? getGroupColor(activity.group) : null;
 
@@ -2172,12 +2244,20 @@ export default function App() {
           isSelected ? "activity-card--selected" : "",
           isBreakOrCoordination ? "activity-card--break" : "",
         ].filter(Boolean).join(" ")}
-        draggable
+        draggable={!isSyntheticBreak}
         title={hasConflict ? conflictReasons.join("\n") : undefined}
         style={groupColor ? { background: groupColor.background, borderColor: groupColor.border } : undefined}
         onClick={() => setSelectedActivityId(activity.id)}
-        onDoubleClick={() => openActivityRestrictionPopup(activity)}
-        onDragStart={(event) => handleDragStart(event, activity.id)}
+        onDoubleClick={() => {
+          if (!isSyntheticBreak) {
+            openActivityRestrictionPopup(activity);
+          }
+        }}
+        onDragStart={(event) => {
+          if (!isSyntheticBreak) {
+            handleDragStart(event, activity.id);
+          }
+        }}
         onDragEnd={() => {
           setDraggedActivityId(null);
           setDropTarget(null);
@@ -2193,23 +2273,8 @@ export default function App() {
         {hasConflict && conflictReasons.length > 0 ? (
           <small className="activity-conflict-reason">⚠️ {conflictReasons[0]}</small>
         ) : null}
-        <div style={{ display: "flex", gap: 4 }}>
-          <button
-            type="button"
-            className="activity-info-button"
-            onMouseDown={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              loadActivityExplanation(activity.id);
-            }}
-          >
-            Info
-          </button>
-          {isBreakOrCoordination ? (
+        {!isSyntheticBreak ? (
+          <div style={{ display: "flex", gap: 4 }}>
             <button
               type="button"
               className="activity-info-button"
@@ -2220,13 +2285,30 @@ export default function App() {
               onClick={(event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                deleteActivity(activity.id);
+                loadActivityExplanation(activity.id);
               }}
             >
-              Elimina
+              Info
             </button>
-          ) : null}
-        </div>
+            {isBreakOrCoordination ? (
+              <button
+                type="button"
+                className="activity-info-button"
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                }}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  deleteActivity(activity.id);
+                }}
+              >
+                Elimina
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </article>
     );
   }
