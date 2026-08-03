@@ -204,10 +204,37 @@ class LiveScheduleUseCases:
 
     _MORNING_BREAK_GROUPS = {"1r apgi", "2n apgi", "pfi", "1r com", "2n com"}
     _AFTERNOON_BREAK_GROUPS = {"comú", "gp", "gi"}
+    _DAY_ALIASES = {
+        "dilluns": "monday",
+        "dimarts": "tuesday",
+        "dimecres": "wednesday",
+        "dijous": "thursday",
+        "divendres": "friday",
+        "monday": "monday",
+        "tuesday": "tuesday",
+        "wednesday": "wednesday",
+        "thursday": "thursday",
+        "friday": "friday",
+    }
 
     @staticmethod
     def _norm_name(value: str) -> str:
         return (value or "").strip().lower()
+
+    @classmethod
+    def _day_key(cls, value: str) -> str:
+        normalized = (value or "").strip().lower()
+        return cls._DAY_ALIASES.get(normalized, normalized)
+
+    @classmethod
+    def _same_day(cls, first: str, second: str) -> bool:
+        return cls._day_key(first) == cls._day_key(second)
+
+    @classmethod
+    def _slot_matches_day(cls, slot_label: str, day: str) -> bool:
+        label = str(slot_label or "")
+        slot_day, _, _ = label.partition(" ")
+        return bool(slot_day) and cls._same_day(slot_day, day)
 
     def _get_group_restriction(self, group: str) -> Dict[str, Any]:
         if self._academic_data_repo is None:
@@ -239,8 +266,8 @@ class LiveScheduleUseCases:
         break_days = list(restriction.get("break_days") or [])
         break_slots = list(restriction.get("break_slots") or [])
 
-        active_slot_label = next((slot for slot in break_slots if str(slot).startswith(f"{day} ")), None)
-        is_active = day in break_days
+        active_slot_label = next((slot for slot in break_slots if self._slot_matches_day(str(slot), day)), None)
+        is_active = any(self._same_day(stored_day, day) for stored_day in break_days)
 
         if is_active:
             removed_idx = None
@@ -261,8 +288,8 @@ class LiveScheduleUseCases:
                 if removed_idx is None:
                     removed_idx = hour_index.get(legacy.start, None)
 
-            break_days = [value for value in break_days if value != day]
-            break_slots = [slot for slot in break_slots if not str(slot).startswith(f"{day} ")]
+            break_days = [value for value in break_days if not self._same_day(value, day)]
+            break_slots = [slot for slot in break_slots if not self._slot_matches_day(str(slot), day)]
 
             if removed_idx is not None:
                 later_items = sorted(
@@ -279,7 +306,7 @@ class LiveScheduleUseCases:
                     idx = hour_index.get(item.start, -1)
                     if idx <= 0:
                         continue
-                    result = self.move(item.id, day, hour_names[idx - 1])
+                    result = self.move(item.id, item.day, hour_names[idx - 1])
                     if not result.get("ok"):
                         break
 
@@ -292,11 +319,17 @@ class LiveScheduleUseCases:
 
         day_activities = [
             item for item in self._engine.state.all()
-            if self._norm_name(item.group) == target_group and item.day == day
+            if self._norm_name(item.group) == target_group and self._same_day(item.day, day)
             and (item.subject or "").strip().lower() != "descans"
         ]
         if not day_activities:
-            known_groups = sorted({item.group for item in self._engine.state.all() if item.day == day and item.group})
+            known_groups = sorted(
+                {
+                    item.group
+                    for item in self._engine.state.all()
+                    if self._same_day(item.day, day) and item.group
+                }
+            )
             return {
                 "ok": False,
                 "error": "no_free_slot",
@@ -413,13 +446,13 @@ class LiveScheduleUseCases:
             new_idx = idx + 1
             if new_idx + item.duration > len(hour_names):
                 return {"ok": False, "error": "no_free_slot", "active": False, **self.state()}
-            result = self.move(item.id, day, hour_names[new_idx])
+            result = self.move(item.id, item.day, hour_names[new_idx])
             if not result.get("ok"):
                 return {"ok": False, "error": result.get("error", "validation_failed"), "active": False, **self.state()}
 
         restriction["group"] = restriction.get("group") or group
         restriction["break_days"] = sorted({*break_days, day})
-        break_slots = [slot for slot in break_slots if not str(slot).startswith(f"{day} ")]
+        break_slots = [slot for slot in break_slots if not self._slot_matches_day(str(slot), day)]
         break_slots.append(f"{day} {chosen_start}")
         restriction["break_slots"] = break_slots
         self._save_group_restriction(restriction)

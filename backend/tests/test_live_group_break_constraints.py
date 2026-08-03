@@ -70,3 +70,40 @@ def test_toggle_group_break_persists_restriction_without_creating_break_activity
     restriction = next((item for item in restrictions if item.get("group") == "1A"), None)
     assert restriction is not None
     assert "Monday" not in (restriction.get("break_days") or [])
+
+
+def test_toggle_group_break_accepts_catalan_day_with_english_schedule_days():
+    use_cases = _build_use_cases()
+    use_cases.load(
+        [
+            {
+                "id": 1,
+                "teacher": "A",
+                "subject": "Mat",
+                "group": "1A",
+                "room": "R1",
+                "day": "Wednesday",
+                "start": "8:00",
+                "duration": 2,
+            },
+            {
+                "id": 2,
+                "teacher": "B",
+                "subject": "Hist",
+                "group": "1A",
+                "room": "R2",
+                "day": "Wednesday",
+                "start": "10:00",
+                "duration": 2,
+            },
+        ]
+    )
+
+    activated = use_cases.toggle_group_break("1A", "Dimecres")
+    assert activated.get("ok") is True
+    assert activated.get("active") is True
+
+    restrictions = use_cases._academic_data_repo.list_group_restrictions()
+    restriction = next((item for item in restrictions if item.get("group") == "1A"), None)
+    assert restriction is not None
+    assert "Dimecres" in (restriction.get("break_days") or [])
