@@ -58,6 +58,39 @@ class AppDependencies:
 _APP_DEPS: AppDependencies | None = None
 
 
+def _is_legacy_break_activity(record: dict) -> bool:
+    return str(record.get("subject", "")).strip().casefold() == "descans"
+
+
+def _sanitize_snapshot_legacy_breaks(snapshot: WorkingTimetableSnapshot) -> tuple[WorkingTimetableSnapshot, bool]:
+    changed = False
+
+    active_schedule = [record for record in snapshot.active_schedule if not _is_legacy_break_activity(record)]
+    if len(active_schedule) != len(snapshot.active_schedule):
+        changed = True
+
+    current_proposal = snapshot.current_proposal
+    if current_proposal is not None:
+        proposal_activities = list(current_proposal.get("activities", []))
+        sanitized_proposal_activities = [
+            record for record in proposal_activities if not _is_legacy_break_activity(record)
+        ]
+        if len(sanitized_proposal_activities) != len(proposal_activities):
+            current_proposal = {**current_proposal, "activities": sanitized_proposal_activities}
+            changed = True
+
+    return (
+        WorkingTimetableSnapshot(
+            active_schedule=active_schedule,
+            current_proposal=current_proposal,
+            generation_stats=snapshot.generation_stats,
+            unscheduled_activities=list(snapshot.unscheduled_activities),
+            metadata=dict(snapshot.metadata),
+        ),
+        changed,
+    )
+
+
 def build_dependencies() -> AppDependencies:
     working_timetable_file = Path(
         os.environ.get(
@@ -91,7 +124,12 @@ def build_dependencies() -> AppDependencies:
     working_timetable_repo = JsonWorkingTimetableRepository(working_timetable_file)
     proposal_store: Dict[str, ScheduleProposal] = {}
 
-    _restore_working_timetable_state(working_timetable_repo.load_snapshot(), scheduler_engine, proposal_store)
+    snapshot = working_timetable_repo.load_snapshot()
+    snapshot, snapshot_changed = _sanitize_snapshot_legacy_breaks(snapshot)
+    if snapshot_changed:
+        working_timetable_repo.save_snapshot(snapshot)
+
+    _restore_working_timetable_state(snapshot, scheduler_engine, proposal_store)
 
     scheduler_use_cases = SchedulerUseCases(
         requirement_repo=requirement_repo,
