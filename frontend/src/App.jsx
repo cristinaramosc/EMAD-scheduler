@@ -3,8 +3,7 @@ import { DataSheetGrid, textColumn, floatColumn, checkboxColumn, keyColumn } fro
 import "react-datasheet-grid/dist/style.css";
 import "./App.css";
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "https://emad-scheduler.onrender.com";
+const API_URL = "http://127.0.0.1:8000";
 
 const DAYS = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"];
 
@@ -71,175 +70,6 @@ const HOURS = [
   "20:30",
   "21:00",
 ];
-
-function parseHourToMinutes(value) {
-  const [hourText, minuteText = "0"] = String(value || "").split(":");
-  const hour = Number(hourText);
-  const minute = Number(minuteText);
-  if (Number.isNaN(hour) || Number.isNaN(minute)) {
-    return null;
-  }
-  return hour * 60 + minute;
-}
-
-function getSlotDurationMinutes(hours) {
-  if (!Array.isArray(hours) || hours.length < 2) {
-    return 30;
-  }
-  const first = parseHourToMinutes(hours[0]);
-  const second = parseHourToMinutes(hours[1]);
-  if (first === null || second === null || second <= first) {
-    return 30;
-  }
-  return second - first;
-}
-
-function normalizeGroupName(group) {
-  return String(group || "").trim().toUpperCase();
-}
-
-function getQuarterSuffixFromSubject(value) {
-  const text = String(value || "").trim();
-  const match = text.match(/(?:\s|^)(1Q|2Q)$/i);
-  return match ? match[1].toUpperCase() : null;
-}
-
-function getActivityDurationSlots(activity) {
-  const duration = Number(activity?.duration);
-  if (!Number.isFinite(duration) || duration <= 0) {
-    return 1;
-  }
-  return Math.max(1, duration);
-}
-
-function isBreakActivity(activity) {
-  const normalizedSubject = String(activity?.subject || "").trim().toLowerCase();
-  return normalizedSubject === "descans";
-}
-
-function canShareSlot(firstActivity, secondActivity) {
-  if (!firstActivity || !secondActivity) {
-    return false;
-  }
-
-  const firstGroup = normalizeGroupName(firstActivity.group);
-  const secondGroup = normalizeGroupName(secondActivity.group);
-  if (!firstGroup || firstGroup !== secondGroup) {
-    return false;
-  }
-
-  if (String(firstActivity.day || "") !== String(secondActivity.day || "")) {
-    return false;
-  }
-
-  if (String(firstActivity.start || "") !== String(secondActivity.start || "")) {
-    return false;
-  }
-
-  const firstSuffix = getQuarterSuffixFromSubject(firstActivity.subject);
-  const secondSuffix = getQuarterSuffixFromSubject(secondActivity.subject);
-  if (!firstSuffix || !secondSuffix) {
-    return false;
-  }
-
-  return (
-    (firstSuffix === "1Q" && secondSuffix === "2Q")
-    || (firstSuffix === "2Q" && secondSuffix === "1Q")
-  );
-}
-
-function mergeConsecutiveActivities(activities, hours) {
-  const slotDurationMinutes = getSlotDurationMinutes(hours);
-  const grouped = new Map();
-
-  (activities || []).forEach((activity) => {
-    const day = String(activity?.day || "");
-    const key = [
-      day,
-      normalizeGroupName(activity?.group),
-      String(activity?.subject || "").trim().toUpperCase(),
-      String(activity?.teacher || "").trim().toUpperCase(),
-      String(activity?.room || "").trim().toUpperCase(),
-    ].join("|");
-
-    if (!grouped.has(key)) {
-      grouped.set(key, []);
-    }
-    grouped.get(key).push(activity);
-  });
-
-  const merged = [];
-
-  grouped.forEach((items) => {
-    const sorted = [...items].sort((a, b) => {
-      const aIndex = hours.indexOf(String(a.start || ""));
-      const bIndex = hours.indexOf(String(b.start || ""));
-      return aIndex - bIndex;
-    });
-
-    let current = null;
-    let currentEndIndex = -1;
-
-    sorted.forEach((activity) => {
-      const startIndex = hours.indexOf(String(activity.start || ""));
-      if (startIndex < 0) {
-        if (current) {
-          merged.push(current);
-          current = null;
-          currentEndIndex = -1;
-        }
-        merged.push(activity);
-        return;
-      }
-
-      const durationSlots = getActivityDurationSlots(activity);
-      const endIndex = startIndex + durationSlots;
-
-      if (!current) {
-        current = {
-          ...activity,
-          duration: durationSlots,
-          sourceActivityIds: [activity.id],
-        };
-        currentEndIndex = endIndex;
-        return;
-      }
-
-      if (startIndex === currentEndIndex) {
-        current = {
-          ...current,
-          duration: getActivityDurationSlots(current) + durationSlots,
-          sourceActivityIds: [...(current.sourceActivityIds || []), activity.id],
-        };
-        currentEndIndex = endIndex;
-        return;
-      }
-
-      merged.push(current);
-      current = {
-        ...activity,
-        duration: durationSlots,
-        sourceActivityIds: [activity.id],
-      };
-      currentEndIndex = endIndex;
-    });
-
-    if (current) {
-      merged.push(current);
-    }
-  });
-
-  return merged.map((activity) => {
-    const durationSlots = getActivityDurationSlots(activity);
-    const durationMinutes = durationSlots * slotDurationMinutes;
-    return {
-      ...activity,
-      duration: durationSlots,
-      duration_minutes: durationMinutes,
-      slot_duration_minutes: slotDurationMinutes,
-    };
-  });
-}
 
 function activityKey(activity) {
   return `${activity.day}-${activity.start}`;
@@ -552,6 +382,27 @@ function getVisibleActivitiesForSlot(slotActivities, selectedGroup) {
   return visibleActivities.filter((activity) => isSubgroupGroupName(activity?.group));
 }
 
+function getQuarterSuffix(value) {
+  const text = String(value || "").trim();
+  const match = text.match(/(?:\s|^)(1Q|2Q)$/i);
+  return match ? match[1].toUpperCase() : null;
+}
+
+function canShareSlotWithQuarter(existingActivity, candidateActivity) {
+  if (!existingActivity || !candidateActivity) {
+    return false;
+  }
+
+  if (getGroupParentName(existingActivity.group) !== getGroupParentName(candidateActivity.group)) {
+    return false;
+  }
+
+  const existingSuffix = getQuarterSuffix(existingActivity.subject) || getQuarterSuffix(existingActivity.group);
+  const candidateSuffix = getQuarterSuffix(candidateActivity.subject) || getQuarterSuffix(candidateActivity.group);
+
+  return existingSuffix && candidateSuffix && existingSuffix !== candidateSuffix;
+}
+
 export default function App() {
   const workbookInputRef = useRef(null);
   const academicSpreadsheetInputRef = useRef(null);
@@ -599,9 +450,6 @@ export default function App() {
   const [proposals, setProposals] = useState([]);
   const [selectedProposalId, setSelectedProposalId] = useState(null);
   const [selectedActivityId, setSelectedActivityId] = useState(null);
-  const [flashActivityId, setFlashActivityId] = useState(null);
-  const [flashActivitySeverity, setFlashActivitySeverity] = useState("warning");
-  const [incidentSeverityFilter, setIncidentSeverityFilter] = useState("all");
   const [activityRestrictionDraft, setActivityRestrictionDraft] = useState(null);
   const [isSavingActivityRestriction, setIsSavingActivityRestriction] = useState(false);
   const [selectedExplanation, setSelectedExplanation] = useState(null);
@@ -612,7 +460,6 @@ export default function App() {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
   const [teacherScheduleActivities, setTeacherScheduleActivities] = useState([]);
-  const [hiddenBreakDaysByGroup, setHiddenBreakDaysByGroup] = useState({});
   const [currentScreen, setCurrentScreen] = useState("timetable");
   const [academicTab, setAcademicTab] = useState("teachers");
 
@@ -653,10 +500,10 @@ export default function App() {
   const [roomEdit, setRoomEdit] = useState(null);
   const [roomEditValues, setRoomEditValues] = useState({ name: "", capacity: "" });
 
-  const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+  const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
   const [selectedAssignmentIds, setSelectedAssignmentIds] = useState([]);
   const [assignmentEdit, setAssignmentEdit] = useState(null);
-  const [assignmentEditValues, setAssignmentEditValues] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", allowed_session_lengths: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+  const [assignmentEditValues, setAssignmentEditValues] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", allowed_session_lengths: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
 
   function parseSessionLengths(value) {
     return value
@@ -708,8 +555,7 @@ export default function App() {
       setProposal(data.proposal || null);
       setGenerationStats(data.generation_stats || null);
       setGeneratedUnscheduledActivities(data.unscheduled_activities || []);
-    } catch (err) {
-      console.error("[scheduler][loadData] No s'ha pogut carregar l'horari.", err);
+    } catch {
       setError("No s'ha pogut carregar l'horari.");
     } finally {
       setIsLoading(false);
@@ -730,44 +576,9 @@ export default function App() {
       }
       const data = await response.json();
       setTeacherScheduleActivities((data.activities || []).map(normalizeTimetableActivity));
-    } catch (err) {
-      console.error("[scheduler][loadTeacherSchedule] Error carregant l'horari del professor.", err);
+    } catch {
       setTeacherScheduleActivities([]);
     }
-  }
-
-  function getHiddenBreakDaysForGroup(groupName) {
-    return new Set(hiddenBreakDaysByGroup[normalizeGroupName(groupName)] || []);
-  }
-
-  function getBreakDebugSnapshot(day, groupName = selectedGroup) {
-    const activeGroup = String(groupName || "").trim();
-    const hiddenBreakDays = getHiddenBreakDaysForGroup(activeGroup);
-    const allDaySessions = (activities || []).filter((activity) => {
-      return String(activity?.day || "") === String(day)
-        && getGroupParentName(activity?.group) === activeGroup;
-    });
-    const sessionsAfterFilters = allDaySessions.filter((activity) => {
-      return !(isBreakActivity(activity) && hiddenBreakDays.has(String(day)));
-    });
-    const occupiedSlots = new Set(allDaySessions.map((activity) => String(activity?.start || "")));
-    const freeSlots = HOURS.filter((hour) => !occupiedSlots.has(hour));
-
-    return {
-      selectedGroup: activeGroup,
-      day,
-      allDaySessions,
-      sessionsAfterFilters,
-      freeSlots,
-      hiddenBreakDays: Array.from(hiddenBreakDays),
-    };
-  }
-
-  function debugBreakFlow(location, day, extra = {}) {
-    console.debug(`[break-debug] ${location}`, {
-      ...getBreakDebugSnapshot(day),
-      ...extra,
-    });
   }
 
   async function clearActiveSchedule() {
@@ -1554,13 +1365,20 @@ export default function App() {
       return;
     }
 
+    // Si s'està consultant l'horari complet d'un professor, no hem de
+    // tornar a seleccionar cap grup automàticament: l'usuari ha buidat
+    // selectedGroup expressament i volem veure TOTS els grups on imparteix.
+    if (teacherFilter) {
+      return;
+    }
+
     setSelectedGroup((current) => {
       if (current && timetableGroupOptions.some((group) => group.name === current)) {
         return current;
       }
       return timetableGroupOptions[0]?.name || "";
     });
-  }, [timetableGroupOptions]);
+  }, [timetableGroupOptions, teacherFilter]);
 
   useEffect(() => {
     if (selectedGroup) {
@@ -1571,10 +1389,6 @@ export default function App() {
   useEffect(() => {
     loadTeacherSchedule(teacherFilter);
   }, [teacherFilter, activities]);
-
-  const hiddenBreakDaysForSelectedGroup = useMemo(() => {
-    return getHiddenBreakDaysForGroup(selectedGroup);
-  }, [hiddenBreakDaysByGroup, selectedGroup]);
 
   const filteredActivities = useMemo(() => {
     let nextActivities = teacherFilter && teacherScheduleActivities.length > 0
@@ -1589,30 +1403,8 @@ export default function App() {
       nextActivities = nextActivities.filter((activity) => activity.teacher === teacherFilter);
     }
 
-    if (selectedGroup && hiddenBreakDaysForSelectedGroup.size > 0) {
-      nextActivities = nextActivities.filter((activity) => {
-        return !(
-          isBreakActivity(activity)
-          && getGroupParentName(activity?.group) === selectedGroup
-          && hiddenBreakDaysForSelectedGroup.has(String(activity?.day || ""))
-        );
-      });
-    }
-
-    if (selectedGroup) {
-      console.debug("[break-debug] filteredActivities", {
-        selectedGroup,
-        hiddenBreakDays: Array.from(hiddenBreakDaysForSelectedGroup),
-        sessionsAfterFilters: nextActivities.filter((activity) => getGroupParentName(activity?.group) === selectedGroup),
-      });
-    }
-
     return nextActivities;
-  }, [activities, hiddenBreakDaysForSelectedGroup, selectedGroup, teacherFilter, teacherScheduleActivities]);
-
-  const mergedRenderActivities = useMemo(() => {
-    return mergeConsecutiveActivities(filteredActivities, HOURS);
-  }, [filteredActivities]);
+  }, [activities, selectedGroup, teacherFilter, teacherScheduleActivities]);
 
   const groupBreakDays = useMemo(() => {
     if (!selectedGroup) return new Set();
@@ -1628,7 +1420,7 @@ export default function App() {
   }, [activities, selectedGroup]);
 
   const activitiesBySlot = useMemo(() => {
-    return mergedRenderActivities.reduce((slots, activity) => {
+    return filteredActivities.reduce((slots, activity) => {
       const key = activityKey(activity);
 
       if (!slots[key]) {
@@ -1639,7 +1431,7 @@ export default function App() {
 
       return slots;
     }, {});
-  }, [mergedRenderActivities]);
+  }, [filteredActivities]);
 
   const visibleActivitiesBySlot = useMemo(() => {
     return Object.entries(activitiesBySlot).reduce((slots, [slotKey, slotActivities]) => {
@@ -1667,7 +1459,7 @@ export default function App() {
       if (hourRow === -1) {
         return;
       }
-      const maxDuration = Math.max(1, ...slotActivities.map((activity) => getActivityDurationSlots(activity)));
+      const maxDuration = Math.max(1, ...slotActivities.map((activity) => Number(activity.duration) || 1));
       const rowSpan = Math.min(maxDuration, HOURS.length - hourRow);
 
       if (!blocksByDay[day]) {
@@ -1805,59 +1597,15 @@ export default function App() {
       } else if (!silent) {
         setSuccessMessage(`S'han afegit ${addedCount} hores de dinar.`);
       }
-    } catch (err) {
-      console.error("[scheduler][assignLunchBreaks] No s'han pogut assignar les hores de dinar.", err);
+    } catch {
       setError("No s'han pogut assignar les hores de dinar.");
     }
-  }
-
-  function toggleBreakVisibility(day) {
-    if (!selectedGroup) {
-      return;
-    }
-
-    const groupKey = normalizeGroupName(selectedGroup);
-    const actualBreakDays = new Set(
-      (activities || [])
-        .filter((activity) => getGroupParentName(activity?.group) === selectedGroup && isBreakActivity(activity))
-        .map((activity) => String(activity.day || ""))
-    );
-    const hasBreakOnDay = actualBreakDays.has(String(day));
-
-    debugBreakFlow("toggleBreakVisibility:before", day, {
-      hasBreakOnDay,
-      action: hasBreakOnDay ? "toggle-visual" : "no-break-present",
-    });
-
-    if (!hasBreakOnDay) {
-      return;
-    }
-
-    setHiddenBreakDaysByGroup((prev) => {
-      const currentDays = new Set(prev[groupKey] || []);
-      const willHide = !currentDays.has(String(day));
-
-      if (willHide) {
-        currentDays.add(String(day));
-      } else {
-        currentDays.delete(String(day));
-      }
-
-      const next = { ...prev, [groupKey]: Array.from(currentDays) };
-      console.debug("[break-debug] toggleBreakVisibility:after", {
-        ...getBreakDebugSnapshot(day),
-        willHide,
-        nextHiddenBreakDays: next[groupKey],
-      });
-      return next;
-    });
   }
 
   async function toggleGroupBreak(day) {
     if (!selectedGroup) {
       return;
     }
-    debugBreakFlow("toggleGroupBreak:before-request", day);
     setIsTogglingBreak(true);
     setError("");
     setSuccessMessage("");
@@ -1869,12 +1617,6 @@ export default function App() {
       });
       const data = await response.json();
       if (!data.ok) {
-        console.debug("[break-debug] toggleGroupBreak:error-message", {
-          location: "toggleGroupBreak:data.ok === false",
-          backendError: data.error,
-          backendDetail: data.detail,
-          ...getBreakDebugSnapshot(day),
-        });
         setError(
           data.error === "no_free_slot"
             ? `No hi ha cap franja lliure per al descans${data.detail ? ` (${data.detail})` : ""}.`
@@ -1884,8 +1626,7 @@ export default function App() {
       }
       setActivities((data.activities || []).map(normalizeTimetableActivity));
       setConflicts(data.conflicts || []);
-    } catch (err) {
-      console.error("[break-debug] toggleGroupBreak:exception", err, getBreakDebugSnapshot(day));
+    } catch {
       setError("No s'ha pogut canviar el descans.");
     } finally {
       setIsTogglingBreak(false);
@@ -1909,52 +1650,13 @@ export default function App() {
     }
   }
 
-  function conflictTypeLabel(conflictType) {
-    const type = String(conflictType || "").toLowerCase();
-    if (type.includes("teacher_conflict")) return "Professor";
-    if (type.includes("room_conflict")) return "Aula";
-    if (type.includes("group_conflict")) return "Grup";
-    if (type.includes("group_time_window") || type.includes("time_window")) return "Franja del grup";
-    return "Conflicte";
-  }
-
-  function buildValidationMessage(prefix, conflicts = [], suggestedSlots = []) {
-    const reasons = Array.from(
-      new Set(
-        (conflicts || [])
-          .map((conflict) => {
-            const message = String(conflict?.message || "").trim();
-            if (!message) return "";
-            return `${conflictTypeLabel(conflict?.type)}: ${message}`;
-          })
-          .filter(Boolean)
-      )
-    );
-    const suggestions = (suggestedSlots || []).map((s) => `${s.day} ${s.start}`);
-    let message = prefix;
-    if (reasons.length) {
-      message += ` ${reasons.join(" · ")}`;
-    }
-    if (suggestions.length) {
-      message += ` Prova: ${suggestions.join(", ")}.`;
-    }
-    return message;
-  }
-
-  async function moveActivity(activityId, day, start, options = {}) {
-    const {
-      silentError = false,
-      successText = "Moviment desat.",
-      resetDragState = true,
-    } = options;
+  async function moveActivity(activityId, day, start) {
     const prevActivities = activities ? activities.slice() : [];
     const prevConflicts = conflicts ? conflicts.slice() : [];
     const prevSelectedActivityId = selectedActivityId;
     setIsSaving(true);
-    if (!silentError) {
-      setError("");
-      setSuccessMessage("");
-    }
+    setError("");
+    setSuccessMessage("");
 
     try {
       const targetUrl = proposal?.id
@@ -1977,44 +1679,33 @@ export default function App() {
       console.log("MOVE RESPONSE", data);
 
       const rawConflicts = data.conflicts || data.proposal?.conflicts || [];
+      const relatedConflicts = (rawConflicts || []).filter((conf) => {
+        const ids = conf.activities || conf.data?.activities || [];
+        return ids.includes(activityId);
+      });
       if (!response.ok || data.ok !== true) {
         setActivities(prevActivities);
         setConflicts(prevConflicts);
         setSelectedActivityId(prevSelectedActivityId);
 
         if (data.error === "validation_failed") {
-          const validationMessage = buildValidationMessage(
-            "El moviment no és vàlid.",
-            data.conflicts || [],
-            data.suggested_slots || []
-          );
-          if (!silentError) {
-            setError(validationMessage);
+          const reasons = (data.conflicts || []).map((c) => c.message).filter(Boolean);
+          const suggestions = (data.suggested_slots || []).map((s) => `${s.day} ${s.start}`);
+          let message = "El moviment no és vàlid.";
+          if (reasons.length) {
+            message += " " + reasons.join(" · ");
           }
-          return {
-            ok: false,
-            error: "validation_failed",
-            conflicts: data.conflicts || [],
-            suggested_slots: data.suggested_slots || [],
-            validationMessage,
-          };
+          if (suggestions.length) {
+            message += ` Prova: ${suggestions.join(", ")}.`;
+          }
+          setError(message);
         } else {
-          if (!silentError) {
-            setError("No s'ha pogut moure l'activitat.");
-          }
-          return {
-            ok: false,
-            error: data.error || "move_failed",
-            conflicts: data.conflicts || [],
-            suggested_slots: data.suggested_slots || [],
-            validationMessage: "No s'ha pogut moure l'activitat.",
-          };
+          setError("No s'ha pogut moure l'activitat.");
         }
+        return;
       }
 
-      if (successText) {
-        setSuccessMessage(successText);
-      }
+      setSuccessMessage("Moviment desat.");
       const nextActivities = (data.activities || data.proposal?.activities || []).map(normalizeTimetableActivity);
 
       if (data.proposal) {
@@ -2029,56 +1720,26 @@ export default function App() {
       setActivities(nextActivities);
       setConflicts(rawConflicts);
       setSelectedActivityId(null);
-      return {
-        ok: true,
-        conflicts: rawConflicts,
-        suggested_slots: data.suggested_slots || [],
-      };
     } catch (err) {
       setActivities(prevActivities);
       setConflicts(prevConflicts);
       setSelectedActivityId(prevSelectedActivityId);
-      if (!silentError) {
-        setError("No s'ha pogut desar el moviment.");
-      }
-      return {
-        ok: false,
-        error: "request_failed",
-        conflicts: [],
-        suggested_slots: [],
-        validationMessage: "No s'ha pogut desar el moviment.",
-      };
+      setError("No s'ha pogut desar el moviment.");
     } finally {
       setIsSaving(false);
-      if (resetDragState) {
-        setDraggedActivityId(null);
-        setDropTarget(null);
-      }
+      setDraggedActivityId(null);
+      setDropTarget(null);
     }
   }
 
-  async function swapActivity(activityIdA, activityIdB, options = {}) {
-    if (!proposal?.id) {
-      return {
-        ok: false,
-        error: "proposal_required",
-        conflicts: [],
-        validationMessage: "No es pot intercanviar fora d'una proposta activa.",
-      };
-    }
-    const {
-      silentError = false,
-      successText = "Activitats intercanviades.",
-      resetDragState = true,
-    } = options;
+  async function swapActivity(activityIdA, activityIdB) {
+    if (!proposal?.id) return;
     const prevActivities = activities ? activities.slice() : [];
     const prevConflicts = conflicts ? conflicts.slice() : [];
     const prevSelectedActivityId = selectedActivityId;
     setIsSaving(true);
-    if (!silentError) {
-      setError("");
-      setSuccessMessage("");
-    }
+    setError("");
+    setSuccessMessage("");
 
     try {
       const response = await fetch(`${API_URL}/scheduler/proposal/${proposal.id}/swap`, {
@@ -2098,72 +1759,35 @@ export default function App() {
         setSelectedActivityId(prevSelectedActivityId);
 
         if (data.error === "validation_failed") {
-          const validationMessage = buildValidationMessage("L'intercanvi no és vàlid.", data.conflicts || [], []);
-          if (!silentError) {
-            setError(validationMessage);
+          const reasons = (data.conflicts || []).map((c) => c.message).filter(Boolean);
+          let message = "L'intercanvi no és vàlid.";
+          if (reasons.length) {
+            message += " " + reasons.join(" · ");
           }
-          return {
-            ok: false,
-            error: "validation_failed",
-            conflicts: data.conflicts || [],
-            validationMessage,
-          };
+          setError(message);
         } else if (data.error === "activity_not_found") {
-          const validationMessage = "No s'ha trobat una de les dues activitats a intercanviar.";
-          if (!silentError) {
-            setError(validationMessage);
-          }
-          return {
-            ok: false,
-            error: "activity_not_found",
-            conflicts: data.conflicts || [],
-            validationMessage,
-          };
+          setError("No s'ha trobat una de les dues activitats a intercanviar.");
         } else {
-          const validationMessage = "No s'ha pogut intercanviar les activitats.";
-          if (!silentError) {
-            setError(validationMessage);
-          }
-          return {
-            ok: false,
-            error: data.error || "swap_failed",
-            conflicts: data.conflicts || [],
-            validationMessage,
-          };
+          setError("No s'ha pogut intercanviar les activitats.");
         }
+        return;
       }
 
-      if (successText) {
-        setSuccessMessage(successText);
-      }
+      setSuccessMessage("Activitats intercanviades.");
       const nextActivities = (data.proposal?.activities || []).map(normalizeTimetableActivity);
       setProposal(data.proposal);
       setActivities(nextActivities);
       setConflicts(rawConflicts);
       setSelectedActivityId(null);
-      return {
-        ok: true,
-        conflicts: rawConflicts,
-      };
     } catch (err) {
       setActivities(prevActivities);
       setConflicts(prevConflicts);
       setSelectedActivityId(prevSelectedActivityId);
-      if (!silentError) {
-        setError("No s'ha pogut desar l'intercanvi.");
-      }
-      return {
-        ok: false,
-        error: "request_failed",
-        conflicts: [],
-        validationMessage: "No s'ha pogut desar l'intercanvi.",
-      };
+      setError("No s'ha pogut desar l'intercanvi.");
     } finally {
       setIsSaving(false);
-      if (resetDragState) {
-        setDraggedActivityId(null);
-        setDropTarget(null);
-      }
+      setDraggedActivityId(null);
+      setDropTarget(null);
     }
   }
 
@@ -2283,6 +1907,28 @@ export default function App() {
     return draggedActivityId || null;
   }
 
+  function getQuarterSuffix(value) {
+    const text = String(value || "").trim();
+    const match = text.match(/(?:\s|^)(1Q|2Q)$/i);
+    return match ? match[1].toUpperCase() : null;
+  }
+
+  function canShareSlotWithQuarter(existingActivity, candidateActivity) {
+    if (!existingActivity || !candidateActivity) {
+      return false;
+    }
+
+    if (getGroupParentName(existingActivity.group) !== getGroupParentName(candidateActivity.group)) {
+      return false;
+    }
+
+    // Consider subject suffixes first, then group suffixes (match backend logic)
+    const existingSuffix = getQuarterSuffix(existingActivity.subject) || getQuarterSuffix(existingActivity.group);
+    const candidateSuffix = getQuarterSuffix(candidateActivity.subject) || getQuarterSuffix(candidateActivity.group);
+
+    return existingSuffix && candidateSuffix && existingSuffix !== candidateSuffix;
+  }
+
   function checkSlotAvailability(activityId, day, start) {
     // find candidate in active activities or in unscheduled/generated lists
     const activity = activities.find((item) => item.id === activityId)
@@ -2297,22 +1943,23 @@ export default function App() {
       (a) => String(a.day) === String(day) && String(a.start) === String(start)
     );
     const sameGroupActivities = slotActivities.filter(
-      (item) => normalizeGroupName(item.group) === normalizeGroupName(activity.group)
+      (item) => getGroupParentName(item.group) === getGroupParentName(activity.group)
     );
 
-    const sameGroupOtherActivities = sameGroupActivities.filter((item) => item.id !== activityId);
-
-    if (!sameGroupOtherActivities.length) {
+    if (!sameGroupActivities.length) {
       return { valid: true };
     }
 
-    if (sameGroupOtherActivities.length > 1) {
+    if (sameGroupActivities.length > 1) {
       return { valid: false, message: "Hi ha més d'una activitat en aquesta franja per al mateix grup." };
     }
 
-    const existing = sameGroupOtherActivities[0];
+    const existing = sameGroupActivities[0];
+    if (existing.id === activityId) {
+      return { valid: true };
+    }
 
-    if (canShareSlot(existing, { ...activity, day, start })) {
+    if (canShareSlotWithQuarter(existing, activity)) {
       return { valid: true };
     }
 
@@ -2373,14 +2020,6 @@ export default function App() {
       (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
     );
     if (occupyingActivities.length === 1) {
-      const dragged = activities.find((item) => item.id === activityId)
-        || generatedUnscheduledActivities.find((item) => item.id === activityId)
-        || unscheduledActivities.find((item) => item.id === activityId);
-      const existing = occupyingActivities[0];
-      if (dragged && canShareSlot(existing, { ...dragged, day, start })) {
-        setDropPreviewValid(true);
-        return;
-      }
       setDropPreviewValid(true);
       return;
     }
@@ -2389,11 +2028,9 @@ export default function App() {
     setDropPreviewValid(result.valid);
   }
 
-  async function handleDrop(event, day, start) {
+  function handleDrop(event, day, start) {
     event.preventDefault();
     setDropPreviewValid(true);
-    setError("");
-    setSuccessMessage("");
 
     // Prefer dataTransfer id but fallback to draggedActivityId state
     const transferId = event?.dataTransfer?.getData("text/plain");
@@ -2415,81 +2052,28 @@ export default function App() {
       return;
     }
 
-    // 1) Primer intenta el moviment directe.
+    // If the target slot is already occupied by a single different activity,
+    // swap the two instead of attempting a move (which would just conflict).
     const occupyingActivities = (activities || []).filter(
       (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
     );
-    const moveAttempt = await moveActivity(activityId, day, start, {
-      silentError: true,
-      resetDragState: false,
-      successText: "Moviment desat.",
-    });
-    if (moveAttempt?.ok) {
+    if (occupyingActivities.length === 1) {
+      setDropTarget(null);
+      setDraggedActivityId(null);
+      swapActivity(activityId, occupyingActivities[0].id);
+      return;
+    }
+
+    // client-side validation: prevent different subjects in same slot for same parent-group
+    if (!canMoveActivityToSlot(activityId, day, start)) {
+      // clear transient highlights and keep state consistent
       setDropTarget(null);
       setDraggedActivityId(null);
       return;
     }
 
-    // 2) Si no passa, prova un swap quan només hi ha una activitat ocupant.
-    let swapAttempt = null;
-    if (occupyingActivities.length === 1) {
-      const dragged = activities.find((item) => item.id === activityId)
-        || generatedUnscheduledActivities.find((item) => item.id === activityId)
-        || unscheduledActivities.find((item) => item.id === activityId);
-      const existing = occupyingActivities[0];
-      const isQuarterShare = Boolean(dragged && canShareSlot(existing, { ...dragged, day, start }));
-
-      if (!isQuarterShare) {
-        swapAttempt = await swapActivity(activityId, existing.id, {
-          silentError: true,
-          resetDragState: false,
-          successText: "Intercanvi aplicat.",
-        });
-        if (swapAttempt?.ok) {
-          setDropTarget(null);
-          setDraggedActivityId(null);
-          return;
-        }
-      }
-    }
-
-    // 3) Si el moviment original tenia suggeriments del motor,
-    // prova una reorganització local al primer slot suggerit.
-    const suggestedSlots = moveAttempt?.suggested_slots || [];
-    if (suggestedSlots.length > 0) {
-      const firstSuggestion = suggestedSlots[0];
-      const reorgAttempt = await moveActivity(activityId, firstSuggestion.day, firstSuggestion.start, {
-        silentError: true,
-        resetDragState: false,
-        successText: `S'ha aplicat una reorganització local (${firstSuggestion.day} ${firstSuggestion.start}).`,
-      });
-      if (reorgAttempt?.ok) {
-        setDropTarget(null);
-        setDraggedActivityId(null);
-        return;
-      }
-    }
-
-    // 4) Si tot falla, explica el perquè amb causes i alternatives.
-    let message = "No s'ha pogut completar el moviment.";
-    if (moveAttempt?.validationMessage) {
-      message += ` Intent de moviment: ${moveAttempt.validationMessage}`;
-    }
-    if (swapAttempt?.validationMessage) {
-      message += ` Intent d'intercanvi: ${swapAttempt.validationMessage}`;
-    }
-    if (suggestedSlots.length > 0) {
-      const options = suggestedSlots.map((slot) => `${slot.day} ${slot.start}`).join(", ");
-      message += ` Alternatives: ${options}.`;
-    }
-
-    if (!suggestedSlots.length && !moveAttempt?.validationMessage && !swapAttempt?.validationMessage) {
-      message = "No s'ha pogut completar el moviment ni l'intercanvi, i no hi ha cap alternativa local disponible.";
-    }
-
-    setError(message);
-    setDropTarget(null);
-    setDraggedActivityId(null);
+    // passed client-side validation -> perform server move
+    moveActivity(activityId, day, start);
   }
 
   // Doble clic sobre una activitat -> popup amb la info b\u00e0sica i les
@@ -2543,8 +2127,6 @@ export default function App() {
     const hasConflict = conflictIds.has(activity.id);
     const conflictReasons = conflictMessages.get(activity.id) || [];
     const isSelected = selectedActivityId === activity.id;
-    const isFlashing = flashActivityId === activity.id;
-    const flashSeverityClass = isFlashing ? `activity-card--flash-${flashActivitySeverity}` : "";
     const normalizedSubject = (activity.subject || "").trim().toLowerCase();
     const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio";
     const groupColor = !hasConflict && !isBreakOrCoordination ? getGroupColor(activity.group) : null;
@@ -2556,8 +2138,6 @@ export default function App() {
           "activity-card",
           hasConflict ? "activity-card--conflict" : "",
           isSelected ? "activity-card--selected" : "",
-          isFlashing ? "activity-card--flash" : "",
-          flashSeverityClass,
           isBreakOrCoordination ? "activity-card--break" : "",
         ].filter(Boolean).join(" ")}
         draggable
@@ -3024,58 +2604,6 @@ export default function App() {
     return apiJson("POST", `/academic-data/assignments/${encodeURIComponent(id)}/split`);
   }
 
-  function focusActivityFromIncident(conflict) {
-    const ids = conflict?.activities || conflict?.data?.activities || [];
-    const focusActivityId = ids.find((id) => activities.some((activity) => activity.id === id));
-
-    if (!focusActivityId) {
-      setError("No s'ha trobat cap activitat activa per centrar aquesta incidència.");
-      return;
-    }
-
-    const targetActivity = activities.find((activity) => activity.id === focusActivityId);
-    const severity = classifyConflictSeverity(conflict);
-
-    setCurrentScreen("timetable");
-    if (targetActivity?.group) {
-      setTeacherFilter("");
-      setSelectedGroup(getGroupParentName(targetActivity.group));
-    } else if (targetActivity?.teacher) {
-      setSelectedGroup("");
-      setTeacherFilter(targetActivity.teacher);
-    }
-
-    setSelectedActivityId(focusActivityId);
-    setFlashActivityId(focusActivityId);
-    setFlashActivitySeverity(severity);
-    setError("");
-    setSuccessMessage("Activitat centrada al calendari.");
-
-    window.setTimeout(() => {
-      setFlashActivityId((current) => {
-        if (current !== focusActivityId) {
-          return current;
-        }
-        setFlashActivitySeverity("warning");
-        return null;
-      });
-    }, 1400);
-
-    requestAnimationFrame(() => {
-      document.getElementById("timetable-grid")?.scrollIntoView({ behavior: "smooth", block: "center" });
-      window.setTimeout(() => {
-        document.querySelector(".activity-card--selected")?.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
-      }, 80);
-    });
-  }
-
-  const filteredIncidents = useMemo(() => {
-    if (incidentSeverityFilter === "all") {
-      return conflicts;
-    }
-    return conflicts.filter((conflict) => classifyConflictSeverity(conflict) === incidentSeverityFilter);
-  }, [conflicts, incidentSeverityFilter]);
-
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -3242,23 +2770,18 @@ export default function App() {
             <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: 8 }}>
               <span style={{ fontSize: 12, color: "#667085" }}>Descans:</span>
               {DAYS.map((day) => {
-                const hasBreak = groupBreakDays.has(day);
-                const isHidden = hiddenBreakDaysForSelectedGroup.has(day);
-                const isActive = hasBreak && !isHidden;
+                const isActive = groupBreakDays.has(day);
                 return (
                   <button
                     key={day}
                     type="button"
-                    onClick={() => toggleBreakVisibility(day)}
-                    disabled={isLoading || isSaving || isGenerating || !hasBreak}
-                    title={hasBreak
-                      ? `Mostra o oculta el bloc gris de descans de ${day} per ${selectedGroup}`
-                      : `No hi ha cap descans assignat a ${day} per ${selectedGroup}`}
+                    onClick={() => toggleGroupBreak(day)}
+                    disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
+                    title={`Descans ${day} per ${selectedGroup} (desplaça 30 min les classes posteriors per obrir un forat, entre 1h després de començar i 1h30 abans d'acabar)`}
                     style={{
                       padding: "0 6px",
                       background: isActive ? "#2f6f73" : "#ffffff",
                       color: isActive ? "#ffffff" : "#1f2937",
-                      opacity: hasBreak ? 1 : 0.45,
                     }}
                   >
                     {day.slice(0, 3)}
@@ -4008,7 +3531,6 @@ export default function App() {
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("teacher", setAcademicSort)}>Professor{sortIndicator("teacher", academicSort)}</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("group", setAcademicSort)}>Grup d'alumnes{sortIndicator("group", academicSort)}</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("subject", setAcademicSort)}>Assignatura{sortIndicator("subject", academicSort)}</th>
-                      <th>Aula</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("weekly_hours", setAcademicSort)}>Hores setmanals{sortIndicator("weekly_hours", academicSort)}</th>
                       <th>Durades de sessió permeses</th>
                       <th>Màx. dies per repartir</th>
@@ -4091,21 +3613,6 @@ export default function App() {
                             </select>
                           ) : (
                             a.subject
-                          )}
-                        </td>
-                        <td>
-                          {assignmentEdit === a.id ? (
-                            <select
-                              value={assignmentEditValues.preferred_room}
-                              onChange={(event) => setAssignmentEditValues({ ...assignmentEditValues, preferred_room: event.target.value })}
-                            >
-                              <option value="">Sense aula preferida</option>
-                              {rooms.map((room) => (
-                                <option key={room.name} value={room.name}>{room.name}</option>
-                              ))}
-                            </select>
-                          ) : (
-                            a.preferred_room || "—"
                           )}
                         </td>
                         <td>
@@ -4196,7 +3703,6 @@ export default function App() {
                                   subject: assignmentEditValues.subject,
                                   group: assignmentEditValues.group,
                                   weekly_hours: parseFloat(assignmentEditValues.weekly_hours) || 0,
-                                  preferred_room: assignmentEditValues.preferred_room,
                                   fixed_day: assignmentEditValues.fixed_day,
                                   fixed_start: assignmentEditValues.fixed_start,
                                   max_session_days: assignmentEditValues.max_session_days,
@@ -4233,7 +3739,6 @@ export default function App() {
                                   subject: a.subject,
                                   group: a.group,
                                   weekly_hours: a.weekly_hours || "",
-                                  preferred_room: a.preferred_room || "",
                                   allowed_session_lengths: formatSessionLengths(a.allowed_session_lengths),
                                   fixed_day: a.fixed_day || "",
                                   fixed_start: a.fixed_start || "",
@@ -4311,17 +3816,6 @@ export default function App() {
                         </select>
                       </td>
                       <td>
-                        <select
-                          value={assignmentDraft.preferred_room}
-                          onChange={(event) => setAssignmentDraft({ ...assignmentDraft, preferred_room: event.target.value })}
-                        >
-                          <option value="">Sense aula preferida</option>
-                          {rooms.map((room) => (
-                            <option key={room.name} value={room.name}>{room.name}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td>
                         <input
                           type="number"
                           step="0.5"
@@ -4383,14 +3877,13 @@ export default function App() {
                             subject: assignmentDraft.subject,
                             group: assignmentDraft.group,
                             weekly_hours: parseFloat(assignmentDraft.weekly_hours) || 0,
-                            preferred_room: assignmentDraft.preferred_room,
                             fixed_day: assignmentDraft.fixed_day,
                             fixed_start: assignmentDraft.fixed_start,
                             max_session_days: assignmentDraft.max_session_days,
                             consecutive_group: assignmentDraft.consecutive_group,
                           });
                           if (res.ok) {
-                            setAssignmentDraft({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+                            setAssignmentDraft({ teacher: "", subject: "", group: "", weekly_hours: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
                             await refreshAcademicLists();
                           } else {
                             alert("No s'ha pogut crear l'assignació docent.");
@@ -4460,7 +3953,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="timetable" id="timetable-grid" aria-label="Horari">
+          <div className="timetable" aria-label="Horari">
           <div className="corner-cell" style={{ gridColumn: 1, gridRow: 1 }} />
 
           {DAYS.map((day, dayIndex) => (
@@ -4503,10 +3996,6 @@ export default function App() {
               return null;
             }
 
-            const isQuarterPair =
-              block.activities.length === 2
-              && canShareSlot(block.activities[0], block.activities[1]);
-
             const totalColumns = block.totalColumns || 1;
             const widthPercent = 100 / totalColumns;
             const leftPercent = widthPercent * block.column;
@@ -4514,7 +4003,7 @@ export default function App() {
             return (
               <div
                 key={block.slotKey}
-                className={`slot-activities${isQuarterPair ? " slot-activities--quarter-pair" : ""}`}
+                className="slot-activities"
                 style={{
                   gridColumn: dayCol + 2,
                   gridRow: `${block.hourRow + 2} / span ${block.rowSpan}`,
@@ -4593,53 +4082,6 @@ export default function App() {
                         ))}
                       </select>
                     </label>
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <h3>Disponibilitat preferida</h3>
-                  <p className="muted" style={{ marginTop: 0 }}>
-                    Marca les franges que el generador hauria de prioritzar per a aquest grup. Es reutilitza la mateixa restricció que ja consumeix el motor.
-                  </p>
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-                    <button type="button" onClick={() => applyAvailabilityPreset("matí", groupRestrictionDraft, setGroupRestrictionDraft)}>Matí</button>
-                    <button type="button" onClick={() => applyAvailabilityPreset("tarda", groupRestrictionDraft, setGroupRestrictionDraft)}>Tarda</button>
-                    <button type="button" onClick={() => applyAvailabilityPreset("dia-complet", groupRestrictionDraft, setGroupRestrictionDraft)}>Dia complet</button>
-                    <button type="button" className="ghost" onClick={() => clearAvailabilitySelection(groupRestrictionDraft, setGroupRestrictionDraft)}>Neteja selecció</button>
-                  </div>
-                  <div className="muted">Clic simple per marcar/desmarcar una franja preferida. Maj + clic per seleccionar un rang.</div>
-                  <div className="availability-grid-wrap">
-                    <table className="availability-grid">
-                      <thead>
-                        <tr>
-                          <th>Dia</th>
-                          {HOURS.map((hour) => (
-                            <th key={hour}>{hour}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {DAYS.map((day) => (
-                          <tr key={day}>
-                            <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
-                            {HOURS.map((hour) => {
-                              const slotKey = `${day}-${hour}`;
-                              const isPreferred = groupRestrictionDraft.preferred_availability.includes(slotKey);
-                              return (
-                                <td key={slotKey}>
-                                  <button
-                                    type="button"
-                                    className={`availability-cell${isPreferred ? " availability-cell--preferred" : ""}`}
-                                    onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setAvailabilitySelectionAnchor(slotKey); }}
-                                    onClick={(event) => updateAvailabilitySelection(slotKey, event, groupRestrictionDraft, setGroupRestrictionDraft)}
-                                  />
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
                   </div>
                 </div>
 
@@ -4947,41 +4389,9 @@ export default function App() {
           </section>
 
           <section>
-            <h2>
-              ⚠️ Incidències {filteredIncidents.length > 0 ? `(${filteredIncidents.length})` : ""}
-              {incidentSeverityFilter !== "all" ? ` · de ${conflicts.length}` : ""}
-            </h2>
-            <div className="incident-severity-legend" aria-label="Llegenda de severitat de les incidències">
-              <button
-                type="button"
-                className={`incident-severity-pill ${incidentSeverityFilter === "all" ? "incident-severity-pill--active" : ""}`}
-                onClick={() => setIncidentSeverityFilter("all")}
-              >
-                Totes ({conflicts.length})
-              </button>
-              {Object.entries(INCIDENT_SEVERITY_STYLES).map(([key, severityStyle]) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`incident-severity-pill ${incidentSeverityFilter === key ? "incident-severity-pill--active" : ""}`}
-                  onClick={() => setIncidentSeverityFilter(key)}
-                  style={{
-                    borderColor: severityStyle.border,
-                    color: severityStyle.text,
-                    background: "rgba(255,255,255,0.72)",
-                  }}
-                >
-                  <span
-                    className="incident-severity-dot"
-                    style={{ background: severityStyle.border }}
-                    aria-hidden="true"
-                  />
-                  {severityStyle.label} ({conflicts.filter((conflict) => classifyConflictSeverity(conflict) === key).length})
-                </button>
-              ))}
-            </div>
+            <h2>⚠️ Incidències {conflicts.length > 0 ? `(${conflicts.length})` : ""}</h2>
 
-            {filteredIncidents.length === 0 ? (
+            {conflicts.length === 0 ? (
               <p className="muted">Cap incidència detectada.</p>
             ) : (
               <div
@@ -4992,34 +4402,15 @@ export default function App() {
                   gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
                 }}
               >
-                {filteredIncidents.map((conflict, index) => {
+                {conflicts.map((conflict, index) => {
                   const severity = classifyConflictSeverity(conflict);
                   const style = INCIDENT_SEVERITY_STYLES[severity];
                   const relatedActivities = resolveConflictActivities(conflict, activities);
-                  const focusActivityId = (conflict.activities || conflict.data?.activities || [])
-                    .find((id) => activities.some((activity) => activity.id === id));
                   const subjectLabel = formatConflictField(relatedActivities.map((activity) => activity.subject));
                   const groupLabel = formatConflictField(relatedActivities.map((activity) => activity.group));
                   const roomLabel = formatConflictField(relatedActivities.map((activity) => activity.room));
                   const teacherLabel =
                     conflict.teacher || formatConflictField(relatedActivities.map((activity) => activity.teacher));
-                  const causeChips = [conflictTypeLabel(conflict.type)];
-
-                  if (teacherLabel) {
-                    causeChips.push(`Professor: ${teacherLabel}`);
-                  }
-                  if (groupLabel) {
-                    causeChips.push(`Grup: ${groupLabel}`);
-                  }
-                  if (roomLabel) {
-                    causeChips.push(`Aula: ${roomLabel}`);
-                  }
-                  if (conflict.day || conflict.start) {
-                    const slotText = [conflict.day, conflict.start].filter(Boolean).join(" ");
-                    if (slotText) {
-                      causeChips.push(`Franja: ${slotText}`);
-                    }
-                  }
 
                   return (
                     <article
@@ -5053,33 +4444,6 @@ export default function App() {
                       </div>
 
                       <span>{conflict.message}</span>
-
-                      <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                        <button
-                          type="button"
-                          className="incident-focus-button"
-                          onClick={() => focusActivityFromIncident(conflict)}
-                          disabled={!focusActivityId}
-                        >
-                          Centra al calendari
-                        </button>
-                      </div>
-
-                      <div className="incident-cause-chips" aria-label="Causes de la incidència">
-                        {causeChips.map((chip, chipIndex) => (
-                          <span
-                            key={`${conflict.type}-${index}-chip-${chipIndex}`}
-                            className="incident-cause-chip"
-                            style={{
-                              borderColor: style.border,
-                              color: style.text,
-                              background: "rgba(255,255,255,0.72)",
-                            }}
-                          >
-                            {chip}
-                          </span>
-                        ))}
-                      </div>
 
                       <div
                         style={{
