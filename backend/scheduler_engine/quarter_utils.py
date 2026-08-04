@@ -97,18 +97,14 @@ def is_valid_quarter_pair(
     """Dues activitats del mateix grup pare només poden coexistir a la
     mateixa franja horària si:
     - corresponen al mateix grup pare,
-    - una és 1Q i l'altra 2Q,
-    - i la base de l'assignatura és la mateixa (p.ex. "Foto 1Q" + "Foto 2Q").
+    - una és 1Q i l'altra 2Q.
+
+    No cal que sigui la mateixa assignatura: un grup pot tenir "Foto 1Q" a
+    la mateixa franja on el 2Q hi ha "Comunicació 2Q", perquè cada meitat de
+    l'any ocupa la mateixa hora setmanal amb una assignatura diferent.
     """
     parent_a, quarter_a = parent_and_quarter(first_group, first_subject)
     parent_b, quarter_b = parent_and_quarter(second_group, second_subject)
     if parent_a != parent_b:
         return False
-    if not (quarter_a is not None and quarter_b is not None and quarter_a != quarter_b):
-        return False
-
-    first_base = subject_base_name(first_subject)
-    second_base = subject_base_name(second_subject)
-    if not first_base or not second_base:
-        return False
-    return first_base == second_base
+    return quarter_a is not None and quarter_b is not None and quarter_a != quarter_b
