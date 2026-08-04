@@ -59,6 +59,8 @@ SUBJECT_COLUMNS = [
 ROOM_COLUMNS = [
     ("name", "Nom de l'aula"),
     ("active", "Activa (Sí/No)"),
+    ("capacity", "Capacitat"),
+    ("unavailable_slots", "Franges no disponibles (franges separades per comes)"),
 ]
 
 
@@ -170,7 +172,12 @@ def _subject_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
 
 def _room_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
     return [
-        {"name": room.get("name", ""), "active": _bool_to_text(room.get("active", True))}
+        {
+            "name": room.get("name", ""),
+            "active": _bool_to_text(room.get("active", True)),
+            "capacity": room.get("capacity", ""),
+            "unavailable_slots": _slots_to_text(room.get("unavailable_slots")),
+        }
         for room in repo.list_rooms()
     ]
 
@@ -301,7 +308,16 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
         name = str(row.get("name") or "").strip()
         if not name:
             continue
-        repo.create_room({"name": name})
+        capacity_raw = row.get("capacity")
+        try:
+            capacity = int(float(str(capacity_raw).replace(",", "."))) if capacity_raw not in (None, "") else 0
+        except ValueError:
+            capacity = 0
+        repo.create_room({
+            "name": name,
+            "capacity": capacity,
+            "unavailable_slots": _text_to_slots(row.get("unavailable_slots")),
+        })
         rooms_created += 1
 
     assignments_created = 0
