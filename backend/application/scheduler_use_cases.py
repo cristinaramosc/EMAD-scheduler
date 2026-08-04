@@ -927,7 +927,17 @@ class SchedulerUseCases:
             teacher_id=teacher_label(teacher_list or teacher),
             weekly_hours=weekly_hours,
             min_days=int(assignment.get("min_days") or assignment.get("min_distribution_days") or 1),
-            max_days=int(assignment.get("max_days") or assignment.get("max_distribution_days") or 5),
+            max_days=int(
+                assignment.get("max_days")
+                or assignment.get("max_distribution_days")
+                # "max_session_days" és el nom real del camp a les dades
+                # acadèmiques i a l'Excel ("Màx. dies"); sense aquest fallback
+                # el valor que hi poses s'ignora sempre i cau al 5 per
+                # defecte, partint assignatures que haurien de quedar en un
+                # sol bloc.
+                or assignment.get("max_session_days")
+                or 5
+            ),
             min_block_duration=float(assignment.get("min_block_duration") or 0.5),
             max_consecutive_hours=float(assignment.get("max_consecutive_hours") or weekly_hours or 0.5),
             allow_half_hour_blocks=allow_half_hour_blocks,
