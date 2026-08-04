@@ -49,23 +49,17 @@ def is_valid_quarter_pair(first_group, first_subject, second_group, second_subje
     """Dues activitats del mateix grup pare només poden coexistir a la
     mateixa franja horària si:
     - comparteixen grup pare,
-    - una és 1Q i l'altra 2Q,
-    - i la base de l'assignatura és la mateixa.
+    - una és 1Q i l'altra 2Q.
+
+    No cal que sigui la mateixa assignatura: un grup pot tenir "Foto 1Q" a
+    la mateixa franja on el 2Q hi ha "Comunicació 2Q", perquè cada meitat de
+    l'any ocupa la mateixa hora setmanal amb una assignatura diferent.
     """
     parent_a, quarter_a = _parent_and_quarter(first_group, first_subject)
     parent_b, quarter_b = _parent_and_quarter(second_group, second_subject)
     if parent_a != parent_b:
         return False
-    if not (quarter_a is not None and quarter_b is not None and quarter_a != quarter_b):
-        return False
-
-    first_base = re.sub(r"\s+", " ", (first_subject or "").strip()).casefold()
-    second_base = re.sub(r"\s+", " ", (second_subject or "").strip()).casefold()
-    first_base = re.sub(r"\s+(1q|2q)$", "", first_base).strip()
-    second_base = re.sub(r"\s+(1q|2q)$", "", second_base).strip()
-    if not first_base or not second_base:
-        return False
-    return first_base == second_base
+    return quarter_a is not None and quarter_b is not None and quarter_a != quarter_b
 
 
 class GroupConflictConstraint(Constraint):

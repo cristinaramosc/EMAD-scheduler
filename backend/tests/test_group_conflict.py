@@ -113,9 +113,11 @@ def test_group_conflict_allows_same_parent_subject_suffix_1q_and_2q_in_same_slot
     assert not any(c.type == "group_conflict" for c in conflicts)
 
 
-def test_group_conflict_rejects_different_subjects_even_if_one_is_1q_and_other_2q():
-    """No es permet compartir franja entre assignatures diferents encara
-    que compleixin 1Q/2Q i mateix grup pare."""
+def test_group_conflict_allows_different_subjects_if_one_is_1q_and_other_2q():
+    """Es permet compartir franja entre assignatures diferents del mateix
+    grup pare sempre que una sigui 1Q i l'altra 2Q (no cal que coincideixi
+    l'assignatura: cada quadrimestre pot ocupar la franja amb una matèria
+    diferent)."""
     schedule = Schedule()
 
     schedule.add(
@@ -149,7 +151,7 @@ def test_group_conflict_rejects_different_subjects_even_if_one_is_1q_and_other_2
 
     conflicts = engine.get_conflicts()
 
-    assert any(c.type == "group_conflict" for c in conflicts)
+    assert not any(c.type == "group_conflict" for c in conflicts)
 
 
 def test_group_conflict_rejects_two_1q_subjects_in_same_slot():
