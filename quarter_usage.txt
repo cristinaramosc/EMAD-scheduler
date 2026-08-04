@@ -1,0 +1,115 @@
+===== quarter_utils =====
+backend/scheduler_engine/quarter_utils.py:Col·loca aquest fitxer a `backend/scheduler_engine/quarter_utils.py`
+backend/scheduler_engine/models/quarter_utils.py:Col·loca aquest fitxer a `backend/scheduler_engine/quarter_utils.py`
+Binary file backend/scheduler_engine/__pycache__/quarter_utils.cpython-311.pyc matches
+Binary file backend/scheduler_engine/__pycache__/proposal_scorer.cpython-311.pyc matches
+backend/scheduler_engine/proposal_scorer.py:    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+backend/scheduler_engine/proposal_scorer.py:    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+backend/services/schedule_context_builder.py:    from backend.scheduler_engine.quarter_utils import with_quarter_suffix
+backend/services/schedule_context_builder.py:    from scheduler_engine.quarter_utils import with_quarter_suffix
+
+===== is_valid_quarter_pair =====
+backend/docs/COPILOT_PROMPT_3.md:amb un `is_valid_quarter_pair(subject_a, subject_b)` de només 2
+backend/docs/COPILOT_PROMPT_3.md:      `.patch`). Determina quina versió de `is_valid_quarter_pair` hi ha
+backend/docs/COPILOT_PROMPT_3.md:      `is_valid_quarter_pair(first_group, first_subject, second_group, second_subject)`
+backend/docs/COPILOT_PROMPT_3.md:      `is_valid_quarter_pair` (Bloc D), torna a comprovar si aquest
+backend/docs/COPILOT_PROMPT_2.md:amb un `is_valid_quarter_pair(subject_a, subject_b)` de només 2
+backend/docs/COPILOT_PROMPT_2.md:      `.patch`). Determina quina versió de `is_valid_quarter_pair` hi ha
+backend/docs/COPILOT_PROMPT_2.md:      `is_valid_quarter_pair(first_group, first_subject, second_group, second_subject)`
+backend/docs/COPILOT_PROMPT_2.md:      `is_valid_quarter_pair` (Bloc D), torna a comprovar si aquest
+backend/scheduler_engine/quarter_utils.py:def is_valid_quarter_pair(
+Binary file backend/scheduler_engine/constraints/__pycache__/group_conflict.cpython-311.pyc matches
+backend/scheduler_engine/constraints/group_conflict.py:def is_valid_quarter_pair(first_group, first_subject, second_group, second_subject):
+backend/scheduler_engine/constraints/group_conflict.py:                if len(bucket) == 1 and is_valid_quarter_pair(
+backend/scheduler_engine/models/quarter_utils.py:def is_valid_quarter_pair(
+Binary file backend/scheduler_engine/__pycache__/placement_strategy.cpython-311.pyc matches
+Binary file backend/scheduler_engine/__pycache__/quarter_utils.cpython-311.pyc matches
+Binary file backend/scheduler_engine/__pycache__/proposal_scorer.cpython-311.pyc matches
+backend/scheduler_engine/placement_strategy.py:from .constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair, normalize_group_name
+backend/scheduler_engine/placement_strategy.py:                if same_exact_slot and is_valid_quarter_pair(
+backend/scheduler_engine/proposal_scorer.py:    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+backend/scheduler_engine/proposal_scorer.py:    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+backend/scheduler_engine/proposal_scorer.py:            if not is_valid_quarter_pair(first.group, first.subject, second.group, second.subject):
+Binary file backend/application/__pycache__/live_schedule_use_cases.cpython-311.pyc matches
+Binary file backend/application/__pycache__/scheduler_use_cases.cpython-311.pyc matches
+backend/application/scheduler_use_cases.py:    from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+backend/application/scheduler_use_cases.py:    from scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+backend/application/scheduler_use_cases.py:            if not is_valid_quarter_pair(act_a.group, act_a.subject, act_b.group, act_b.subject):
+backend/application/live_schedule_use_cases.py:    from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+backend/application/live_schedule_use_cases.py:    from scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+backend/application/live_schedule_use_cases.py:            if not is_valid_quarter_pair(act_a.group, act_a.subject, act_b.group, act_b.subject):
+
+===== parent_and_quarter =====
+backend/docs/COPILOT_PROMPT_3.md:el grup pare), diferent de la versió amb `_parent_and_quarter` i suport
+backend/docs/COPILOT_PROMPT_3.md:      `_parent_and_quarter`).
+backend/docs/COPILOT_PROMPT_3.md:      `_parent_and_quarter`; el `.patch` ja no existeix al workspace i
+backend/docs/COPILOT_PROMPT_3.md:      `.patch`): reverteix-la per la versió amb `_parent_and_quarter` +
+backend/docs/COPILOT_PROMPT_3.md:      `_parent_and_quarter(activity.group, activity.subject)`, no pel
+backend/docs/COPILOT_PROMPT_3.md:       Fet: la key de conflicte fa servir `_parent_and_quarter` i les
+backend/docs/COPILOT_PROMPT_3.md:      `group_id`/`subject_id` en el format que `_parent_and_quarter`
+backend/docs/COPILOT_PROMPT_2.md:el grup pare), diferent de la versió amb `_parent_and_quarter` i suport
+backend/docs/COPILOT_PROMPT_2.md:      `_parent_and_quarter`).
+backend/docs/COPILOT_PROMPT_2.md:      `_parent_and_quarter`; el `.patch` conserva la variant antiga i
+backend/docs/COPILOT_PROMPT_2.md:      `.patch`): reverteix-la per la versió amb `_parent_and_quarter` +
+backend/docs/COPILOT_PROMPT_2.md:      correcta amb `_parent_and_quarter` i `split_groups`.
+backend/docs/COPILOT_PROMPT_2.md:      `_parent_and_quarter(activity.group, activity.subject)`, no pel
+backend/docs/COPILOT_PROMPT_2.md:      Fet: la clau real usa `_parent_and_quarter` i les proves de grup
+backend/docs/COPILOT_PROMPT_2.md:      `group_id`/`subject_id` en el format que `_parent_and_quarter`
+backend/scheduler_engine/quarter_utils.py:def parent_and_quarter(group: Optional[str], subject: Optional[str]) -> Tuple[str, Optional[str]]:
+backend/scheduler_engine/quarter_utils.py:    parent_a, quarter_a = parent_and_quarter(first_group, first_subject)
+backend/scheduler_engine/quarter_utils.py:    parent_b, quarter_b = parent_and_quarter(second_group, second_subject)
+Binary file backend/scheduler_engine/constraints/__pycache__/group_conflict.cpython-311.pyc matches
+backend/scheduler_engine/constraints/group_conflict.py:def _parent_and_quarter(group, subject):
+backend/scheduler_engine/constraints/group_conflict.py:    parent_a, quarter_a = _parent_and_quarter(first_group, first_subject)
+backend/scheduler_engine/constraints/group_conflict.py:    parent_b, quarter_b = _parent_and_quarter(second_group, second_subject)
+backend/scheduler_engine/constraints/group_conflict.py:            parent_group, _ = _parent_and_quarter(activity.group, activity.subject)
+backend/scheduler_engine/models/quarter_utils.py:def parent_and_quarter(group: Optional[str], subject: Optional[str]) -> Tuple[str, Optional[str]]:
+backend/scheduler_engine/models/quarter_utils.py:    parent_a, quarter_a = parent_and_quarter(first_group, first_subject)
+backend/scheduler_engine/models/quarter_utils.py:    parent_b, quarter_b = parent_and_quarter(second_group, second_subject)
+Binary file backend/scheduler_engine/__pycache__/placement_strategy.cpython-311.pyc matches
+Binary file backend/scheduler_engine/__pycache__/quarter_utils.cpython-311.pyc matches
+Binary file backend/scheduler_engine/__pycache__/proposal_scorer.cpython-311.pyc matches
+backend/scheduler_engine/placement_strategy.py:from .constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair, normalize_group_name
+backend/scheduler_engine/placement_strategy.py:        candidate_parent, _ = _parent_and_quarter(group_id, candidate_subject)
+backend/scheduler_engine/placement_strategy.py:            activity_parent, _ = _parent_and_quarter(activity.group_id, existing_subject)
+backend/scheduler_engine/proposal_scorer.py:    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+backend/scheduler_engine/proposal_scorer.py:    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+backend/scheduler_engine/proposal_scorer.py:            parent, quarter = parent_and_quarter(activity.group, activity.subject)
+Binary file backend/application/__pycache__/live_schedule_use_cases.cpython-311.pyc matches
+Binary file backend/application/__pycache__/scheduler_use_cases.cpython-311.pyc matches
+backend/application/scheduler_use_cases.py:    from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+backend/application/scheduler_use_cases.py:    from scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+backend/application/scheduler_use_cases.py:            parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
+backend/application/live_schedule_use_cases.py:    from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+backend/application/live_schedule_use_cases.py:    from scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+backend/application/live_schedule_use_cases.py:            parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
+
+===== quarter_suffix =====
+backend/scheduler_engine/quarter_utils.py:def quarter_suffix(text: Optional[str]) -> Optional[str]:
+backend/scheduler_engine/quarter_utils.py:def strip_quarter_suffix(text: Optional[str]) -> str:
+backend/scheduler_engine/quarter_utils.py:    suffix = quarter_suffix(value)
+backend/scheduler_engine/quarter_utils.py:    base = strip_quarter_suffix(text)
+backend/scheduler_engine/quarter_utils.py:def with_quarter_suffix(base_name: str, quarter: Optional[str]) -> str:
+backend/scheduler_engine/quarter_utils.py:    group_quarter = quarter_suffix(group_text)
+backend/scheduler_engine/quarter_utils.py:        return normalize_group_name(strip_quarter_suffix(group_text)), group_quarter
+backend/scheduler_engine/quarter_utils.py:    return normalize_group_name(group_text), quarter_suffix(subject)
+Binary file backend/scheduler_engine/constraints/__pycache__/group_conflict.cpython-311.pyc matches
+backend/scheduler_engine/constraints/group_conflict.py:def _quarter_suffix(text):
+backend/scheduler_engine/constraints/group_conflict.py:    group_quarter = _quarter_suffix(group_text)
+backend/scheduler_engine/constraints/group_conflict.py:    return normalize_group_name(group_text), _quarter_suffix(subject)
+backend/scheduler_engine/models/quarter_utils.py:def quarter_suffix(text: Optional[str]) -> Optional[str]:
+backend/scheduler_engine/models/quarter_utils.py:def strip_quarter_suffix(text: Optional[str]) -> str:
+backend/scheduler_engine/models/quarter_utils.py:    suffix = quarter_suffix(value)
+backend/scheduler_engine/models/quarter_utils.py:def with_quarter_suffix(base_name: str, quarter: Optional[str]) -> str:
+backend/scheduler_engine/models/quarter_utils.py:    group_quarter = quarter_suffix(group_text)
+backend/scheduler_engine/models/quarter_utils.py:        return strip_quarter_suffix(group_text), group_quarter
+backend/scheduler_engine/models/quarter_utils.py:    return group_text, quarter_suffix(subject)
+Binary file backend/scheduler_engine/__pycache__/quarter_utils.cpython-311.pyc matches
+Binary file backend/scheduler_engine/__pycache__/proposal_scorer.cpython-311.pyc matches
+backend/scheduler_engine/proposal_scorer.py:    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+backend/scheduler_engine/proposal_scorer.py:    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+backend/scheduler_engine/proposal_scorer.py:            first_quarter = quarter_suffix(first.subject) or quarter_suffix(first.group)
+backend/scheduler_engine/proposal_scorer.py:                second_quarter = quarter_suffix(second.subject) or quarter_suffix(second.group)
+backend/services/schedule_context_builder.py:    from backend.scheduler_engine.quarter_utils import with_quarter_suffix
+backend/services/schedule_context_builder.py:    from scheduler_engine.quarter_utils import with_quarter_suffix
+backend/services/schedule_context_builder.py:        subject_label = with_quarter_suffix(row.subject.name, row.subject.quarter)
