@@ -35,22 +35,38 @@ const ASSIGNMENT_SHEET_COLUMNS = [
   { ...keyColumn("notes", textColumn), title: "Notes" },
 ];
 
+// Columnes de restricció compartides per Professors i Grups: calcades dels
+// mateixos camps que ja s'exporten a l'Excel (TEACHER_COLUMNS/GROUP_COLUMNS
+// a academic_workbook_spreadsheet.py), perquè la vista taula ofereixi les
+// mateixes opcions que l'Excel descarregable. Els camps de franges es
+// desen/mostren com a text separat per comes, igual que a l'Excel.
+const RESTRICTION_SHEET_COLUMNS = [
+  { ...keyColumn("no_gaps", checkboxColumn), title: "Sense buits" },
+  { ...keyColumn("max_hours_per_day", floatColumn), title: "Màx. hores/dia" },
+  { ...keyColumn("max_consecutive_hours", floatColumn), title: "Màx. hores consecutives" },
+  { ...keyColumn("preferred_availability", textColumn), title: "Disponibilitat preferida" },
+  { ...keyColumn("unavailable_slots", textColumn), title: "Franges no disponibles" },
+];
+
 const TEACHER_SHEET_COLUMNS = [
   { ...keyColumn("name", textColumn), title: "Nom" },
   { ...keyColumn("active", checkboxColumn), title: "Actiu" },
   { ...keyColumn("center_hours", floatColumn), title: "Hores de centre" },
   { ...keyColumn("coordination_name", textColumn), title: "Coordinació (nom)" },
   { ...keyColumn("coordination_hours", floatColumn), title: "Coordinació (hores)" },
+  ...RESTRICTION_SHEET_COLUMNS,
 ];
 
 const GROUP_SHEET_COLUMNS = [
   { ...keyColumn("name", textColumn), title: "Nom del grup" },
   { ...keyColumn("course", textColumn), title: "Curs" },
+  ...RESTRICTION_SHEET_COLUMNS,
 ];
 
 const ROOM_SHEET_COLUMNS = [
   { ...keyColumn("name", textColumn), title: "Nom de l'aula" },
   { ...keyColumn("capacity", floatColumn), title: "Capacitat" },
+  { ...keyColumn("unavailable_slots", textColumn), title: "Franges no disponibles" },
 ];
 
 const HOURS = [
@@ -1041,6 +1057,36 @@ export default function App() {
     }
   }
 
+  async function loadAllGroupRestrictions() {
+    if (!groups.length) {
+      setGroupRestrictions([]);
+      return;
+    }
+
+    try {
+      const results = await Promise.all(
+        groups.map(async (group) => {
+          const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(group.name)}/restrictions`);
+          if (!response.ok) {
+            return { group: group.name };
+          }
+          const data = await response.json();
+          return {
+            group: data.group || group.name,
+            no_gaps: Boolean(data.no_gaps),
+            max_hours_per_day: data.max_hours_per_day ?? "",
+            max_consecutive_hours: data.max_consecutive_hours ?? "",
+            preferred_availability: Array.isArray(data.preferred_availability) ? data.preferred_availability : [],
+            unavailable_slots: Array.isArray(data.unavailable_slots) ? data.unavailable_slots : [],
+          };
+        })
+      );
+      setGroupRestrictions(results);
+    } catch {
+      // ignore restriction loading failures
+    }
+  }
+
   async function saveGroupRestrictions(updatedDraft = groupRestrictionDraft) {
     if (!updatedDraft.group) {
       return;
@@ -1384,6 +1430,12 @@ export default function App() {
       loadTeacherRestrictions();
     }
   }, [currentScreen, academicTab, teachers.length]);
+
+  useEffect(() => {
+    if (currentScreen === "academic" && (academicTab === "groups" || academicTab === "group-restrictions")) {
+      loadAllGroupRestrictions();
+    }
+  }, [currentScreen, academicTab, groups.length]);
 
   const timetableGroupOptions = useMemo(() => {
     const parentGroups = [];
@@ -2558,10 +2610,42 @@ export default function App() {
     }
   }
 
+  // Text separat per comes <-> llista de franges ("Dilluns 8:00, Dilluns
+  // 8:30..."), igual que al full Excel.
+  function slotsToText(slots) {
+    return Array.isArray(slots) ? slots.join(", ") : "";
+  }
+  function textToSlots(text) {
+    return String(text || "")
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+  function normalizeRestriction(restriction) {
+    return {
+      no_gaps: Boolean(restriction?.no_gaps),
+      max_hours_per_day: restriction?.max_hours_per_day ?? "",
+      max_consecutive_hours: restriction?.max_consecutive_hours ?? "",
+      preferred_availability: slotsToText(restriction?.preferred_availability),
+      unavailable_slots: slotsToText(restriction?.unavailable_slots),
+    };
+  }
+  function restrictionPayload(row) {
+    return {
+      no_gaps: Boolean(row.no_gaps),
+      max_hours_per_day: row.max_hours_per_day === "" ? null : Number(row.max_hours_per_day),
+      max_consecutive_hours: row.max_consecutive_hours === "" ? null : Number(row.max_consecutive_hours),
+      preferred_availability: textToSlots(row.preferred_availability),
+      unavailable_slots: textToSlots(row.unavailable_slots),
+    };
+  }
+
   // Fase 3: la mateixa idea de taula editable, generalitzada per a
   // Professors / Grups / Aules (identificats per "name", no per "id").
   // Reaprofita els mateixos endpoints CRUD que ja feia servir cada vista
-  // clàssica.
+  // clàssica. Els camps de restricció (sense buits, hores màx., franges...)
+  // es desen a través de l'endpoint de restriccions, perquè la taula
+  // ofereixi les mateixes opcions que l'Excel descarregable.
   const ENTITY_SHEET_CONFIG = {
     teachers: {
       columns: TEACHER_SHEET_COLUMNS,
@@ -2572,36 +2656,76 @@ export default function App() {
         center_hours: t.center_hours ?? "",
         coordination_name: t.coordination_name || "",
         coordination_hours: t.coordination_hours ?? "",
+        ...normalizeRestriction(teacherRestrictions.find((item) => item.teacher === t.name)),
       }),
-      create: (row) => apiJson("POST", "/academic-data/teachers", {
-        name: row.name,
-        active: row.active !== false,
-        center_hours: row.center_hours === "" ? null : Number(row.center_hours),
-        coordination_name: row.coordination_name || "",
-        coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
-      }),
-      update: (name, row) => apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, {
-        active: row.active !== false,
-        center_hours: row.center_hours === "" ? null : Number(row.center_hours),
-        coordination_name: row.coordination_name || "",
-        coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
-      }),
+      create: async (row) => {
+        const res = await apiJson("POST", "/academic-data/teachers", {
+          name: row.name,
+          active: row.active !== false,
+          center_hours: row.center_hours === "" ? null : Number(row.center_hours),
+          coordination_name: row.coordination_name || "",
+          coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
+        });
+        if (res.ok) {
+          await apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(row.name)}/restrictions`, restrictionPayload(row));
+        }
+        return res;
+      },
+      update: async (name, row) => {
+        const res = await apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, {
+          active: row.active !== false,
+          center_hours: row.center_hours === "" ? null : Number(row.center_hours),
+          coordination_name: row.coordination_name || "",
+          coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
+        });
+        if (res.ok) {
+          await apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(row.name)}/restrictions`, restrictionPayload(row));
+        }
+        return res;
+      },
       remove: (name) => apiJson("DELETE", `/academic-data/teachers/${encodeURIComponent(name)}`),
     },
     groups: {
       columns: GROUP_SHEET_COLUMNS,
       source: () => groups,
-      normalize: (g) => ({ name: g.name || "", course: g.course || "" }),
-      create: (row) => apiJson("POST", "/academic-data/groups", { name: row.name, course: row.course }),
-      update: (name, row) => apiJson("PATCH", `/academic-data/groups/${encodeURIComponent(name)}`, { course: row.course }),
+      normalize: (g) => ({
+        name: g.name || "",
+        course: g.course || "",
+        ...normalizeRestriction(groupRestrictions.find((item) => item.group === g.name)),
+      }),
+      create: async (row) => {
+        const res = await apiJson("POST", "/academic-data/groups", { name: row.name, course: row.course });
+        if (res.ok) {
+          await apiJson("PATCH", `/academic-data/groups/${encodeURIComponent(row.name)}/restrictions`, restrictionPayload(row));
+        }
+        return res;
+      },
+      update: async (name, row) => {
+        const res = await apiJson("PATCH", `/academic-data/groups/${encodeURIComponent(name)}`, { course: row.course });
+        if (res.ok) {
+          await apiJson("PATCH", `/academic-data/groups/${encodeURIComponent(row.name)}/restrictions`, restrictionPayload(row));
+        }
+        return res;
+      },
       remove: (name) => apiJson("DELETE", `/academic-data/groups/${encodeURIComponent(name)}`),
     },
     rooms: {
       columns: ROOM_SHEET_COLUMNS,
       source: () => rooms,
-      normalize: (r) => ({ name: r.name || "", capacity: typeof r.capacity === "number" ? r.capacity : parseFloat(r.capacity) || 0 }),
-      create: (row) => apiJson("POST", "/academic-data/rooms", { name: row.name, capacity: Math.round(row.capacity || 0) }),
-      update: (name, row) => apiJson("PATCH", `/academic-data/rooms/${encodeURIComponent(name)}`, { capacity: Math.round(row.capacity || 0) }),
+      normalize: (r) => ({
+        name: r.name || "",
+        capacity: typeof r.capacity === "number" ? r.capacity : parseFloat(r.capacity) || 0,
+        unavailable_slots: slotsToText(r.unavailable_slots),
+      }),
+      create: (row) => apiJson("POST", "/academic-data/rooms", {
+        name: row.name,
+        capacity: Math.round(row.capacity || 0),
+        unavailable_slots: textToSlots(row.unavailable_slots),
+      }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/rooms/${encodeURIComponent(name)}`, {
+        capacity: Math.round(row.capacity || 0),
+        unavailable_slots: textToSlots(row.unavailable_slots),
+      }),
       remove: (name) => apiJson("DELETE", `/academic-data/rooms/${encodeURIComponent(name)}`),
     },
   };
@@ -2961,8 +3085,10 @@ export default function App() {
                 {entitySheetOpen.teachers ? (
                   <div>
                     <div className="muted" style={{ marginBottom: 8 }}>
-                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. Les restriccions
-                      horàries es continuen editant des del panell de la dreta.
+                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. Les franges
+                      (disponibilitat preferida / no disponible) s'escriuen com a text separat per
+                      comes, igual que a l'Excel; per a la selecció visual per graella, fes servir el
+                      panell de la dreta.
                     </div>
                     <DataSheetGrid
                       value={entitySheetRows.teachers}
@@ -3226,8 +3352,10 @@ export default function App() {
                 {entitySheetOpen.groups ? (
                   <div>
                     <div className="muted" style={{ marginBottom: 8 }}>
-                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. Les restriccions
-                      horàries es continuen editant des del panell corresponent.
+                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. Les franges
+                      (disponibilitat preferida / no disponible) s'escriuen com a text separat per
+                      comes, igual que a l'Excel; per a la selecció visual per graella, fes servir el
+                      panell corresponent.
                     </div>
                     <DataSheetGrid
                       value={entitySheetRows.groups}
@@ -4368,11 +4496,11 @@ export default function App() {
                           );
                         }
 
-                        // "No s'ha pogut col·locar" és sempre un bloqueig de generació,
-                        // per això es classifica com a error. Si en el futur el backend
-                        // distingeix bloquejants d'advertències toves, es pot fer servir
-                        // classifyConflictSeverity(warning) igual que a les incidències.
-                        const style = INCIDENT_SEVERITY_STYLES.error;
+                        // Per defecte és un bloqueig de generació ("no s'ha pogut
+                        // col·locar"), classificat com a error. El backend pot marcar
+                        // explícitament incidències toves (p.ex. alineació 1Q/2Q no
+                        // aconseguida) amb `severity: "warning"`.
+                        const style = INCIDENT_SEVERITY_STYLES[warning.severity] || INCIDENT_SEVERITY_STYLES.error;
 
                         return (
                           <article

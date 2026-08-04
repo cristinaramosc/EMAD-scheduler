@@ -1200,6 +1200,8 @@ class SchedulerUseCases:
         baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
         baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
 
+        alignment_warnings: List[Dict[str, Any]] = []
+
         for act_a, act_b in pairs_to_align:
             if act_a.day == act_b.day and act_a.start == act_b.start:
                 continue  # ja comparteixen casella
@@ -1233,6 +1235,26 @@ class SchedulerUseCases:
 
                     second.day, second.start = original_day, original_start
 
+            if not aligned:
+                alignment_warnings.append(
+                    {
+                        "id": None,
+                        "label": f"No s'ha pogut agrupar {act_a.subject or 'assignatura'} (1Q/2Q)",
+                        "subject": act_a.subject,
+                        "teacher": act_a.teacher if act_a.teacher == act_b.teacher else f"{act_a.teacher or '—'} / {act_b.teacher or '—'}",
+                        "group": act_a.group,
+                        "duration": act_a.duration,
+                        "reason": (
+                            "Les dues meitats (1Q i 2Q) no comparteixen franja horària: "
+                            "compartir-la crearia un conflicte (professor, aula o disponibilitat)."
+                        ),
+                        "severity": "warning",
+                        "constraints": [
+                            f"{act_a.day} {act_a.start} (1Q) i {act_b.day} {act_b.start} (2Q) es mantenen separades.",
+                        ],
+                    }
+                )
+
         final_schedule = self._build_schedule(activities)
         final_conflicts = self._scheduler_engine.validate(final_schedule)
 
@@ -1241,7 +1263,7 @@ class SchedulerUseCases:
             activities=activities,
             score=proposal.score,
             conflicts=final_conflicts,
-            warnings=proposal.warnings,
+            warnings=list(proposal.warnings or []) + alignment_warnings,
             score_breakdown=getattr(proposal, "score_breakdown", None),
             metadata=dict(proposal.metadata or {}),
         )
