@@ -87,3 +87,61 @@ def test_academic_assignment_priority_is_elevated_when_group_is_restricted() -> 
 
     assert requirement.priority == 1
     assert requirement.fixed_teacher is False
+
+
+def test_max_session_days_from_academic_data_limits_block_splitting() -> None:
+    """Una assignatura de 2h amb max_session_days=1 a les dades acadèmiques
+    ha de generar un requirement amb max_days=1 (un sol bloc de 2h), no
+    caure en el 5 per defecte i acabar partida en dies diferents."""
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=1),
+        academic_data_repo=AcademicDataRepository(),
+    )
+
+    requirement = use_cases._build_requirement_from_assignment(
+        1,
+        {
+            "teacher": "Ana",
+            "subject": "Dibuix",
+            "group": "1A",
+            "weekly_hours": 2.0,
+            "min_block_duration": 0.5,
+            "max_consecutive_hours": 2.0,
+            "max_session_days": "1",
+        },
+        set(),
+        set(),
+    )
+
+    assert requirement.max_days == 1
+
+
+def test_max_session_days_missing_falls_back_to_default() -> None:
+    """Sense max_session_days configurat, el comportament per defecte es
+    manté (5 dies com a màxim), per no trencar assignatures existents."""
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=1),
+        academic_data_repo=AcademicDataRepository(),
+    )
+
+    requirement = use_cases._build_requirement_from_assignment(
+        1,
+        {
+            "teacher": "Ana",
+            "subject": "Dibuix",
+            "group": "1A",
+            "weekly_hours": 2.0,
+            "min_block_duration": 0.5,
+            "max_consecutive_hours": 2.0,
+        },
+        set(),
+        set(),
+    )
+
+    assert requirement.max_days == 5
