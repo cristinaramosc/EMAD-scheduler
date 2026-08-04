@@ -68,8 +68,8 @@ No és només una excepció.
 
 Exemple:
 
-Dibuix 1Q
-Dibuix 2Q
+Multimèdia UF1 1Q
+Anglès UF1 Influences 2Q
 
 han d'intentar anar exactament a la mateixa hora.
 

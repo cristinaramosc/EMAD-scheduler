@@ -46,14 +46,11 @@ def _parent_and_quarter(group, subject):
 
 
 def is_valid_quarter_pair(first_group, first_subject, second_group, second_subject):
-    """Dues activitats del mateix grup pare només poden coexistir a la
-    mateixa franja horària si:
-    - comparteixen grup pare,
-    - una és 1Q i l'altra 2Q.
-
-    No cal que sigui la mateixa assignatura: un grup pot tenir "Foto 1Q" a
-    la mateixa franja on el 2Q hi ha "Comunicació 2Q", perquè cada meitat de
-    l'any ocupa la mateixa hora setmanal amb una assignatura diferent.
+    """Dues activitats del mateix grup pare poden coexistir a la mateixa
+    franja horària si comparteixen grup pare i una és 1Q i l'altra 2Q —
+    poden ser assignatures completament diferents (p.ex. 'FOL 1Q' i
+    'Anglès 2Q'), ja que en aquest grup no hi ha mai classe simultània de
+    1Q i 2Q: només compten com la mateixa franja del grup.
     """
     parent_a, quarter_a = _parent_and_quarter(first_group, first_subject)
     parent_b, quarter_b = _parent_and_quarter(second_group, second_subject)
