@@ -164,12 +164,24 @@ class SchedulerGenerator:
 
                     trial_scheduled = list(tentative_scheduled)
                     all_placed = True
+                    # Quan una assignatura es reparteix en més d'un bloc (p.ex.
+                    # "Màx. dies per repartir" = 2), cada bloc germà ha d'anar a
+                    # un dia diferent dels seus germans: si no, els dos blocs
+                    # acaben consecutius el mateix dia i la restricció de repartir
+                    # en dies diferents queda sense efecte.
+                    distribution_used_days: set = set()
                     for teaching_block in candidate_teaching_blocks:
-                        placement = self._placement_strategy.place(teaching_block, context, trial_scheduled)
+                        placement = self._placement_strategy.place(
+                            teaching_block,
+                            context,
+                            trial_scheduled,
+                            excluded_days=distribution_used_days if len(candidate_teaching_blocks) > 1 else None,
+                        )
                         if placement is None:
                             all_placed = False
                             break
                         trial_scheduled.append(placement)
+                        distribution_used_days.add(placement.day)
 
                     if all_placed:
                         chosen_teaching_blocks = candidate_teaching_blocks
@@ -274,13 +286,34 @@ class SchedulerGenerator:
     ) -> tuple[List[ScheduledActivity], List[dict]]:
         scheduled_activities: List[ScheduledActivity] = []
         warnings: List[dict] = []
+        # Recorda, per requeriment (mateixa assignatura+grup+professor
+        # partida en diversos blocs), quins dies ja s'hi han fet servir,
+        # perquè cap altre bloc germà hi torni a caure mentre hi hagi un
+        # dia lliure alternatiu — és el mateix "Màx. dies per repartir"
+        # que ja es prova d'honorar a _build_blocks_from_requirements,
+        # però aquí cal repetir-ho perquè aquesta és la passada que
+        # realment decideix l'horari final.
+        used_days_by_requirement: dict[str, set] = {}
 
         for block in ordering:
+            requirement_id = (block.metadata or {}).get("requirement_id")
+            excluded_days = used_days_by_requirement.get(requirement_id) if requirement_id else None
+
             placement = self._placement_strategy.place(
                 block,
                 context,
-                scheduled_activities
+                scheduled_activities,
+                excluded_days=excluded_days
             )
+
+            if placement is None and excluded_days:
+                # Si no hi ha cap dia lliure diferent dels ja usats pels
+                # germans, val més repetir dia que deixar el bloc sense
+                # col·locar: es torna a intentar sense l'exclusió.
+                placement = self._placement_strategy.place(block, context, scheduled_activities)
+
+            if placement is not None and requirement_id:
+                used_days_by_requirement.setdefault(requirement_id, set()).add(placement.day)
 
             if placement is None:
                 metadata = block.metadata or {}

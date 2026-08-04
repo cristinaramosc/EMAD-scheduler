@@ -940,6 +940,35 @@ class SchedulerUseCases:
             fixed_start=assignment.get("fixed_start") or None,
         )
 
+    def _expand_preferred_availability_to_blocked_slots(
+        self,
+        preferred_slots: List[Any],
+        day_names: List[str],
+        hour_names: List[str],
+    ) -> List[str]:
+        """`preferred_availability` és una llista blanca (p.ex. "Dilluns-09:00")
+        amb les úniques franges en què algú està disponible — a diferència
+        d'`unavailable_slots`, que és una llista negra. Perquè el generador
+        respecti de veritat aquesta restricció (i no només l'usi per prioritzar),
+        cal bloquejar totes les franges de la setmana que NO hi apareixen.
+        Si la llista és buida, no es bloqueja res (no hi ha restricció)."""
+        allowed_pairs: set[Tuple[str, str]] = set()
+        for slot in preferred_slots:
+            day_label, separator, hour_label = str(slot).partition("-")
+            if not separator:
+                continue
+            allowed_pairs.add((day_label.strip(), hour_label.strip()))
+
+        if not allowed_pairs:
+            return []
+
+        blocked_labels: List[str] = []
+        for day_label in day_names:
+            for hour_label in hour_names:
+                if (day_label, hour_label) not in allowed_pairs:
+                    blocked_labels.append(f"{day_label} {hour_label}")
+        return blocked_labels
+
     def _build_blocked_activities_from_restrictions(
         self,
         teacher_restrictions: List[Dict[str, Any]],
@@ -995,6 +1024,10 @@ class SchedulerUseCases:
                 continue
             for slot in restriction.get("unavailable_slots") or []:
                 add_blocked_activity(teacher_id=teacher, slot_label=str(slot), constraint="teacher_not_available")
+            for slot_label in self._expand_preferred_availability_to_blocked_slots(
+                restriction.get("preferred_availability") or [], day_names, hour_names
+            ):
+                add_blocked_activity(teacher_id=teacher, slot_label=slot_label, constraint="teacher_not_available")
 
         for restriction in group_restrictions:
             group = (restriction.get("group") or "").strip()
@@ -1002,6 +1035,10 @@ class SchedulerUseCases:
                 continue
             for slot in restriction.get("unavailable_slots") or []:
                 add_blocked_activity(group_id=group, slot_label=str(slot), constraint="group_not_available")
+            for slot_label in self._expand_preferred_availability_to_blocked_slots(
+                restriction.get("preferred_availability") or [], day_names, hour_names
+            ):
+                add_blocked_activity(group_id=group, slot_label=slot_label, constraint="group_not_available")
 
         return blocked
 
