@@ -23,8 +23,13 @@ class PlacementStrategy(ABC):
         teaching_block: TeachingBlock,
         context: GenerationContext,
         current_scheduled_activities: Sequence[ScheduledActivity],
+        excluded_days: Optional[set] = None,
     ) -> Optional[ScheduledActivity]:
-        """Return a scheduled activity or None when no placement is possible."""
+        """Return a scheduled activity or None when no placement is possible.
+
+        `excluded_days` lists day indices to skip entirely — used to force
+        the blocks of a single requirement onto distinct days when it has
+        been split to satisfy a "days to spread across" restriction."""
         raise NotImplementedError
 
     def explain_failure(
@@ -51,12 +56,16 @@ class GreedyPlacementStrategy(PlacementStrategy):
         teaching_block: TeachingBlock,
         context: GenerationContext,
         current_scheduled_activities: Sequence[ScheduledActivity],
+        excluded_days: Optional[set] = None,
     ) -> Optional[ScheduledActivity]:
         required_slots = teaching_block.duration_blocks or 1
         existing_activities = list(context.existing_scheduled_activities) + list(context.fixed_activities)
         all_activities = list(existing_activities) + list(current_scheduled_activities)
 
         for day in context.school_calendar.days:
+            if excluded_days and day in excluded_days:
+                continue
+
             for slot in context.school_calendar.periods_for_day(day):
                 if self._is_blocked(slot, context.blocked_time_slots):
                     continue

@@ -7,11 +7,13 @@ try:
     from backend.scheduler_engine.models.activity import Activity
     from backend.scheduler_engine.models.schedule import Schedule
     from backend.repositories.academic_data_repository import AcademicDataRepository
+    from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
 except ModuleNotFoundError:  # pragma: no cover
     from repositories.working_timetable_repository import WorkingTimetableRepository, WorkingTimetableSnapshot
     from scheduler_engine.models.activity import Activity
     from scheduler_engine.models.schedule import Schedule
     from repositories.academic_data_repository import AcademicDataRepository
+    from scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
 
 from .serializers import serialize_activity, serialize_conflicts
 
@@ -95,7 +97,34 @@ class LiveScheduleUseCases:
             frozenset(conflict.activities or []),
         )
 
+    def _ensure_active_schedule_from_proposal(self) -> None:
+        """Si l'horari que es veu a la interfície és encara una proposta
+        sense acceptar (`current_proposal` al snapshot), la carrega al
+        motor com a horari actiu abans que cap operació manual (moure,
+        afegir un descans, etc.) hi actuï.
+
+        Sense això, aquests mètodes treballaven sempre sobre
+        `self._engine.state`, que continua buit fins que es fa un
+        `accept_proposal` explícit. Com que `state()` ensenya
+        `current_proposal` mentre existeixi, la interfície mostrava un
+        horari ple mentre el motor no tenia cap activitat carregada:
+        exactament el motiu del "cap classe aquell dia per aquest grup"
+        en activar un descans sobre una proposta acabada de generar.
+        """
+        snapshot = self._working_timetable_repo.load_snapshot()
+        if snapshot.current_proposal is None:
+            return
+
+        proposal_activities = snapshot.current_proposal.get("activities", [])
+        schedule = Schedule()
+        for activity in proposal_activities:
+            schedule.add(Activity(**activity))
+
+        self._engine.load(schedule)
+        self._persist_active_schedule(clear_proposal=True)
+
     def move(self, activity_id: int, day: str, start: str) -> Dict[str, Any]:
+        self._ensure_active_schedule_from_proposal()
         activity = next((item for item in self._engine.state.all() if item.id == activity_id), None)
         if activity is None:
             return {
@@ -146,6 +175,7 @@ class LiveScheduleUseCases:
         """Afegeix una activitat manual a l'horari actiu (p.ex. un descans
         d'estudiants o una hora de coordinació d'un professor) sense passar
         pel generador. Es valida que no introdueixi cap conflicte nou."""
+        self._ensure_active_schedule_from_proposal()
         existing_ids = [item.id for item in self._engine.state.all()]
         new_id = (max(existing_ids) + 1) if existing_ids else 1
 
@@ -187,6 +217,7 @@ class LiveScheduleUseCases:
         }
 
     def remove_activity(self, activity_id: int) -> Dict[str, Any]:
+        self._ensure_active_schedule_from_proposal()
         activity = next((item for item in self._engine.state.all() if item.id == activity_id), None)
         if activity is None:
             return {
@@ -283,6 +314,7 @@ class LiveScheduleUseCases:
         d'activitats; en desactivar-lo, compacta les classes posteriors.
         El dia actiu i la franja s'emmagatzemen a la restricció del grup
         (`break_days` i `break_slots`)."""
+        self._ensure_active_schedule_from_proposal()
         hour_names, hour_index = self._half_hour_grid()
         target_group = self._norm_name(group)
 
@@ -531,6 +563,7 @@ class LiveScheduleUseCases:
         """Afegeix una hora de dinar (entre les 12h i les 16h) a cada
         professor que tingui classe abans de les 12h i també a partir de
         les 16h el mateix dia, si encara no en té cap assignada."""
+        self._ensure_active_schedule_from_proposal()
         hour_names = []
         hour = 8 * 60
         while hour <= 21 * 60:
@@ -588,6 +621,97 @@ class LiveScheduleUseCases:
             "ok": True,
             "added": added,
             "skipped_no_slot": skipped_no_slot,
+            **self.state(),
+        }
+
+    # ---------------------------------------------------------------
+    # Compactació 1Q/2Q: unir en una mateixa franja les assignatures
+    # "bessones" d'un mateix grup pare (a la interfície es pinten 1Q a
+    # l'esquerra i 2Q a la dreta quan comparteixen casella).
+    # ---------------------------------------------------------------
+
+    @staticmethod
+    def _match_quarter_pairs(ones: List[Activity], twos: List[Activity]) -> List[tuple]:
+        """Aparella cada activitat marcada 1Q amb una de 2Q del mateix grup
+        pare (mai 1Q amb 1Q ni 2Q amb 2Q). Quan un grup té més d'una parella
+        possible, prioritza les combinacions on coincideix el professor; la
+        resta s'aparellen en l'ordre en què apareixen com a darrer recurs,
+        perquè cap activitat 1Q o 2Q es quedi sense parella si n'hi ha una
+        de disponible. L'ordre retornat és sempre (activitat_1Q, activitat_2Q)."""
+        remaining_ones = list(ones)
+        remaining_twos = list(twos)
+        pairs: List[tuple] = []
+
+        for one in list(remaining_ones):
+            match = next(
+                (two for two in remaining_twos if (one.teacher or "").strip() and one.teacher == two.teacher),
+                None,
+            )
+            if match is not None:
+                pairs.append((one, match))
+                remaining_ones.remove(one)
+                remaining_twos.remove(match)
+
+        for one, two in zip(remaining_ones, remaining_twos):
+            pairs.append((one, two))
+
+        return pairs
+
+    def align_quarter_pairs(self) -> Dict[str, Any]:
+        """Compacta a la mateixa franja horària (mateix dia i hora) les
+        assignatures 1Q i 2Q d'un mateix grup pare, prioritzant aparellar
+        les que comparteixen professor. Reutilitza `move()` per validar que
+        el desplaçament no introdueixi cap conflicte nou; si moure la 2Q
+        sobre la 1Q falla, prova al revés abans de descartar la parella."""
+        self._ensure_active_schedule_from_proposal()
+
+        by_parent: Dict[str, Dict[str, List[Activity]]] = {}
+        for activity in self._engine.state.all():
+            parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
+            if quarter_marker is None:
+                continue
+            by_parent.setdefault(parent, {"1q": [], "2q": []})[quarter_marker].append(activity)
+
+        pairs_to_align: List[tuple] = []
+        for buckets in by_parent.values():
+            pairs_to_align.extend(self._match_quarter_pairs(buckets["1q"], buckets["2q"]))
+
+        aligned: List[Dict[str, Any]] = []
+        skipped: List[Dict[str, Any]] = []
+
+        for act_a, act_b in pairs_to_align:
+            if act_a.day == act_b.day and act_a.start == act_b.start:
+                continue  # ja comparteixen casella
+
+            if not is_valid_quarter_pair(act_a.group, act_a.subject, act_b.group, act_b.subject):
+                skipped.append({"subject_1q": act_a.subject, "subject_2q": act_b.subject, "reason": "invalid_pair"})
+                continue
+
+            target_day, target_start = act_a.day, act_a.start
+            result = self.move(act_b.id, target_day, target_start)
+            if not result.get("ok"):
+                target_day, target_start = act_b.day, act_b.start
+                result = self.move(act_a.id, target_day, target_start)
+
+            if result.get("ok"):
+                aligned.append(
+                    {
+                        "group": act_a.group,
+                        "subject_1q": act_a.subject,
+                        "subject_2q": act_b.subject,
+                        "teacher_1q": act_a.teacher,
+                        "teacher_2q": act_b.teacher,
+                        "day": target_day,
+                        "start": target_start,
+                    }
+                )
+            else:
+                skipped.append({"subject_1q": act_a.subject, "subject_2q": act_b.subject, "reason": "conflict"})
+
+        return {
+            "ok": True,
+            "aligned": aligned,
+            "skipped": skipped,
             **self.state(),
         }
 
@@ -711,6 +835,7 @@ class LiveScheduleUseCases:
         if self._academic_data_repo is None:
             return {"ok": False, "error": "academic_data_repo_unavailable", **self.state()}
 
+        self._ensure_active_schedule_from_proposal()
         hour_names, hour_index = self._half_hour_grid()
         restrictions = {r.get("teacher"): r for r in self._academic_data_repo.list_teacher_restrictions()}
 
