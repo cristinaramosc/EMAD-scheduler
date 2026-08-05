@@ -40,17 +40,6 @@ def strip_quarter_suffix(text: Optional[str]) -> str:
     return value[: -len(suffix)].strip()
 
 
-def subject_base_name(text: Optional[str]) -> str:
-    """Retorna el nom base d'assignatura, sense sufix 1Q/2Q, normalitzat.
-
-    Es fa servir per assegurar que una compartició 1Q/2Q només sigui
-    possible quan ambdues activitats corresponen a la mateixa assignatura
-    (mateix nom base), i no a matèries diferents del mateix grup pare.
-    """
-    base = strip_quarter_suffix(text)
-    return re.sub(r"\s+", " ", base).strip().casefold()
-
-
 def normalize_group_name(text: Optional[str]) -> str:
     return re.sub(r"\s+", " ", (text or "").strip()).casefold()
 

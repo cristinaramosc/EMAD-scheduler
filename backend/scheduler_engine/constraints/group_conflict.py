@@ -5,58 +5,26 @@ import re
 try:
     from backend.scheduler_engine.constraints.base import Constraint
     from backend.scheduler_engine.models import Conflict
+    from backend.scheduler_engine.quarter_utils import (
+        is_valid_quarter_pair,
+        normalize_group_name,
+        parent_and_quarter as _parent_and_quarter,
+    )
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.models import Conflict
+    from scheduler_engine.quarter_utils import (
+        is_valid_quarter_pair,
+        normalize_group_name,
+        parent_and_quarter as _parent_and_quarter,
+    )
 
-
-def _quarter_suffix(text):
-    """Retorna '1q' o '2q' si el text acaba amb aquest sufix (independent de
-    majúscules/minúscules i espais), o None en cas contrari."""
-    value = (text or "").strip().lower()
-    if value.endswith("1q"):
-        return "1q"
-    if value.endswith("2q"):
-        return "2q"
-    return None
-
-
-def normalize_group_name(value):
-    """Normalitza un nom de grup (espais interns col·lapsats, sense
-    majúscules) perquè dues variants d'escriptura del mateix grup (p.ex.
-    "1r APGI" vs "1r  APGI" o "1R apgi") es reconeguin com el mateix grup
-    pare en comptes de tractar-se silenciosament com a grups diferents."""
-    return re.sub(r"\s+", " ", (value or "").strip()).casefold()
-
-
-def _parent_and_quarter(group, subject):
-    """Retorna (grup_pare, marcador_de_quadrimestre) per a una combinació de
-    grup + assignatura. El marcador es dedueix primer del nom del grup
-    (p.ex. '1A 1Q' -> pare '1A', marcador '1q'); si el grup no en té, es
-    dedueix del nom de l'assignatura (p.ex. grup '1A', assignatura
-    'Dibuix 1Q' -> pare '1A', marcador '1q'). El grup pare retornat està
-    normalitzat (no es mostra mai a l'usuari, només s'usa per comparar)."""
-    group_text = (group or "").strip()
-    group_quarter = _quarter_suffix(group_text)
-    if group_quarter is not None:
-        parent = group_text[: -len(group_quarter)].strip()
-        return normalize_group_name(parent), group_quarter
-
-    return normalize_group_name(group_text), _quarter_suffix(subject)
-
-
-def is_valid_quarter_pair(first_group, first_subject, second_group, second_subject):
-    """Dues activitats del mateix grup pare poden coexistir a la mateixa
-    franja horària si comparteixen grup pare i una és 1Q i l'altra 2Q —
-    poden ser assignatures completament diferents (p.ex. 'FOL 1Q' i
-    'Anglès 2Q'), ja que en aquest grup no hi ha mai classe simultània de
-    1Q i 2Q: només compten com la mateixa franja del grup.
-    """
-    parent_a, quarter_a = _parent_and_quarter(first_group, first_subject)
-    parent_b, quarter_b = _parent_and_quarter(second_group, second_subject)
-    if parent_a != parent_b:
-        return False
-    return quarter_a is not None and quarter_b is not None and quarter_a != quarter_b
+# Nota: `normalize_group_name`, `_parent_and_quarter` (alias de
+# `parent_and_quarter`) i `is_valid_quarter_pair` vivien abans com a còpies
+# locals en aquest mòdul. Ara la implementació única viu a
+# `backend/scheduler_engine/quarter_utils.py`; aquest fitxer només
+# re-exporta/usa aquell mòdul perquè la resta del codi no ha de canviar el
+# seu comportament.
 
 
 class GroupConflictConstraint(Constraint):
