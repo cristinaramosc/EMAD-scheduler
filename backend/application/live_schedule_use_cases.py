@@ -7,13 +7,13 @@ try:
     from backend.scheduler_engine.models.activity import Activity
     from backend.scheduler_engine.models.schedule import Schedule
     from backend.repositories.academic_data_repository import AcademicDataRepository
-    from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
 except ModuleNotFoundError:  # pragma: no cover
     from repositories.working_timetable_repository import WorkingTimetableRepository, WorkingTimetableSnapshot
     from scheduler_engine.models.activity import Activity
     from scheduler_engine.models.schedule import Schedule
     from repositories.academic_data_repository import AcademicDataRepository
-    from scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
 
 from .serializers import serialize_activity, serialize_conflicts
 

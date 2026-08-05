@@ -4,10 +4,10 @@ import zlib
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
-    from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
     from backend.scheduler_engine.teacher_utils import teacher_label, teacher_names
 except ModuleNotFoundError:  # pragma: no cover
-    from scheduler_engine.constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair
+    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
     from scheduler_engine.teacher_utils import teacher_label, teacher_names
 
 try:

@@ -8,7 +8,7 @@ try:
     from models.teaching_block import TeachingBlock
 except ModuleNotFoundError:  # pragma: no cover
     from backend.models.teaching_block import TeachingBlock
-from .constraints.group_conflict import _parent_and_quarter, is_valid_quarter_pair, normalize_group_name
+from .quarter_utils import is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter
 from .constraints.group_time_window import get_group_time_window
 from .models import GenerationContext, ScheduledActivity, TimeSlot
 from .teacher_utils import teacher_label, teacher_names
