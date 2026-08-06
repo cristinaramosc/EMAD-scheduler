@@ -82,6 +82,7 @@ class GroupRestrictionDTO(BaseModel):
     no_gaps: Optional[bool] = False
     max_hours_per_day: Optional[float] = None
     max_consecutive_hours: Optional[float] = None
+    max_days: Optional[int] = None
     preferred_availability: Optional[List[str]] = []
     unavailable_slots: Optional[List[str]] = []
     daily_start_time: Optional[str] = ""
@@ -96,6 +97,7 @@ class GroupRestrictionUpdateDTO(BaseModel):
     no_gaps: Optional[bool] = None
     max_hours_per_day: Optional[float] = None
     max_consecutive_hours: Optional[float] = None
+    max_days: Optional[int] = None
     preferred_availability: Optional[List[str]] = None
     unavailable_slots: Optional[List[str]] = None
     daily_start_time: Optional[str] = None
@@ -342,6 +344,7 @@ def update_group_restrictions(name: str, payload: GroupRestrictionUpdateDTO):
         "no_gaps": payload.no_gaps if payload.no_gaps is not None else False,
         "max_hours_per_day": payload.max_hours_per_day,
         "max_consecutive_hours": payload.max_consecutive_hours,
+        "max_days": payload.max_days if payload.max_days is not None else existing_restriction.get("max_days"),
         "preferred_availability": payload.preferred_availability if payload.preferred_availability is not None else existing_restriction.get("preferred_availability", []),
         "unavailable_slots": payload.unavailable_slots if payload.unavailable_slots is not None else existing_restriction.get("unavailable_slots", []),
         "fixed_slots": existing_restriction.get("fixed_slots", []),
