@@ -6,10 +6,12 @@ try:
     from backend.scheduler_engine.constraints.base import Constraint
     from backend.scheduler_engine.models import Conflict
     from backend.scheduler_engine.teacher_utils import teacher_label, teacher_names
+    from backend.scheduler_engine.quarter_utils import quarter_suffix
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.models import Conflict
     from scheduler_engine.teacher_utils import teacher_label, teacher_names
+    from scheduler_engine.quarter_utils import quarter_suffix
 
 
 class TeacherConflictConstraint(Constraint):
@@ -32,6 +34,22 @@ class TeacherConflictConstraint(Constraint):
                     if previous is None:
                         continue
                     if previous.id != activity.id:
+                        # Excepció: un professor pot fer una activitat de 1Q
+                        # i una altra de 2Q a la mateixa franja horària, ja
+                        # que mai coincideixen en el temps real (són
+                        # trimestres/quadrimestres diferents del mateix curs).
+                        activity_quarter = quarter_suffix(getattr(activity, "subject", None)) or quarter_suffix(
+                            getattr(activity, "group", None)
+                        )
+                        previous_quarter = quarter_suffix(getattr(previous, "subject", None)) or quarter_suffix(
+                            getattr(previous, "group", None)
+                        )
+                        if (
+                            activity_quarter is not None
+                            and previous_quarter is not None
+                            and activity_quarter != previous_quarter
+                        ):
+                            continue
                         conflict_found = previous
                         break
 

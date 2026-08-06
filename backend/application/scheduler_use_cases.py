@@ -927,17 +927,7 @@ class SchedulerUseCases:
             teacher_id=teacher_label(teacher_list or teacher),
             weekly_hours=weekly_hours,
             min_days=int(assignment.get("min_days") or assignment.get("min_distribution_days") or 1),
-            max_days=int(
-                assignment.get("max_days")
-                or assignment.get("max_distribution_days")
-                # "max_session_days" és el nom real del camp a les dades
-                # acadèmiques i a l'Excel ("Màx. dies"); sense aquest fallback
-                # el valor que hi poses s'ignora sempre i cau al 5 per
-                # defecte, partint assignatures que haurien de quedar en un
-                # sol bloc.
-                or assignment.get("max_session_days")
-                or 5
-            ),
+            max_days=int(assignment.get("max_days") or assignment.get("max_distribution_days") or 1),
             min_block_duration=float(assignment.get("min_block_duration") or 0.5),
             max_consecutive_hours=float(assignment.get("max_consecutive_hours") or weekly_hours or 0.5),
             allow_half_hour_blocks=allow_half_hour_blocks,
@@ -1210,8 +1200,6 @@ class SchedulerUseCases:
         baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
         baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
 
-        alignment_warnings: List[Dict[str, Any]] = []
-
         for act_a, act_b in pairs_to_align:
             if act_a.day == act_b.day and act_a.start == act_b.start:
                 continue  # ja comparteixen casella
@@ -1245,26 +1233,6 @@ class SchedulerUseCases:
 
                     second.day, second.start = original_day, original_start
 
-            if not aligned:
-                alignment_warnings.append(
-                    {
-                        "id": None,
-                        "label": f"No s'ha pogut agrupar {act_a.subject or 'assignatura'} (1Q/2Q)",
-                        "subject": act_a.subject,
-                        "teacher": act_a.teacher if act_a.teacher == act_b.teacher else f"{act_a.teacher or '—'} / {act_b.teacher or '—'}",
-                        "group": act_a.group,
-                        "duration": act_a.duration,
-                        "reason": (
-                            "Les dues meitats (1Q i 2Q) no comparteixen franja horària: "
-                            "compartir-la crearia un conflicte (professor, aula o disponibilitat)."
-                        ),
-                        "severity": "warning",
-                        "constraints": [
-                            f"{act_a.day} {act_a.start} (1Q) i {act_b.day} {act_b.start} (2Q) es mantenen separades.",
-                        ],
-                    }
-                )
-
         final_schedule = self._build_schedule(activities)
         final_conflicts = self._scheduler_engine.validate(final_schedule)
 
@@ -1273,7 +1241,7 @@ class SchedulerUseCases:
             activities=activities,
             score=proposal.score,
             conflicts=final_conflicts,
-            warnings=list(proposal.warnings or []) + alignment_warnings,
+            warnings=proposal.warnings,
             score_breakdown=getattr(proposal, "score_breakdown", None),
             metadata=dict(proposal.metadata or {}),
         )
