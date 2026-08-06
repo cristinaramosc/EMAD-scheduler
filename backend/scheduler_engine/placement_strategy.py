@@ -138,7 +138,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
         candidates = []
         seen_slots = set()
         for activity in all_activities:
-            existing_subject = (activity.metadata or {}).get("subject")
+            existing_subject = (activity.teaching_block.metadata or {}).get("subject")
             activity_parent, activity_quarter = _parent_and_quarter(activity.group_id, existing_subject)
             if activity_parent != candidate_parent or activity_quarter is None:
                 continue
@@ -329,7 +329,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
                     and required_slots == activity.duration
                 )
                 if same_exact_slot and candidate_quarter is not None:
-                    existing_subject = (activity.metadata or {}).get("subject")
+                    existing_subject = (activity.teaching_block.metadata or {}).get("subject")
                     existing_quarter = quarter_suffix(existing_subject) or quarter_suffix(activity.group_id)
                     if existing_quarter is not None and existing_quarter != candidate_quarter:
                         continue
@@ -360,7 +360,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
         for activity in activities:
             if activity.day != start_slot.day:
                 continue
-            existing_subject = (activity.metadata or {}).get("subject")
+            existing_subject = (activity.teaching_block.metadata or {}).get("subject")
             activity_parent, _ = _parent_and_quarter(activity.group_id, existing_subject)
             if activity_parent != candidate_parent:
                 continue
