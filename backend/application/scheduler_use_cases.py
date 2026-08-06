@@ -244,6 +244,7 @@ class SchedulerUseCases:
                 or restriction.get("preferred_availability")
                 or restriction.get("daily_start_time")
                 or restriction.get("daily_max_end_time")
+                or restriction.get("max_days")
             )
         }
         requirements = [
@@ -273,6 +274,7 @@ class SchedulerUseCases:
                 "hour_names": hour_names,
                 "split_groups": split_groups,
                 "group_time_window_constraints": self._build_group_time_window_constraints(group_restrictions, hour_names),
+                "group_max_days_constraints": self._build_group_max_days_constraints(group_restrictions),
             },
         )
 
@@ -758,12 +760,14 @@ class SchedulerUseCases:
             full_schedule.add(activity)
         group_restrictions = self._academic_data_repo.active_group_restrictions()
         full_schedule.configuration = {
+            "day_names": day_names,
             "split_groups": {
                 (group.get("name") or "").strip()
                 for group in self._academic_data_repo.list_groups()
                 if group.get("is_split")
             },
             "group_time_window_constraints": self._build_group_time_window_constraints(group_restrictions, hour_names),
+            "group_max_days_constraints": self._build_group_max_days_constraints(group_restrictions),
         }
 
         updated_metadata = dict(proposal.metadata or {})
@@ -877,6 +881,33 @@ class SchedulerUseCases:
                 start_minutes, end_minutes = end_minutes, start_minutes
 
             constraints[group_name.upper()] = (start_minutes, end_minutes)
+
+        return constraints
+
+    def _build_group_max_days_constraints(
+        self,
+        group_restrictions: List[Dict[str, Any]],
+    ) -> Dict[str, int]:
+        constraints: Dict[str, int] = {}
+
+        for restriction in group_restrictions:
+            group_name = (restriction.get("group") or "").strip()
+            if not group_name:
+                continue
+
+            raw_max_days = restriction.get("max_days")
+            if raw_max_days is None or raw_max_days == "":
+                continue
+
+            try:
+                max_days = int(raw_max_days)
+            except (TypeError, ValueError):
+                continue
+
+            if max_days <= 0:
+                continue
+
+            constraints[group_name.upper()] = max_days
 
         return constraints
 
@@ -1304,12 +1335,14 @@ class SchedulerUseCases:
         group_restrictions = self._academic_data_repo.active_group_restrictions()
         hour_names = self._time_labels.get("hour_names", [])
         schedule.configuration = {
+            "day_names": self._time_labels.get("day_names", []),
             "split_groups": {
                 (group.get("name") or "").strip()
                 for group in self._academic_data_repo.list_groups()
                 if group.get("is_split")
             },
             "group_time_window_constraints": self._build_group_time_window_constraints(group_restrictions, hour_names),
+            "group_max_days_constraints": self._build_group_max_days_constraints(group_restrictions),
         }
         return schedule
 

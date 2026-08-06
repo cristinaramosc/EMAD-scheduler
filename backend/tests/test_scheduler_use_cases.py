@@ -120,8 +120,8 @@ def test_max_session_days_from_academic_data_limits_block_splitting() -> None:
 
 
 def test_max_session_days_missing_falls_back_to_default() -> None:
-    """Sense max_session_days configurat, el comportament per defecte es
-    manté (5 dies com a màxim), per no trencar assignatures existents."""
+    """Sense max_session_days configurat, per defecte no es reparteix
+    (max_days=1): una casella buida vol dir "va tot en un sol bloc"."""
     use_cases = SchedulerUseCases(
         requirement_repo=RequirementRepository(),
         scheduler_engine=SchedulerEngine(),
@@ -144,4 +144,4 @@ def test_max_session_days_missing_falls_back_to_default() -> None:
         set(),
     )
 
-    assert requirement.max_days == 5
+    assert requirement.max_days == 1
