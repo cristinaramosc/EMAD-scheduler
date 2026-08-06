@@ -109,7 +109,7 @@ def test_toggle_group_break_accepts_catalan_day_with_english_schedule_days():
     assert "Dimecres" in (restriction.get("break_days") or [])
 
 
-def test_toggle_group_break_falls_back_to_marker_only_when_no_gap_window():
+def test_toggle_group_break_fails_cleanly_when_no_gap_window():
     use_cases = _build_use_cases()
     use_cases.load(
         [
@@ -127,13 +127,12 @@ def test_toggle_group_break_falls_back_to_marker_only_when_no_gap_window():
     )
 
     activated = use_cases.toggle_group_break("1A", "Dilluns")
-    assert activated.get("ok") is True
-    assert activated.get("active") is True
-    assert activated.get("marker_only") is True
+    assert activated.get("ok") is False
+    assert activated.get("error") == "no_free_slot"
+    assert activated.get("active") is False
 
     restriction = next(
         (item for item in use_cases._academic_data_repo.list_group_restrictions() if item.get("group") == "1A"),
         None,
     )
-    assert restriction is not None
-    assert "Dilluns" in (restriction.get("break_days") or [])
+    assert restriction is None or "Dilluns" not in (restriction.get("break_days") or [])
