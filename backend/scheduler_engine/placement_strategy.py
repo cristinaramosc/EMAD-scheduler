@@ -321,14 +321,13 @@ class GreedyPlacementStrategy(PlacementStrategy):
             candidate_end = start_slot.period + required_slots
             if start_slot.period < activity_end and candidate_end > activity.start_timeslot.period:
                 # Excepció: un professor pot fer una activitat de 1Q i una
-                # altra de 2Q exactament a la mateixa franja horària setmanal,
-                # ja que mai coincideixen en el temps real (són trimestres/
-                # quadrimestres diferents dins el mateix curs).
-                same_exact_slot = (
-                    start_slot.period == activity.start_timeslot.period
-                    and required_slots == activity.duration
-                )
-                if same_exact_slot and candidate_quarter is not None:
+                # altra de 2Q solapant-se en horari setmanal (sigui quina
+                # sigui la durada exacta de cadascuna, p.ex. una assignatura
+                # de 2h partida en dos blocs d'1h enfront d'una parella de 2h
+                # en un sol bloc), ja que mai coincideixen en el temps real
+                # (són trimestres/quadrimestres diferents dins el mateix
+                # curs).
+                if candidate_quarter is not None:
                     existing_subject = (activity.teaching_block.metadata or {}).get("subject")
                     existing_quarter = quarter_suffix(existing_subject) or quarter_suffix(activity.group_id)
                     if existing_quarter is not None and existing_quarter != candidate_quarter:
@@ -368,13 +367,12 @@ class GreedyPlacementStrategy(PlacementStrategy):
             candidate_end = start_slot.period + required_slots
             if start_slot.period < activity_end and candidate_end > activity.start_timeslot.period:
                 # Exception 1: two activities of the same parent group are
-                # allowed to overlap in the same slot when one subject/group
-                # ends in "1Q" and the other in "2Q".
-                same_exact_slot = (
-                    start_slot.period == activity.start_timeslot.period
-                    and required_slots == activity.duration
-                )
-                if same_exact_slot and is_valid_quarter_pair(
+                # allowed to overlap when one subject/group is 1Q and the
+                # other 2Q, sigui quina sigui la seva durada exacta (p.ex.
+                # una assignatura de 2h partida en dos blocs d'1h enfront
+                # d'una parella de 2h en un sol bloc): mai coincideixen en
+                # el temps real, són trimestres/quadrimestres diferents.
+                if is_valid_quarter_pair(
                     group_id, candidate_subject, activity.group_id, existing_subject
                 ):
                     continue
