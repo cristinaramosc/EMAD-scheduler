@@ -8,9 +8,9 @@ try:
     from models.teaching_block import TeachingBlock
 except ModuleNotFoundError:  # pragma: no cover
     from backend.models.teaching_block import TeachingBlock
-from .quarter_utils import is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter
 from .constraints.group_time_window import get_group_time_window
 from .models import GenerationContext, ScheduledActivity, TimeSlot
+from .quarter_utils import is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter, quarter_suffix
 from .teacher_utils import teacher_label, teacher_names
 
 
@@ -62,6 +62,12 @@ class GreedyPlacementStrategy(PlacementStrategy):
         existing_activities = list(context.existing_scheduled_activities) + list(context.fixed_activities)
         all_activities = list(existing_activities) + list(current_scheduled_activities)
 
+        preferred = self._try_quarter_pair_slot(
+            teaching_block, context, all_activities, required_slots, excluded_days
+        )
+        if preferred is not None:
+            return preferred
+
         for day in context.school_calendar.days:
             if excluded_days and day in excluded_days:
                 continue
@@ -99,6 +105,83 @@ class GreedyPlacementStrategy(PlacementStrategy):
                         else None
                     ),
                 )
+
+        return None
+
+    def _try_quarter_pair_slot(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        all_activities: Sequence[ScheduledActivity],
+        required_slots: int,
+        excluded_days: Optional[set],
+    ) -> Optional[ScheduledActivity]:
+        """Per defecte, compacta les parelles 1Q/2Q: si el grup pare d'aquest
+        bloc ja té col·locada una activitat de l'altre quadrimestre, intenta
+        primer aquella mateixa franja (dia + hora d'inici) abans de fer la
+        cerca general. Si hi ha diverses franges candidates (perquè el grup
+        pare ja té diverses activitats de l'altre quadrimestre en dies
+        diferents), es prioritza la que coincideixi de professor amb la
+        parella ja col·locada."""
+        metadata = teaching_block.metadata or {}
+        group_id = metadata.get("group_id") or metadata.get("group")
+        candidate_subject = metadata.get("subject")
+        if not group_id:
+            return None
+
+        candidate_parent, candidate_quarter = _parent_and_quarter(group_id, candidate_subject)
+        if candidate_quarter is None:
+            return None
+
+        candidate_teacher_ids = set(teacher_names(teaching_block.preferred_teacher_id))
+
+        candidates = []
+        seen_slots = set()
+        for activity in all_activities:
+            existing_subject = (activity.metadata or {}).get("subject")
+            activity_parent, activity_quarter = _parent_and_quarter(activity.group_id, existing_subject)
+            if activity_parent != candidate_parent or activity_quarter is None:
+                continue
+            if activity_quarter == candidate_quarter:
+                continue
+
+            slot_key = (activity.day, activity.start_timeslot.period)
+            if slot_key in seen_slots:
+                continue
+            seen_slots.add(slot_key)
+
+            activity_teacher_ids = set(teacher_names(activity.teacher_id))
+            teacher_matches = bool(candidate_teacher_ids) and not candidate_teacher_ids.isdisjoint(activity_teacher_ids)
+            priority = 0 if teacher_matches else 1
+            candidates.append((priority, activity.day, activity.start_timeslot.period, activity.start_timeslot))
+
+        candidates.sort(key=lambda item: (item[0], item[1], item[2]))
+
+        for _, day, _period, slot in candidates:
+            if excluded_days and day in excluded_days:
+                continue
+            if self._is_blocked(slot, context.blocked_time_slots):
+                continue
+            if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
+                continue
+            if self._group_conflict_exists(teaching_block, slot, all_activities, context):
+                continue
+            if self._teacher_conflict_exists(teaching_block, slot, all_activities):
+                continue
+            if self._group_time_window_conflict_exists(teaching_block, slot, context):
+                continue
+            if self._room_conflict_exists(teaching_block, slot, all_activities, context):
+                continue
+
+            return ScheduledActivity(
+                teaching_block=teaching_block,
+                day=day,
+                start_timeslot=slot,
+                duration=required_slots,
+                room_id=teaching_block.preferred_room_id,
+                teacher_id=teaching_block.preferred_teacher_id,
+                group_id=group_id,
+            )
 
         return None
 
@@ -222,6 +305,12 @@ class GreedyPlacementStrategy(PlacementStrategy):
         if not teacher_ids:
             return False
 
+        required_slots = teaching_block.duration_blocks or 1
+        metadata = teaching_block.metadata or {}
+        candidate_group = metadata.get("group_id") or metadata.get("group")
+        candidate_subject = metadata.get("subject")
+        candidate_quarter = quarter_suffix(candidate_subject) or quarter_suffix(candidate_group)
+
         for activity in activities:
             if activity.day != start_slot.day:
                 continue
@@ -229,8 +318,21 @@ class GreedyPlacementStrategy(PlacementStrategy):
             if not activity_teacher_ids or set(activity_teacher_ids).isdisjoint(teacher_ids):
                 continue
             activity_end = activity.start_timeslot.period + activity.duration
-            candidate_end = start_slot.period + (teaching_block.duration_blocks or 1)
+            candidate_end = start_slot.period + required_slots
             if start_slot.period < activity_end and candidate_end > activity.start_timeslot.period:
+                # Excepció: un professor pot fer una activitat de 1Q i una
+                # altra de 2Q exactament a la mateixa franja horària setmanal,
+                # ja que mai coincideixen en el temps real (són trimestres/
+                # quadrimestres diferents dins el mateix curs).
+                same_exact_slot = (
+                    start_slot.period == activity.start_timeslot.period
+                    and required_slots == activity.duration
+                )
+                if same_exact_slot and candidate_quarter is not None:
+                    existing_subject = (activity.metadata or {}).get("subject")
+                    existing_quarter = quarter_suffix(existing_subject) or quarter_suffix(activity.group_id)
+                    if existing_quarter is not None and existing_quarter != candidate_quarter:
+                        continue
                 return True
 
         return False
