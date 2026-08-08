@@ -244,6 +244,7 @@ class SchedulerUseCases:
                 or restriction.get("preferred_availability")
                 or restriction.get("daily_start_time")
                 or restriction.get("daily_max_end_time")
+                or restriction.get("daily_windows")
                 or restriction.get("max_days")
             )
         }
@@ -851,8 +852,8 @@ class SchedulerUseCases:
         self,
         group_restrictions: List[Dict[str, Any]],
         hour_names: List[str],
-    ) -> Dict[str, Tuple[int, int]]:
-        constraints: Dict[str, Tuple[int, int]] = {}
+    ) -> Dict[str, Any]:
+        constraints: Dict[str, Any] = {}
 
         for restriction in group_restrictions:
             group_name = (restriction.get("group") or "").strip()
@@ -874,13 +875,30 @@ class SchedulerUseCases:
                     start_minutes = min(preferred_minutes)
                     end_minutes = max(preferred_minutes)
 
-            if start_minutes is None or end_minutes is None:
+            default_window = None
+            if start_minutes is not None and end_minutes is not None:
+                if start_minutes > end_minutes:
+                    start_minutes, end_minutes = end_minutes, start_minutes
+                default_window = (start_minutes, end_minutes)
+
+            by_day: Dict[str, Tuple[int, int]] = {}
+            daily_windows = restriction.get("daily_windows") or {}
+            if isinstance(daily_windows, dict):
+                for day_name, day_window in daily_windows.items():
+                    if not isinstance(day_window, dict):
+                        continue
+                    day_start = self._parse_time_to_minutes(day_window.get("start"), hour_names)
+                    day_end = self._parse_time_to_minutes(day_window.get("end"), hour_names)
+                    if day_start is None or day_end is None:
+                        continue
+                    if day_start > day_end:
+                        day_start, day_end = day_end, day_start
+                    by_day[str(day_name)] = (day_start, day_end)
+
+            if default_window is None and not by_day:
                 continue
 
-            if start_minutes > end_minutes:
-                start_minutes, end_minutes = end_minutes, start_minutes
-
-            constraints[group_name.upper()] = (start_minutes, end_minutes)
+            constraints[group_name.upper()] = {"default": default_window, "by_day": by_day}
 
         return constraints
 

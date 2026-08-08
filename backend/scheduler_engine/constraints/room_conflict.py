@@ -5,13 +5,20 @@ import re
 try:
     from backend.scheduler_engine.constraints.base import Constraint
     from backend.scheduler_engine.models import Conflict
+    from backend.scheduler_engine.quarter_utils import quarter_suffix
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.models import Conflict
+    from scheduler_engine.quarter_utils import quarter_suffix
 
 
 class RoomConflictConstraint(Constraint):
-    """Detecta si una aula està ocupada per més d'una activitat al mateix temps."""
+    """Detecta si una aula està ocupada per més d'una activitat al mateix temps.
+
+    Excepció: dues activitats poden compartir aula i franja si una és 1Q i
+    l'altra 2Q (per assignatura o per grup), ja que mai coincideixen en el
+    temps real (són trimestres/quadrimestres diferents del mateix curs).
+    """
 
     def validate(self, schedule):
         conflicts = []
@@ -30,6 +37,19 @@ class RoomConflictConstraint(Constraint):
                 previous = occupied.get(key)
                 if previous is None:
                     occupied[key] = activity
+                    continue
+
+                activity_quarter = quarter_suffix(getattr(activity, "subject", None)) or quarter_suffix(
+                    getattr(activity, "group", None)
+                )
+                previous_quarter = quarter_suffix(getattr(previous, "subject", None)) or quarter_suffix(
+                    getattr(previous, "group", None)
+                )
+                if (
+                    activity_quarter is not None
+                    and previous_quarter is not None
+                    and activity_quarter != previous_quarter
+                ):
                     continue
 
                 activities = [previous.id, activity.id]

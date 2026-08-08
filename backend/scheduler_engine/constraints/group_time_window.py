@@ -17,7 +17,19 @@ def normalize_group_name(group_name: Optional[str]) -> Optional[str]:
     return str(group_name).strip().upper()
 
 
-def get_group_time_window(group_name: Optional[str], constraints: Optional[Dict[str, Any]] = None) -> Optional[Tuple[int, int]]:
+def get_group_time_window(
+    group_name: Optional[str],
+    constraints: Optional[Dict[str, Any]] = None,
+    day: Optional[str] = None,
+) -> Optional[Tuple[int, int]]:
+    """Retorna la finestra horària (start, end) permesa per a un grup.
+
+    `constraints[group]` pot ser:
+    - Una tupla/llista (start, end): s'aplica a tots els dies (format antic).
+    - Un diccionari {"default": (start, end) | None, "by_day": {dia: (start, end)}}:
+      si `day` té una entrada pròpia a "by_day", s'usa aquesta; si no,
+      s'usa "default" (si n'hi ha).
+    """
     normalized_group = normalize_group_name(group_name)
     if not normalized_group:
         return None
@@ -25,17 +37,27 @@ def get_group_time_window(group_name: Optional[str], constraints: Optional[Dict[
     if not constraints:
         return None
 
-    raw_window = constraints.get(normalized_group)
-    if raw_window is None:
+    entry = constraints.get(normalized_group)
+    if entry is None:
         return None
 
-    if isinstance(raw_window, tuple) and len(raw_window) == 2:
-        start, end = raw_window
-        return int(start), int(end)
+    def _as_window(raw) -> Optional[Tuple[int, int]]:
+        if isinstance(raw, (tuple, list)) and len(raw) == 2:
+            start, end = raw
+            return int(start), int(end)
+        return None
 
-    if isinstance(raw_window, list) and len(raw_window) == 2:
-        start, end = raw_window
-        return int(start), int(end)
+    window = _as_window(entry)
+    if window is not None:
+        return window
+
+    if isinstance(entry, dict):
+        by_day = entry.get("by_day") or {}
+        if day:
+            day_window = _as_window(by_day.get(day))
+            if day_window is not None:
+                return day_window
+        return _as_window(entry.get("default"))
 
     return None
 
@@ -51,7 +73,7 @@ class GroupTimeWindowConstraint(Constraint):
                 continue
             if not activity.group or not activity.day or not activity.start:
                 continue
-            window = get_group_time_window(activity.group, constraints)
+            window = get_group_time_window(activity.group, constraints, day=activity.day)
             if window is None:
                 continue
 
