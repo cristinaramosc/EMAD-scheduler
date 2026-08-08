@@ -4256,7 +4256,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <button type="button" onClick={saveGroupRestrictions} disabled={isSavingGroupRestrictions}>
+                <button type="button" onClick={() => saveGroupRestrictions()} disabled={isSavingGroupRestrictions}>
                   {isSavingGroupRestrictions ? "S'està desant..." : "Desa restriccions"}
                 </button>
               </div>
