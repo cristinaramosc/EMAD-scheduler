@@ -4,10 +4,10 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 if __package__ and __package__.startswith("backend"):
-    from backend.dependencies import get_proposal_store, get_scheduler_use_cases
+    from backend.dependencies import get_proposal_store, get_scheduler_use_cases, get_live_schedule_use_cases
     from backend.schemas.scheduler import MoveDTO, SwapDTO
 else:  # pragma: no cover
-    from dependencies import get_proposal_store, get_scheduler_use_cases
+    from dependencies import get_proposal_store, get_scheduler_use_cases, get_live_schedule_use_cases
     from schemas.scheduler import MoveDTO, SwapDTO
 
 router = APIRouter(prefix="/scheduler", tags=["Scheduler"])
@@ -57,9 +57,19 @@ def generate_proposals(payload: GenerateRequest):
 def accept_proposal(proposal_id: str):
     use_cases = get_scheduler_use_cases()
     try:
-        return use_cases.accept_proposal(proposal_id)
+        result = use_cases.accept_proposal(proposal_id)
     except LookupError:
         raise HTTPException(status_code=404, detail="proposal_not_found")
+
+    if result.get("ok"):
+        try:
+            get_live_schedule_use_cases().auto_place_breaks()
+        except Exception:  # no bloquegem l'acceptació si l'auto-descans falla
+            import traceback
+
+            traceback.print_exc()
+
+    return result
 
 
 @router.post("/proposal/{proposal_id}/move")

@@ -62,6 +62,14 @@ def toggle_group_break(payload: ToggleGroupBreakDTO):
     return use_cases.toggle_group_break(payload.group, payload.day)
 
 
+@router.post("/breaks/auto")
+def auto_place_breaks():
+    """Afegeix automàticament un descans a cada dia amb classes de cada
+    grup que encara no en tingui cap."""
+    use_cases = get_live_schedule_use_cases()
+    return use_cases.auto_place_breaks()
+
+
 @router.post("/lunch-breaks/assign")
 def assign_teacher_lunch_breaks():
     """Afegeix una hora de dinar (12h-16h) als professors amb classe matí i tarda."""
