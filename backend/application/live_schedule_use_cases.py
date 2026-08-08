@@ -282,6 +282,39 @@ class LiveScheduleUseCases:
             return
         self._academic_data_repo.upsert_group_restriction(restriction)
 
+    def auto_place_breaks(self) -> Dict[str, Any]:
+        """Afegeix automàticament un descans de 30 min a cada dia amb classes
+        de cada grup, si encara no en té cap. Pensat per cridar-se just
+        després de generar/acceptar un horari nou. No sobreescriu cap
+        descans ja actiu i, si un dia concret no té cap forat lliure dins la
+        finestra permesa, simplement no s'hi afegeix (sense avisar d'error:
+        es limita a informar-ho al resultat)."""
+        self._ensure_active_schedule_from_proposal()
+
+        groups_and_days: set = set()
+        for activity in self._engine.state.all():
+            group = getattr(activity, "group", None)
+            day = getattr(activity, "day", None)
+            if group and day:
+                groups_and_days.add((group, day))
+
+        added: List[Dict[str, str]] = []
+        skipped: List[Dict[str, str]] = []
+
+        for group, day in sorted(groups_and_days):
+            restriction = self._get_group_restriction(group)
+            break_days = restriction.get("break_days") or []
+            if any(self._same_day(stored_day, day) for stored_day in break_days):
+                continue  # ja te descans aquell dia, no el toquem
+
+            result = self.toggle_group_break(group, day)
+            if result.get("ok") and result.get("active"):
+                added.append({"group": group, "day": day})
+            else:
+                skipped.append({"group": group, "day": day, "reason": result.get("detail") or result.get("error") or ""})
+
+        return {"ok": True, "added": added, "skipped": skipped, **self.state()}
+
     def toggle_group_break(self, group: str, day: str) -> Dict[str, Any]:
         """Activa/desactiva un descans de 30 min com a buit de calendari
         (restricció flexible), sense crear cap activitat "Descans".
