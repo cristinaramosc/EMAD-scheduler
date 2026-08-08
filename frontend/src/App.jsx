@@ -111,6 +111,7 @@ function createGroupRestrictionDraft(groupName = "") {
     unavailable_slots: [],
     daily_start_time: "",
     daily_max_end_time: "",
+    daily_windows: {},
     break_days: [],
     break_slots: [],
   };
@@ -541,7 +542,6 @@ export default function App() {
   const [roomEditValues, setRoomEditValues] = useState({ name: "", capacity: "" });
 
   const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
-  const [selectedAssignmentIds, setSelectedAssignmentIds] = useState([]);
   const [assignmentEdit, setAssignmentEdit] = useState(null);
   const [assignmentEditValues, setAssignmentEditValues] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", allowed_session_lengths: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
 
@@ -1030,6 +1030,7 @@ export default function App() {
         unavailable_slots: Array.isArray(data.unavailable_slots) ? data.unavailable_slots : [],
         daily_start_time: data.daily_start_time || "",
         daily_max_end_time: data.daily_max_end_time || "",
+        daily_windows: data.daily_windows && typeof data.daily_windows === "object" ? data.daily_windows : {},
         break_days: Array.isArray(data.break_days) ? data.break_days : [],
         break_slots: Array.isArray(data.break_slots) ? data.break_slots : [],
       };
@@ -1063,6 +1064,7 @@ export default function App() {
         unavailable_slots: updatedDraft.unavailable_slots || [],
         daily_start_time: updatedDraft.daily_start_time || "",
         daily_max_end_time: updatedDraft.daily_max_end_time || "",
+        daily_windows: updatedDraft.daily_windows || {},
         break_days: updatedDraft.break_days || [],
         break_slots: updatedDraft.break_slots || [],
       };
@@ -2710,13 +2712,6 @@ export default function App() {
     return apiJson("DELETE", `/academic-data/assignments/${encodeURIComponent(id)}`);
   }
 
-  async function mergeQuarterAssignments(firstId, secondId) {
-    return apiJson("POST", "/academic-data/assignments/merge-quarters", {
-      first_id: firstId,
-      second_id: secondId,
-    });
-  }
-
   async function splitMergedAssignment(id) {
     return apiJson("POST", `/academic-data/assignments/${encodeURIComponent(id)}/split`);
   }
@@ -3603,25 +3598,6 @@ export default function App() {
                   </div>
                 ) : (
                 <>
-                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                  <button
-                    type="button"
-                    disabled={selectedAssignmentIds.length !== 2}
-                    onClick={async () => {
-                      const res = await mergeQuarterAssignments(selectedAssignmentIds[0], selectedAssignmentIds[1]);
-                      if (res.ok) {
-                        setSelectedAssignmentIds([]);
-                        await refreshAcademicLists();
-                      } else {
-                        alert(res.data?.detail || "No s'han pogut compactar les assignacions.");
-                      }
-                    }}
-                    title="Selecciona exactament 2 assignacions del mateix grup per compactar-les en un sol bloc de 2 hores (1Q + 2Q)"
-                  >
-                    Compacta seleccionades (1Q + 2Q)
-                  </button>
-                  <span className="muted">Selecciona 2 files amb la casella per activar-ho.</span>
-                </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 10 }}>
                   <input
                     type="text"
@@ -3644,7 +3620,6 @@ export default function App() {
                 <table className="academic-table">
                   <thead>
                     <tr>
-                      <th></th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("teacher", setAcademicSort)}>Professor{sortIndicator("teacher", academicSort)}</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("group", setAcademicSort)}>Grup d'alumnes{sortIndicator("group", academicSort)}</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("subject", setAcademicSort)}>Assignatura{sortIndicator("subject", academicSort)}</th>
@@ -3667,19 +3642,6 @@ export default function App() {
                     )
                       .map((a) => (
                       <tr key={a.id}>
-                        <td>
-                          <input
-                            type="checkbox"
-                            checked={selectedAssignmentIds.includes(a.id)}
-                            onChange={(event) => {
-                              setSelectedAssignmentIds((current) =>
-                                event.target.checked
-                                  ? [...current, a.id].slice(-2)
-                                  : current.filter((id) => id !== a.id)
-                              );
-                            }}
-                          />
-                        </td>
                         <td>
                           {assignmentEdit === a.id ? (
                             <>
@@ -4206,6 +4168,91 @@ export default function App() {
                         style={{ marginLeft: 8, width: 70 }}
                       />
                     </label>
+                  </div>
+                  <div style={{ marginTop: 12 }}>
+                    <p className="muted" style={{ marginTop: 0, marginBottom: 6 }}>
+                      Excepcions per dia (opcional): si un dia no té valor propi, s'aplica l'hora d'inici/final general d'aquí dalt.
+                    </p>
+                    <table style={{ borderCollapse: "collapse" }}>
+                      <thead>
+                        <tr>
+                          <th></th>
+                          {DAYS.map((day) => (
+                            <th key={day} style={{ padding: "4px 8px", fontWeight: 600, fontSize: 13 }}>{day}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td style={{ padding: "4px 8px", fontSize: 13 }}>Inici</td>
+                          {DAYS.map((day) => {
+                            const dayWindows = groupRestrictionDraft.daily_windows || {};
+                            const dayValue = dayWindows[day]?.start || "";
+                            return (
+                              <td key={day} style={{ padding: "4px 8px" }}>
+                                <select
+                                  value={dayValue}
+                                  onChange={(event) => {
+                                    const nextWindows = { ...dayWindows };
+                                    const current = { ...(nextWindows[day] || {}) };
+                                    if (event.target.value) {
+                                      current.start = event.target.value;
+                                    } else {
+                                      delete current.start;
+                                    }
+                                    if (current.start || current.end) {
+                                      nextWindows[day] = current;
+                                    } else {
+                                      delete nextWindows[day];
+                                    }
+                                    setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_windows: nextWindows });
+                                  }}
+                                >
+                                  <option value="">(general)</option>
+                                  {HOURS.map((hour) => (
+                                    <option key={hour} value={hour}>{hour}</option>
+                                  ))}
+                                </select>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                        <tr>
+                          <td style={{ padding: "4px 8px", fontSize: 13 }}>Final</td>
+                          {DAYS.map((day) => {
+                            const dayWindows = groupRestrictionDraft.daily_windows || {};
+                            const dayValue = dayWindows[day]?.end || "";
+                            return (
+                              <td key={day} style={{ padding: "4px 8px" }}>
+                                <select
+                                  value={dayValue}
+                                  onChange={(event) => {
+                                    const nextWindows = { ...dayWindows };
+                                    const current = { ...(nextWindows[day] || {}) };
+                                    if (event.target.value) {
+                                      current.end = event.target.value;
+                                    } else {
+                                      delete current.end;
+                                    }
+                                    if (current.start || current.end) {
+                                      nextWindows[day] = current;
+                                    } else {
+                                      delete nextWindows[day];
+                                    }
+                                    setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_windows: nextWindows });
+                                  }}
+                                >
+                                  <option value="">(general)</option>
+                                  {HOURS.map((hour) => (
+                                    <option key={hour} value={hour}>{hour}</option>
+                                  ))}
+                                </select>
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 

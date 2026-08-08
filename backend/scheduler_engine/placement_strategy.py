@@ -454,7 +454,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
         if not group_id:
             return False
 
-        window = get_group_time_window(group_id, context.configuration.get("group_time_window_constraints"))
+        window = get_group_time_window(
+            group_id, context.configuration.get("group_time_window_constraints"), day=start_slot.day
+        )
         if window is None:
             return False
 
@@ -534,6 +536,11 @@ class GreedyPlacementStrategy(PlacementStrategy):
             return False
 
         required_slots = teaching_block.duration_blocks or 1
+        metadata = teaching_block.metadata or {}
+        candidate_group = metadata.get("group_id") or metadata.get("group")
+        candidate_subject = metadata.get("subject")
+        candidate_quarter = quarter_suffix(candidate_subject) or quarter_suffix(candidate_group)
+
         for activity in activities:
             if activity.day != start_slot.day:
                 continue
@@ -542,6 +549,14 @@ class GreedyPlacementStrategy(PlacementStrategy):
             activity_end = activity.start_timeslot.period + activity.duration
             candidate_end = start_slot.period + required_slots
             if start_slot.period < activity_end and candidate_end > activity.start_timeslot.period:
+                # Excepció: dues activitats poden compartir aula i franja si
+                # una és 1Q i l'altra 2Q, ja que mai coincideixen en el temps
+                # real (són trimestres/quadrimestres diferents).
+                if candidate_quarter is not None:
+                    existing_subject = (activity.teaching_block.metadata or {}).get("subject")
+                    existing_quarter = quarter_suffix(existing_subject) or quarter_suffix(activity.group_id)
+                    if existing_quarter is not None and existing_quarter != candidate_quarter:
+                        continue
                 return True
 
         return False

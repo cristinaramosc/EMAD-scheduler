@@ -87,6 +87,7 @@ class GroupRestrictionDTO(BaseModel):
     unavailable_slots: Optional[List[str]] = []
     daily_start_time: Optional[str] = ""
     daily_max_end_time: Optional[str] = ""
+    daily_windows: Optional[Dict[str, Dict[str, str]]] = {}
     exception_slots: Optional[List[str]] = []
     break_days: Optional[List[str]] = []
     break_slots: Optional[List[str]] = []
@@ -102,6 +103,7 @@ class GroupRestrictionUpdateDTO(BaseModel):
     unavailable_slots: Optional[List[str]] = None
     daily_start_time: Optional[str] = None
     daily_max_end_time: Optional[str] = None
+    daily_windows: Optional[Dict[str, Dict[str, str]]] = None
     exception_slots: Optional[List[str]] = None
     break_days: Optional[List[str]] = None
     break_slots: Optional[List[str]] = None
@@ -350,6 +352,7 @@ def update_group_restrictions(name: str, payload: GroupRestrictionUpdateDTO):
         "fixed_slots": existing_restriction.get("fixed_slots", []),
         "daily_start_time": payload.daily_start_time if payload.daily_start_time is not None else existing_restriction.get("daily_start_time", ""),
         "daily_max_end_time": payload.daily_max_end_time if payload.daily_max_end_time is not None else existing_restriction.get("daily_max_end_time", ""),
+        "daily_windows": payload.daily_windows if payload.daily_windows is not None else existing_restriction.get("daily_windows", {}),
         "exception_slots": payload.exception_slots if payload.exception_slots is not None else existing_restriction.get("exception_slots", []),
         "break_days": payload.break_days if payload.break_days is not None else existing_restriction.get("break_days", []),
         "break_slots": payload.break_slots if payload.break_slots is not None else existing_restriction.get("break_slots", []),

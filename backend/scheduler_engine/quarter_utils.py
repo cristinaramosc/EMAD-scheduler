@@ -21,23 +21,29 @@ _QUARTER_2Q = "2q"
 
 
 def quarter_suffix(text: Optional[str]) -> Optional[str]:
-    """Retorna '1q' o '2q' si el text acaba amb aquest sufix (independent
-    de majúscules/minúscules i espais), o None en cas contrari."""
+    """Retorna '1q' o '2q' si el text conté aquest marcador com a paraula
+    sencera (independent de majúscules/minúscules), tant si hi és al final
+    ("Metodologia 2Q") com al principi ("1Q Proj UF1"), o None en cas
+    contrari. Es fa servir un límit de paraula perquè no confongui codis
+    com "UF1" amb el marcador "1Q"."""
     value = (text or "").strip().lower()
-    if value.endswith(_QUARTER_1Q):
+    if not value:
+        return None
+    if re.search(r"(?:^|\s)1q(?:\s|$)", value):
         return _QUARTER_1Q
-    if value.endswith(_QUARTER_2Q):
+    if re.search(r"(?:^|\s)2q(?:\s|$)", value):
         return _QUARTER_2Q
     return None
 
 
 def strip_quarter_suffix(text: Optional[str]) -> str:
-    """Retorna el text sense el sufix 1Q/2Q (si en té), amb espais nets."""
+    """Retorna el text sense el marcador 1Q/2Q (si en té, al principi o al
+    final), amb espais nets."""
     value = (text or "").strip()
-    suffix = quarter_suffix(value)
-    if suffix is None:
+    if not value:
         return value
-    return value[: -len(suffix)].strip()
+    without_suffix = re.sub(r"(?i)(?:^|\s)([12]q)(?:\s|$)", " ", value)
+    return re.sub(r"\s+", " ", without_suffix).strip()
 
 
 def normalize_group_name(text: Optional[str]) -> str:
