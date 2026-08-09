@@ -889,8 +889,16 @@ class SchedulerUseCases:
                         continue
                     day_start = self._parse_time_to_minutes(day_window.get("start"), hour_names)
                     day_end = self._parse_time_to_minutes(day_window.get("end"), hour_names)
-                    if day_start is None or day_end is None:
-                        continue
+                    # Si només s'ha omplert un dels dos camps per a aquest dia
+                    # (p.ex. només "Final"), l'altre hereta el valor general
+                    # (daily_start_time/daily_max_end_time); si tampoc n'hi
+                    # ha, es tracta com "sense límit" per aquell costat (0 =
+                    # sense límit d'inici, fi del dia = sense límit de final)
+                    # en lloc de descartar tota l'excepció d'aquell dia.
+                    if day_start is None:
+                        day_start = start_minutes if start_minutes is not None else 0
+                    if day_end is None:
+                        day_end = end_minutes if end_minutes is not None else 24 * 60
                     if day_start > day_end:
                         day_start, day_end = day_end, day_start
                     by_day[str(day_name)] = (day_start, day_end)
