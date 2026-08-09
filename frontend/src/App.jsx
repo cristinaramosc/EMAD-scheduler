@@ -4082,7 +4082,7 @@ export default function App() {
             return (
               <div
                 key={block.slotKey}
-                className="slot-activities"
+                className={`slot-activities${block.activities.length > 1 ? " slot-activities--quarter-pair" : ""}`}
                 style={{
                   gridColumn: dayCol + 2,
                   gridRow: `${block.hourRow + 2} / span ${block.rowSpan}`,
