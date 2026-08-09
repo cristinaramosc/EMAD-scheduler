@@ -1,10 +1,10 @@
 {
   "active_schedule": [],
   "current_proposal": {
-    "id": "proposal-dbf955342ee8",
+    "id": "proposal-03e6c1757912",
     "activities": [
       {
-        "id": 2626881594,
+        "id": 2642239542,
         "teacher": "Bet",
         "subject": "Dx artístic",
         "group": "2n APGI",
@@ -15,7 +15,7 @@
         "fixed": false
       },
       {
-        "id": 115944588,
+        "id": 1813433702,
         "teacher": "Inno",
         "subject": "FOL UF3",
         "group": "2n APGI",
@@ -26,7 +26,7 @@
         "fixed": false
       },
       {
-        "id": 1314734437,
+        "id": 758264605,
         "teacher": "Bego",
         "subject": "Obra Final",
         "group": "2n APGI",
@@ -37,7 +37,7 @@
         "fixed": false
       },
       {
-        "id": 1773028299,
+        "id": 3226018488,
         "teacher": "Alfred",
         "subject": "Tipografia",
         "group": "2n APGI",
@@ -48,7 +48,7 @@
         "fixed": false
       },
       {
-        "id": 1091757069,
+        "id": 813322268,
         "teacher": "Bego",
         "subject": "Multimèdia UF3 i UF4",
         "group": "2n APGI",
@@ -59,7 +59,7 @@
         "fixed": false
       },
       {
-        "id": 2047996602,
+        "id": 946555663,
         "teacher": "Bego",
         "subject": "FOL GPP",
         "group": "GI",
@@ -70,7 +70,7 @@
         "fixed": false
       },
       {
-        "id": 2856690617,
+        "id": 2354788259,
         "teacher": "Bego",
         "subject": "GPP",
         "group": "GI",
@@ -81,7 +81,7 @@
         "fixed": false
       },
       {
-        "id": 370255485,
+        "id": 1465172821,
         "teacher": "Cristina",
         "subject": "Projecte Integrat",
         "group": "GI",
@@ -92,7 +92,7 @@
         "fixed": false
       },
       {
-        "id": 3673461687,
+        "id": 3558522791,
         "teacher": "Marc",
         "subject": "Projectes",
         "group": "GI",
@@ -103,7 +103,7 @@
         "fixed": false
       },
       {
-        "id": 3635623978,
+        "id": 134862570,
         "teacher": "Sònia",
         "subject": "Interfícies gràfiques",
         "group": "GI",
@@ -114,7 +114,7 @@
         "fixed": false
       },
       {
-        "id": 840888216,
+        "id": 1733129480,
         "teacher": "Eli",
         "subject": "Obra Final",
         "group": "2n COM",
@@ -125,7 +125,7 @@
         "fixed": false
       },
       {
-        "id": 3097971614,
+        "id": 3704341671,
         "teacher": "Bet",
         "subject": "FOL UF3",
         "group": "2n COM",
@@ -136,7 +136,7 @@
         "fixed": false
       },
       {
-        "id": 3284986387,
+        "id": 3150187631,
         "teacher": "Núria",
         "subject": "Render de producte",
         "group": "2n COM",
@@ -147,7 +147,7 @@
         "fixed": false
       },
       {
-        "id": 3345488213,
+        "id": 1104114604,
         "teacher": "Eulàlia",
         "subject": "Dx artístic",
         "group": "2n COM",
@@ -158,7 +158,7 @@
         "fixed": false
       },
       {
-        "id": 582841389,
+        "id": 2786942924,
         "teacher": "Cristina",
         "subject": "Espais 1Q",
         "group": "2n COM",
@@ -169,7 +169,7 @@
         "fixed": false
       },
       {
-        "id": 1561986444,
+        "id": 3334533987,
         "teacher": "Cristina",
         "subject": "Impressió 3D 2Q",
         "group": "2n COM",
@@ -180,7 +180,7 @@
         "fixed": false
       },
       {
-        "id": 3880565952,
+        "id": 4076922905,
         "teacher": "Inno",
         "subject": "FOL UF3",
         "group": "GP",
@@ -191,7 +191,7 @@
         "fixed": false
       },
       {
-        "id": 735585179,
+        "id": 3869583741,
         "teacher": "Eli",
         "subject": "Projecte Integrat",
         "group": "GP",
@@ -202,7 +202,7 @@
         "fixed": false
       },
       {
-        "id": 2162590992,
+        "id": 1330402570,
         "teacher": "Noëlle",
         "subject": "Foto UF3",
         "group": "GP",
@@ -213,7 +213,7 @@
         "fixed": false
       },
       {
-        "id": 360959800,
+        "id": 2542923124,
         "teacher": "Noëlle",
         "subject": "GPP",
         "group": "GP",
@@ -224,7 +224,7 @@
         "fixed": false
       },
       {
-        "id": 1840604961,
+        "id": 3119375921,
         "teacher": "Jordi",
         "subject": "GPP",
         "group": "2n COM",
@@ -235,7 +235,7 @@
         "fixed": false
       },
       {
-        "id": 3643194794,
+        "id": 3734485571,
         "teacher": "Eli",
         "subject": "Obra Final",
         "group": "2n COM",
@@ -246,7 +246,7 @@
         "fixed": false
       },
       {
-        "id": 43053190,
+        "id": 1117904481,
         "teacher": "Borja",
         "subject": "ANG UF2 Behance my friend 1Q",
         "group": "2n COM",
@@ -257,7 +257,7 @@
         "fixed": false
       },
       {
-        "id": 2014815568,
+        "id": 4255258376,
         "teacher": "Noëlle",
         "subject": "Hª de la imatge UF1",
         "group": "Comú",
@@ -268,7 +268,7 @@
         "fixed": false
       },
       {
-        "id": 3319158586,
+        "id": 1787662555,
         "teacher": "Bego",
         "subject": "Ll. Tec. Audio UF1",
         "group": "Comú",
@@ -279,7 +279,7 @@
         "fixed": false
       },
       {
-        "id": 3445506260,
+        "id": 1858157831,
         "teacher": "Marc",
         "subject": "Màrqueting",
         "group": "Comú",
@@ -290,7 +290,7 @@
         "fixed": false
       },
       {
-        "id": 2623119166,
+        "id": 2170198208,
         "teacher": "Bet",
         "subject": "Fonaments expressió",
         "group": "Comú",
@@ -301,7 +301,7 @@
         "fixed": false
       },
       {
-        "id": 559338210,
+        "id": 3291844235,
         "teacher": "Joan Carles",
         "subject": "Materials",
         "group": "1r COM",
@@ -312,7 +312,7 @@
         "fixed": false
       },
       {
-        "id": 3605208908,
+        "id": 2763639678,
         "teacher": "Eulàlia",
         "subject": "Dx artístic",
         "group": "1r COM",
@@ -323,7 +323,7 @@
         "fixed": false
       },
       {
-        "id": 959445928,
+        "id": 1394106112,
         "teacher": "Carme",
         "subject": "FOL UF1",
         "group": "1r COM",
@@ -334,7 +334,7 @@
         "fixed": false
       },
       {
-        "id": 239624959,
+        "id": 447005379,
         "teacher": "Sara",
         "subject": "PFI M4 Mon Professional",
         "group": "PFI",
@@ -345,7 +345,7 @@
         "fixed": false
       },
       {
-        "id": 2566782671,
+        "id": 541003632,
         "teacher": "Judit",
         "subject": "PFI Tutoria",
         "group": "PFI",
@@ -356,7 +356,7 @@
         "fixed": false
       },
       {
-        "id": 2020117818,
+        "id": 1684499500,
         "teacher": "Imma",
         "subject": "PFI M2 Social",
         "group": "PFI",
@@ -367,7 +367,7 @@
         "fixed": false
       },
       {
-        "id": 4120461494,
+        "id": 1238515890,
         "teacher": "Sara",
         "subject": "PFI RRLL",
         "group": "PFI",
@@ -378,7 +378,7 @@
         "fixed": false
       },
       {
-        "id": 564100397,
+        "id": 3104209703,
         "teacher": "Inno",
         "subject": "Edició web",
         "group": "1r APGI",
@@ -389,7 +389,7 @@
         "fixed": false
       },
       {
-        "id": 1559299572,
+        "id": 3696726999,
         "teacher": "Noëlle",
         "subject": "Fonaments DG",
         "group": "1r APGI",
@@ -400,7 +400,7 @@
         "fixed": false
       },
       {
-        "id": 3815790984,
+        "id": 302275463,
         "teacher": "Bet",
         "subject": "Dx artístic",
         "group": "1r APGI",
@@ -411,7 +411,7 @@
         "fixed": false
       },
       {
-        "id": 3839565935,
+        "id": 4005973202,
         "teacher": "Noëlle",
         "subject": "Fonaments DG",
         "group": "1r APGI",
@@ -422,7 +422,7 @@
         "fixed": false
       },
       {
-        "id": 3527282487,
+        "id": 2398648735,
         "teacher": "Borja",
         "subject": "Anglès UF1 Influences 2Q",
         "group": "1r APGI",
@@ -433,7 +433,7 @@
         "fixed": false
       },
       {
-        "id": 1049345671,
+        "id": 1917388815,
         "teacher": "Noëlle",
         "subject": "Foto 1Q",
         "group": "1r APGI",
@@ -444,7 +444,7 @@
         "fixed": false
       },
       {
-        "id": 236390978,
+        "id": 332895203,
         "teacher": "Bet",
         "subject": "Dx Tècnic",
         "group": "1r APGI",
@@ -455,7 +455,7 @@
         "fixed": false
       },
       {
-        "id": 713189764,
+        "id": 1101675460,
         "teacher": "Bet",
         "subject": "Fonaments expressió",
         "group": "Comú",
@@ -466,7 +466,7 @@
         "fixed": false
       },
       {
-        "id": 1997656627,
+        "id": 3830071097,
         "teacher": "Sònia",
         "subject": "Mitjans informàtics",
         "group": "Comú",
@@ -477,7 +477,7 @@
         "fixed": false
       },
       {
-        "id": 3048371893,
+        "id": 254963592,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "Comú",
@@ -488,7 +488,7 @@
         "fixed": false
       },
       {
-        "id": 3344797357,
+        "id": 2660172839,
         "teacher": "Noëlle",
         "subject": "Foto UF1 i 2",
         "group": "Comú",
@@ -499,7 +499,7 @@
         "fixed": false
       },
       {
-        "id": 58626388,
+        "id": 1798452733,
         "teacher": "Bego",
         "subject": "GPP",
         "group": "GI",
@@ -510,7 +510,7 @@
         "fixed": false
       },
       {
-        "id": 2877413893,
+        "id": 1253508531,
         "teacher": "Sònia",
         "subject": "Ll. disp. comunicació projecte 2Q",
         "group": "GI",
@@ -521,7 +521,7 @@
         "fixed": false
       },
       {
-        "id": 2041676163,
+        "id": 3744858923,
         "teacher": "Sònia",
         "subject": "Projectes 1Q",
         "group": "GI",
@@ -532,7 +532,7 @@
         "fixed": false
       },
       {
-        "id": 1286852250,
+        "id": 2790692455,
         "teacher": "Inno",
         "subject": "Ll. programació",
         "group": "GI",
@@ -543,7 +543,7 @@
         "fixed": false
       },
       {
-        "id": 3250451429,
+        "id": 774435170,
         "teacher": "Sònia",
         "subject": "Interfícies gràfiques",
         "group": "GI",
@@ -554,7 +554,7 @@
         "fixed": false
       },
       {
-        "id": 3790983543,
+        "id": 3851764629,
         "teacher": "Marc",
         "subject": "Projectes",
         "group": "GI",
@@ -565,7 +565,7 @@
         "fixed": false
       },
       {
-        "id": 2709940134,
+        "id": 2831416281,
         "teacher": "Roger",
         "subject": "Hª del DG",
         "group": "GI",
@@ -576,7 +576,7 @@
         "fixed": false
       },
       {
-        "id": 4263189578,
+        "id": 3820134604,
         "teacher": "Sònia",
         "subject": "Mitjans informàtics",
         "group": "Comú",
@@ -587,7 +587,7 @@
         "fixed": false
       },
       {
-        "id": 438456068,
+        "id": 1879291559,
         "teacher": "Bego",
         "subject": "Ll. Tec. Audio UF1",
         "group": "Comú",
@@ -598,7 +598,7 @@
         "fixed": false
       },
       {
-        "id": 4178493452,
+        "id": 3837483471,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "Comú",
@@ -609,7 +609,7 @@
         "fixed": false
       },
       {
-        "id": 1810574115,
+        "id": 3276921121,
         "teacher": "Bego",
         "subject": "Multimèdia UF3 i UF4",
         "group": "2n APGI",
@@ -620,7 +620,7 @@
         "fixed": false
       },
       {
-        "id": 303045291,
+        "id": 3618240042,
         "teacher": "Inno",
         "subject": "Obra Final",
         "group": "2n APGI",
@@ -631,7 +631,7 @@
         "fixed": false
       },
       {
-        "id": 1315210047,
+        "id": 2159857633,
         "teacher": "Alfred",
         "subject": "Art Experience 2Q",
         "group": "Comú",
@@ -642,7 +642,7 @@
         "fixed": false
       },
       {
-        "id": 938036628,
+        "id": 1775724686,
         "teacher": "Alfred",
         "subject": "Proj UF1 1Q",
         "group": "Comú",
@@ -653,7 +653,7 @@
         "fixed": false
       },
       {
-        "id": 4106701696,
+        "id": 176867211,
         "teacher": "Borja",
         "subject": "ANG UF1 Behance my friend 1Q",
         "group": "2n APGI",
@@ -664,7 +664,7 @@
         "fixed": false
       },
       {
-        "id": 586157099,
+        "id": 1871942051,
         "teacher": "Sònia",
         "subject": "Foto 1Q",
         "group": "2n APGI",
@@ -675,7 +675,7 @@
         "fixed": false
       },
       {
-        "id": 3810533331,
+        "id": 2184807352,
         "teacher": "Bet",
         "subject": "Dx Tècnic",
         "group": "1r COM",
@@ -686,7 +686,7 @@
         "fixed": false
       },
       {
-        "id": 375730866,
+        "id": 2892292410,
         "teacher": "Borja",
         "subject": "Anglès UF2 Influences 1Q",
         "group": "1r COM",
@@ -697,7 +697,7 @@
         "fixed": false
       },
       {
-        "id": 2743463977,
+        "id": 3507010247,
         "teacher": "Inno",
         "subject": "Edició web",
         "group": "1r APGI",
@@ -708,7 +708,7 @@
         "fixed": false
       },
       {
-        "id": 3375441609,
+        "id": 3495822677,
         "teacher": "Roger",
         "subject": "Hª del DG",
         "group": "1r APGI",
@@ -719,7 +719,7 @@
         "fixed": false
       },
       {
-        "id": 1388060576,
+        "id": 3500921660,
         "teacher": "Sònia",
         "subject": "Metodologia 2Q",
         "group": "1r APGI",
@@ -730,7 +730,7 @@
         "fixed": false
       },
       {
-        "id": 2554867349,
+        "id": 56067987,
         "teacher": "Sònia",
         "subject": "Multimèdia UF1 1Q",
         "group": "1r APGI",
@@ -741,7 +741,7 @@
         "fixed": false
       },
       {
-        "id": 2006881395,
+        "id": 1540509397,
         "teacher": "Eli",
         "subject": "GPP",
         "group": "2n COM",
@@ -752,7 +752,7 @@
         "fixed": false
       },
       {
-        "id": 3870395971,
+        "id": 1643170966,
         "teacher": "Eulàlia",
         "subject": "Volum UF1 1Q",
         "group": "2n COM",
@@ -763,7 +763,7 @@
         "fixed": false
       },
       {
-        "id": 18030234,
+        "id": 1715248513,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "2n COM",
@@ -774,7 +774,7 @@
         "fixed": false
       },
       {
-        "id": 4002466907,
+        "id": 3868092141,
         "teacher": "Bet",
         "subject": "Hª de l'art UF1",
         "group": "1r COM",
@@ -785,7 +785,7 @@
         "fixed": false
       },
       {
-        "id": 1154749872,
+        "id": 3377193452,
         "teacher": "Núria",
         "subject": "Mitjans informàtics",
         "group": "1r COM",
@@ -796,7 +796,7 @@
         "fixed": false
       },
       {
-        "id": 3348306632,
+        "id": 660477912,
         "teacher": "Eli",
         "subject": "Projectes",
         "group": "1r COM",
@@ -807,7 +807,7 @@
         "fixed": false
       },
       {
-        "id": 2060770052,
+        "id": 2799912719,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "1r COM",
@@ -818,7 +818,7 @@
         "fixed": false
       },
       {
-        "id": 3834623802,
+        "id": 2044284376,
         "teacher": "Roger",
         "subject": "Hª del DG",
         "group": "GP",
@@ -829,7 +829,7 @@
         "fixed": false
       },
       {
-        "id": 1239067417,
+        "id": 2398345434,
         "teacher": "Cristina",
         "subject": "Projecte Integrat",
         "group": "GP",
@@ -840,7 +840,7 @@
         "fixed": false
       },
       {
-        "id": 557376082,
+        "id": 2801781261,
         "teacher": "Cristina",
         "subject": "Projectes UF4 1Q",
         "group": "GP",
@@ -851,7 +851,7 @@
         "fixed": false
       },
       {
-        "id": 170022297,
+        "id": 1765471836,
         "teacher": "Eulàlia",
         "subject": "Ll. disp. Taller producció",
         "group": "Comú",
@@ -862,7 +862,7 @@
         "fixed": false
       },
       {
-        "id": 2926300085,
+        "id": 4238506583,
         "teacher": "Inno",
         "subject": "Ll. programació",
         "group": "Comú",
@@ -873,7 +873,7 @@
         "fixed": false
       },
       {
-        "id": 2289892118,
+        "id": 739059437,
         "teacher": "Inno",
         "subject": "Projectes UF2",
         "group": "Comú",
@@ -884,7 +884,7 @@
         "fixed": false
       },
       {
-        "id": 3449310804,
+        "id": 331528471,
         "teacher": "Alfred",
         "subject": "Mitjans informàtics",
         "group": "1r APGI",
@@ -895,7 +895,7 @@
         "fixed": false
       },
       {
-        "id": 2231117328,
+        "id": 1317073215,
         "teacher": "Alfred",
         "subject": "Mitjans informàtics 1Q",
         "group": "2n APGI",
@@ -906,7 +906,7 @@
         "fixed": false
       },
       {
-        "id": 829873389,
+        "id": 468446059,
         "teacher": "Alfred",
         "subject": "Packaging 2Q",
         "group": "2n APGI",
@@ -917,7 +917,7 @@
         "fixed": false
       },
       {
-        "id": 771507932,
+        "id": 4255738963,
         "teacher": "Sònia",
         "subject": "Projecte Integrat",
         "group": "GI",
@@ -928,7 +928,7 @@
         "fixed": false
       },
       {
-        "id": 2312630132,
+        "id": 1863671273,
         "teacher": "Marc F.",
         "subject": "PFI Taller",
         "group": "PFI",
@@ -939,7 +939,7 @@
         "fixed": false
       },
       {
-        "id": 37670832,
+        "id": 3672500698,
         "teacher": "Joan Carles",
         "subject": "PFI Taller",
         "group": "PFI",
@@ -950,7 +950,7 @@
         "fixed": false
       },
       {
-        "id": 2366784233,
+        "id": 415044811,
         "teacher": "Marc",
         "subject": "Teoria publ i mkt",
         "group": "GP",
@@ -961,7 +961,7 @@
         "fixed": false
       },
       {
-        "id": 8220335,
+        "id": 3580799308,
         "teacher": "Cristina",
         "subject": "GPP",
         "group": "GP",
@@ -972,7 +972,7 @@
         "fixed": false
       },
       {
-        "id": 2887430745,
+        "id": 478764424,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "GP",
@@ -983,7 +983,7 @@
         "fixed": false
       },
       {
-        "id": 3109203265,
+        "id": 2027034160,
         "teacher": "Noëlle",
         "subject": "Projectes UF3",
         "group": "GP",
@@ -994,7 +994,7 @@
         "fixed": false
       },
       {
-        "id": 1750407332,
+        "id": 3504821554,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "1r APGI",
@@ -1005,7 +1005,7 @@
         "fixed": false
       },
       {
-        "id": 3960853993,
+        "id": 1388778728,
         "teacher": "Bego",
         "subject": "Multimèdia UF2",
         "group": "1r APGI",
@@ -1016,7 +1016,7 @@
         "fixed": false
       },
       {
-        "id": 4067540064,
+        "id": 2711292265,
         "teacher": "Eulàlia",
         "subject": "Volum UF2",
         "group": "1r COM",
@@ -1027,7 +1027,7 @@
         "fixed": false
       },
       {
-        "id": 3686061810,
+        "id": 1340555808,
         "teacher": "Marc",
         "subject": "GPP",
         "group": "GI",
@@ -1038,7 +1038,7 @@
         "fixed": false
       },
       {
-        "id": 3633029553,
+        "id": 44812257,
         "teacher": "Inno",
         "subject": "Edició web",
         "group": "2n APGI",
@@ -1049,7 +1049,7 @@
         "fixed": false
       },
       {
-        "id": 739269573,
+        "id": 2127145368,
         "teacher": "Bego",
         "subject": "Ll. Tec. Audio UF3 2Q",
         "group": "GI, GP",
@@ -1060,7 +1060,7 @@
         "fixed": false
       },
       {
-        "id": 3456133067,
+        "id": 1120078537,
         "teacher": "Judit",
         "subject": "PFI M3 Mates",
         "group": "PFI",
@@ -1071,7 +1071,7 @@
         "fixed": false
       },
       {
-        "id": 1020552394,
+        "id": 1944328035,
         "teacher": "Marc F.",
         "subject": "PFI Taller",
         "group": "PFI",
@@ -1082,7 +1082,7 @@
         "fixed": false
       },
       {
-        "id": 3874015333,
+        "id": 836538099,
         "teacher": "Imma",
         "subject": "ACADA",
         "group": "ACADA",
@@ -1093,7 +1093,7 @@
         "fixed": false
       },
       {
-        "id": 2695454628,
+        "id": 620089443,
         "teacher": "Imma",
         "subject": "ACADA",
         "group": "ACADA",
@@ -1104,7 +1104,7 @@
         "fixed": false
       },
       {
-        "id": 2779133248,
+        "id": 3140158747,
         "teacher": "Imma",
         "subject": "ACADA",
         "group": "ACADA",
@@ -1115,7 +1115,7 @@
         "fixed": false
       },
       {
-        "id": 2684235677,
+        "id": 1715719445,
         "teacher": "Imma",
         "subject": "PFI M1 Comunicació",
         "group": "PFI",
@@ -1126,7 +1126,7 @@
         "fixed": false
       },
       {
-        "id": 265982534,
+        "id": 477117651,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "2n COM",
@@ -1137,7 +1137,7 @@
         "fixed": false
       },
       {
-        "id": 3850780953,
+        "id": 4140068705,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "2n COM",
@@ -1151,7 +1151,7 @@
     "score": 5140.8,
     "warnings": [
       {
-        "id": 753844725,
+        "id": 2807088774,
         "label": "No s'ha pogut col·locar FOL UF1 · Carme · 1r APGI",
         "subject": "FOL UF1",
         "teacher": "Carme",
@@ -1172,7 +1172,7 @@
         ]
       },
       {
-        "id": 1050433778,
+        "id": 4268668217,
         "label": "No s'ha pogut col·locar FOL UF1 · Carme · Comú",
         "subject": "FOL UF1",
         "teacher": "Carme",
@@ -1193,7 +1193,7 @@
         ]
       },
       {
-        "id": 3859611997,
+        "id": 2364423902,
         "label": "No s'ha pogut col·locar Teoria de la  imatge · Bego · Comú",
         "subject": "Teoria de la  imatge",
         "teacher": "Bego",
@@ -1214,7 +1214,7 @@
         ]
       },
       {
-        "id": 265034325,
+        "id": 4136605957,
         "label": "No s'ha pogut col·locar GPP · Alfred · 2n APGI",
         "subject": "GPP",
         "teacher": "Alfred",
@@ -1235,7 +1235,7 @@
         ]
       },
       {
-        "id": 3655007529,
+        "id": 2196474452,
         "label": "No s'ha pogut col·locar Fonaments DG · Bet · GP",
         "subject": "Fonaments DG",
         "teacher": "Bet",
@@ -1256,7 +1256,7 @@
         ]
       },
       {
-        "id": 729906416,
+        "id": 3151874691,
         "label": "No s'ha pogut col·locar Ll. Tec. Audio UF3 1Q · Bego · GI",
         "subject": "Ll. Tec. Audio UF3 1Q",
         "teacher": "Bego",
@@ -1277,7 +1277,7 @@
         ]
       },
       {
-        "id": 1023308952,
+        "id": 3992343151,
         "label": "No s'ha pogut col·locar Taller · Marc F. · 1r COM",
         "subject": "Taller",
         "teacher": "Marc F.",
@@ -1299,7 +1299,7 @@
         ]
       },
       {
-        "id": 1437150006,
+        "id": 385890961,
         "label": "No s'ha pogut col·locar PFI Taller · Joan Carles · PFI",
         "subject": "PFI Taller",
         "teacher": "Joan Carles",
@@ -1327,7 +1327,7 @@
       "scheduled_activities": [
         {
           "teaching_block": {
-            "id": "714acf57-dddd-422b-bd40-78f0bbbc34e0",
+            "id": "9e4720d5-1a6f-472d-8e96-4f248b8539df",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1337,7 +1337,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-9",
+              "requirement_id": "assignment-203",
               "group_id": "2n APGI",
               "subject_id": "Dx artístic",
               "teacher_id": "Bet",
@@ -1359,7 +1359,7 @@
         },
         {
           "teaching_block": {
-            "id": "b68f7460-f12c-4de3-a6a0-d4a0f45ebf6c",
+            "id": "158ab9b8-6401-4fa7-a988-fdb0557995ce",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1369,7 +1369,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-18",
+              "requirement_id": "assignment-212",
               "group_id": "GI",
               "subject_id": "FOL GPP",
               "teacher_id": "Bego",
@@ -1391,7 +1391,7 @@
         },
         {
           "teaching_block": {
-            "id": "f7caa93c-2ead-4057-8f22-1fbea721dd50",
+            "id": "0ca5e23a-da6c-4179-9040-f58ebac958ac",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1401,7 +1401,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-22",
+              "requirement_id": "assignment-216",
               "group_id": "2n COM",
               "subject_id": "FOL UF3",
               "teacher_id": "Bet",
@@ -1423,7 +1423,7 @@
         },
         {
           "teaching_block": {
-            "id": "aab24abc-14b9-4c99-8da1-e8fa312c57af",
+            "id": "d291509d-e70a-482a-91ac-84a03e8e1e3d",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1433,7 +1433,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-23",
+              "requirement_id": "assignment-217",
               "group_id": "2n APGI",
               "subject_id": "FOL UF3",
               "teacher_id": "Inno",
@@ -1455,7 +1455,7 @@
         },
         {
           "teaching_block": {
-            "id": "42e5d1be-4948-4282-a3f2-eeed5045797e",
+            "id": "0129cc3f-e20b-4959-8c12-77ed1eb8f1f9",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1465,7 +1465,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-24",
+              "requirement_id": "assignment-218",
               "group_id": "GP",
               "subject_id": "FOL UF3",
               "teacher_id": "Inno",
@@ -1487,7 +1487,7 @@
         },
         {
           "teaching_block": {
-            "id": "e5557e3b-18b3-431a-8d93-f22701066240",
+            "id": "3f9a4168-8a14-4905-9591-84461296bf2e",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1497,7 +1497,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-33",
+              "requirement_id": "assignment-227",
               "group_id": "GI",
               "subject_id": "GPP",
               "teacher_id": "Bego",
@@ -1519,7 +1519,7 @@
         },
         {
           "teaching_block": {
-            "id": "c2cc9530-3219-47c8-af8b-5fbbb8f9d8ed",
+            "id": "a20c38ef-5a75-4e22-be90-d1c84d4e19b7",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1529,7 +1529,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-36",
+              "requirement_id": "assignment-230",
               "group_id": "2n COM",
               "subject_id": "GPP",
               "teacher_id": "Jordi",
@@ -1551,7 +1551,7 @@
         },
         {
           "teaching_block": {
-            "id": "c858f92a-775d-471d-a8ea-cc06cafb591d",
+            "id": "4ccb2a4e-f07e-492d-8dbd-a291e8bd4ee9",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1561,7 +1561,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-40",
+              "requirement_id": "assignment-234",
               "group_id": "Comú",
               "subject_id": "Hª de la imatge UF1",
               "teacher_id": "Noëlle",
@@ -1583,7 +1583,7 @@
         },
         {
           "teaching_block": {
-            "id": "92f95ba7-055b-42a2-ab5d-45f0e5223717",
+            "id": "2b6a4239-dee6-41e8-8be5-8beea2aa5d68",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1593,7 +1593,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-49",
+              "requirement_id": "assignment-243",
               "group_id": "Comú",
               "subject_id": "Ll. Tec. Audio UF1",
               "teacher_id": "Bego",
@@ -1615,7 +1615,7 @@
         },
         {
           "teaching_block": {
-            "id": "c14ecfa1-74dd-425e-8ff4-874074824b30",
+            "id": "cbfc593f-cfa1-4720-a362-5297d74db2d8",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1625,7 +1625,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-52",
+              "requirement_id": "assignment-246",
               "group_id": "Comú",
               "subject_id": "Màrqueting",
               "teacher_id": "Marc",
@@ -1647,7 +1647,7 @@
         },
         {
           "teaching_block": {
-            "id": "dbb483ab-04f6-491c-a926-cccd00c5d821",
+            "id": "ccb74661-f775-4ed9-b4a6-313172108e86",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1657,7 +1657,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-53",
+              "requirement_id": "assignment-247",
               "group_id": "1r COM",
               "subject_id": "Materials",
               "teacher_id": "Joan Carles",
@@ -1679,7 +1679,7 @@
         },
         {
           "teaching_block": {
-            "id": "e4297bd6-38b0-4527-90ab-08bdc9edcbd1",
+            "id": "fc0897f0-41bf-4fec-b4d3-082fcd1dc9ee",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1689,7 +1689,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-62",
+              "requirement_id": "assignment-256",
               "group_id": "2n APGI",
               "subject_id": "Obra Final",
               "teacher_id": "Bego",
@@ -1711,7 +1711,7 @@
         },
         {
           "teaching_block": {
-            "id": "5b4dbc70-1f18-496b-a559-24ac1c79f387",
+            "id": "7c9537c2-63db-4783-b29b-914d32bd8888",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1721,7 +1721,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-63",
+              "requirement_id": "assignment-257",
               "group_id": "2n COM",
               "subject_id": "Obra Final",
               "teacher_id": "Eli",
@@ -1743,7 +1743,7 @@
         },
         {
           "teaching_block": {
-            "id": "9529fdaf-4d2a-4dd1-b921-a388e8d58279",
+            "id": "c7f67d59-5ec8-4387-93a4-61db5c82e61c",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1753,7 +1753,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-63",
+              "requirement_id": "assignment-257",
               "group_id": "2n COM",
               "subject_id": "Obra Final",
               "teacher_id": "Eli",
@@ -1775,7 +1775,7 @@
         },
         {
           "teaching_block": {
-            "id": "4be892b0-f836-42d9-aad9-96ea9930a3cc",
+            "id": "e6fc4b3e-d9eb-4449-94cb-1296bd528cb9",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1785,7 +1785,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-69",
+              "requirement_id": "assignment-263",
               "group_id": "PFI",
               "subject_id": "PFI M4 Mon Professional",
               "teacher_id": "Sara",
@@ -1807,7 +1807,7 @@
         },
         {
           "teaching_block": {
-            "id": "de0b5527-855f-4c7a-a87a-046f97ec99f9",
+            "id": "4137606f-81ad-4d18-92e1-81f4d513102a",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1817,7 +1817,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-72",
+              "requirement_id": "assignment-266",
               "group_id": "PFI",
               "subject_id": "PFI Tutoria",
               "teacher_id": "Judit",
@@ -1839,7 +1839,7 @@
         },
         {
           "teaching_block": {
-            "id": "8c1ee10e-149d-4f01-a40d-57b655e4353b",
+            "id": "909ae60d-0c2d-4552-9b60-cd7708bc3659",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1849,7 +1849,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-73",
+              "requirement_id": "assignment-267",
               "group_id": "GI",
               "subject_id": "Projecte Integrat",
               "teacher_id": "Cristina",
@@ -1871,7 +1871,7 @@
         },
         {
           "teaching_block": {
-            "id": "99b9f3cf-050a-44c0-ae19-4a580924c658",
+            "id": "5d137561-b2f0-4ad8-a443-a8535d671771",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1881,7 +1881,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-75",
+              "requirement_id": "assignment-269",
               "group_id": "GP",
               "subject_id": "Projecte Integrat",
               "teacher_id": "Eli",
@@ -1903,7 +1903,7 @@
         },
         {
           "teaching_block": {
-            "id": "3407ee50-2e46-46a5-a16d-e737ec418432",
+            "id": "1e1e04f5-385c-41e1-b131-2f27249a5ea2",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1913,7 +1913,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-80",
+              "requirement_id": "assignment-274",
               "group_id": "GI",
               "subject_id": "Projectes",
               "teacher_id": "Marc",
@@ -1935,7 +1935,7 @@
         },
         {
           "teaching_block": {
-            "id": "0111a9c0-7158-4b2e-b94c-ce42c2febc28",
+            "id": "c5888aea-c326-45eb-aa78-99e23283795a",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1945,7 +1945,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-83",
+              "requirement_id": "assignment-277",
               "group_id": "2n COM",
               "subject_id": "Render de producte",
               "teacher_id": "Núria",
@@ -1967,7 +1967,7 @@
         },
         {
           "teaching_block": {
-            "id": "a3a49984-f4f7-4fa8-99d7-fd8dea001ad0",
+            "id": "372461ec-e99e-4604-9ebd-a234d62a07c3",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -1977,7 +1977,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-92",
+              "requirement_id": "assignment-286",
               "group_id": "2n APGI",
               "subject_id": "Tipografia",
               "teacher_id": "Alfred",
@@ -1999,7 +1999,7 @@
         },
         {
           "teaching_block": {
-            "id": "3f538a5b-7ca3-487d-bbae-f60c95186017",
+            "id": "e4d0e391-f30b-49af-b1ef-9a3ca9b59953",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2009,7 +2009,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-10",
+              "requirement_id": "assignment-204",
               "group_id": "2n COM",
               "subject_id": "Dx artístic",
               "teacher_id": "Eulàlia",
@@ -2031,7 +2031,7 @@
         },
         {
           "teaching_block": {
-            "id": "096c5b8c-fdec-49a7-9bc6-c2fc3211b486",
+            "id": "1a1f8f98-c040-4f24-b893-fd07afe39cae",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2041,7 +2041,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-14",
+              "requirement_id": "assignment-208",
               "group_id": "1r APGI",
               "subject_id": "Edició web",
               "teacher_id": "Inno",
@@ -2063,7 +2063,7 @@
         },
         {
           "teaching_block": {
-            "id": "df2796b5-180d-4fe1-8769-a7d6faece5dd",
+            "id": "724a0cbe-0950-42d7-ab71-b9401d56cabe",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2073,7 +2073,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-26",
+              "requirement_id": "assignment-220",
               "group_id": "1r APGI",
               "subject_id": "Fonaments DG",
               "teacher_id": "Noëlle",
@@ -2095,7 +2095,7 @@
         },
         {
           "teaching_block": {
-            "id": "a76c1dd0-dddc-4779-89a3-ee8e04bfa5e4",
+            "id": "60b2b1c8-f36c-4000-9c70-e6f08cfb8814",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2105,7 +2105,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-26",
+              "requirement_id": "assignment-220",
               "group_id": "1r APGI",
               "subject_id": "Fonaments DG",
               "teacher_id": "Noëlle",
@@ -2127,7 +2127,7 @@
         },
         {
           "teaching_block": {
-            "id": "3e57b988-0b6a-4b0b-bb5e-dd55045ccc5c",
+            "id": "5772aeb4-d748-4150-8905-3bba80a8e1a3",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2137,7 +2137,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-27",
+              "requirement_id": "assignment-221",
               "group_id": "Comú",
               "subject_id": "Fonaments expressió",
               "teacher_id": "Bet",
@@ -2159,7 +2159,7 @@
         },
         {
           "teaching_block": {
-            "id": "2ba03f16-2a71-41f3-99b2-15a6a426c182",
+            "id": "9fab82be-886d-4ea2-8216-a6319046fc81",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2169,7 +2169,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-27",
+              "requirement_id": "assignment-221",
               "group_id": "Comú",
               "subject_id": "Fonaments expressió",
               "teacher_id": "Bet",
@@ -2191,7 +2191,7 @@
         },
         {
           "teaching_block": {
-            "id": "9df2918b-a573-48b4-abe9-a1822074f137",
+            "id": "612fe957-6b47-42b9-ac87-5285203fdd5b",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2201,7 +2201,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-33",
+              "requirement_id": "assignment-227",
               "group_id": "GI",
               "subject_id": "GPP",
               "teacher_id": "Bego",
@@ -2223,7 +2223,7 @@
         },
         {
           "teaching_block": {
-            "id": "c0ee2d96-8569-4fc0-81d8-d1d952fcbc38",
+            "id": "8def3fe1-8f5a-49b6-8643-8321f8e1be30",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2233,7 +2233,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-44",
+              "requirement_id": "assignment-238",
               "group_id": "GI",
               "subject_id": "Interfícies gràfiques",
               "teacher_id": "Sònia",
@@ -2255,7 +2255,7 @@
         },
         {
           "teaching_block": {
-            "id": "259a36f8-7531-41b9-a5fa-04d351481b32",
+            "id": "186cea97-e14d-46b2-8347-4fe51e927aec",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2265,7 +2265,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-44",
+              "requirement_id": "assignment-238",
               "group_id": "GI",
               "subject_id": "Interfícies gràfiques",
               "teacher_id": "Sònia",
@@ -2287,7 +2287,7 @@
         },
         {
           "teaching_block": {
-            "id": "9c298779-3313-404d-a3f0-c6ddac3593dd",
+            "id": "268e0d3b-820d-4eb0-95a1-c8c0bac298e6",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2297,7 +2297,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-49",
+              "requirement_id": "assignment-243",
               "group_id": "Comú",
               "subject_id": "Ll. Tec. Audio UF1",
               "teacher_id": "Bego",
@@ -2319,7 +2319,7 @@
         },
         {
           "teaching_block": {
-            "id": "32dfc8f3-e821-44ee-add2-54810f37633b",
+            "id": "3be695b7-2efa-4afd-a421-28f313703145",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2329,7 +2329,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-58",
+              "requirement_id": "assignment-252",
               "group_id": "Comú",
               "subject_id": "Mitjans informàtics",
               "teacher_id": "Sònia",
@@ -2351,7 +2351,7 @@
         },
         {
           "teaching_block": {
-            "id": "6b465367-2a72-441a-9c24-57fb20eef9e4",
+            "id": "d172682a-6d59-4501-9d58-40e64fde7e7c",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2361,7 +2361,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-58",
+              "requirement_id": "assignment-252",
               "group_id": "Comú",
               "subject_id": "Mitjans informàtics",
               "teacher_id": "Sònia",
@@ -2383,7 +2383,7 @@
         },
         {
           "teaching_block": {
-            "id": "2ef57151-0495-40dd-ae68-b2d6bd5e86e9",
+            "id": "0b8bd09b-370d-41a6-b23c-aa003bdc0ed7",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2393,7 +2393,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-61",
+              "requirement_id": "assignment-255",
               "group_id": "2n APGI",
               "subject_id": "Multimèdia UF3 i UF4",
               "teacher_id": "Bego",
@@ -2415,7 +2415,7 @@
         },
         {
           "teaching_block": {
-            "id": "dcc8453d-5884-41cc-ba51-0e28944cc7da",
+            "id": "9979753f-0749-4656-a91e-a16568fd155e",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2425,7 +2425,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-61",
+              "requirement_id": "assignment-255",
               "group_id": "2n APGI",
               "subject_id": "Multimèdia UF3 i UF4",
               "teacher_id": "Bego",
@@ -2447,7 +2447,7 @@
         },
         {
           "teaching_block": {
-            "id": "b3175dff-19ae-42df-b34c-7e48e2b94968",
+            "id": "6413ea43-25a1-40cc-b457-1c457461f0e6",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2457,7 +2457,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-67",
+              "requirement_id": "assignment-261",
               "group_id": "PFI",
               "subject_id": "PFI M2 Social",
               "teacher_id": "Imma",
@@ -2479,7 +2479,7 @@
         },
         {
           "teaching_block": {
-            "id": "f1442ed3-97f8-4527-9148-fc6f6357143f",
+            "id": "dd801b8f-b281-4f53-a266-7d290866944a",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2489,7 +2489,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-80",
+              "requirement_id": "assignment-274",
               "group_id": "GI",
               "subject_id": "Projectes",
               "teacher_id": "Marc",
@@ -2511,7 +2511,7 @@
         },
         {
           "teaching_block": {
-            "id": "9c298db0-784e-42c8-8129-d0e48de8fbf9",
+            "id": "aa954442-298e-492a-baab-e4633e9b0d05",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2521,7 +2521,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-93",
+              "requirement_id": "assignment-287",
               "group_id": "Comú",
               "subject_id": "Tipografia",
               "teacher_id": "Noëlle",
@@ -2543,7 +2543,7 @@
         },
         {
           "teaching_block": {
-            "id": "3afb92a3-edf1-4ecd-87c5-1afb4efcf12f",
+            "id": "562257ef-ce19-428a-8725-b2de5a982f33",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -2553,7 +2553,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-93",
+              "requirement_id": "assignment-287",
               "group_id": "Comú",
               "subject_id": "Tipografia",
               "teacher_id": "Noëlle",
@@ -2575,7 +2575,7 @@
         },
         {
           "teaching_block": {
-            "id": "f436a9c2-7a3e-4ac5-a98c-28beaa923285",
+            "id": "9c2e4d24-f127-43bc-9952-82af15bbf04a",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2585,7 +2585,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-1",
+              "requirement_id": "assignment-195",
               "group_id": "Comú",
               "subject_id": "Art Experience 2Q",
               "teacher_id": "Alfred",
@@ -2607,7 +2607,7 @@
         },
         {
           "teaching_block": {
-            "id": "dd4c68e8-ce7f-4d91-9199-4a82af74efe9",
+            "id": "f8af4ada-8fab-40d7-980d-d9392607b1ce",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2617,7 +2617,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-2",
+              "requirement_id": "assignment-196",
               "group_id": "Comú",
               "subject_id": "Proj UF1 1Q",
               "teacher_id": "Alfred",
@@ -2639,7 +2639,7 @@
         },
         {
           "teaching_block": {
-            "id": "14c9627a-9bfd-4fa2-a6a6-8f2ba96f9e32",
+            "id": "e32c491a-8391-4a7a-a841-bff72676ce34",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2649,7 +2649,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-4",
+              "requirement_id": "assignment-198",
               "group_id": "2n APGI",
               "subject_id": "ANG UF1 Behance my friend 1Q",
               "teacher_id": "Borja",
@@ -2671,7 +2671,7 @@
         },
         {
           "teaching_block": {
-            "id": "bc6cb5bb-b7eb-478a-8d52-c3ed9e188971",
+            "id": "7008b591-0710-41fe-982c-49e68acfc38c",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2681,7 +2681,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-5",
+              "requirement_id": "assignment-199",
               "group_id": "2n COM",
               "subject_id": "ANG UF2 Behance my friend 1Q",
               "teacher_id": "Borja",
@@ -2703,7 +2703,7 @@
         },
         {
           "teaching_block": {
-            "id": "24c82d80-dfbf-4170-8e2d-ffd51b5d2381",
+            "id": "afd83336-18d6-4f1e-bd7e-45e9fcddab78",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2713,7 +2713,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-6",
+              "requirement_id": "assignment-200",
               "group_id": "1r APGI",
               "subject_id": "Anglès UF1 Influences 2Q",
               "teacher_id": "Borja",
@@ -2735,7 +2735,7 @@
         },
         {
           "teaching_block": {
-            "id": "598a3f2c-f3a0-4533-b00e-6c86e1c25bc3",
+            "id": "cb5de4c9-e474-454f-b01f-e5e359ce819d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2745,7 +2745,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-7",
+              "requirement_id": "assignment-201",
               "group_id": "1r COM",
               "subject_id": "Anglès UF2 Influences 1Q",
               "teacher_id": "Borja",
@@ -2767,7 +2767,7 @@
         },
         {
           "teaching_block": {
-            "id": "6e864398-1678-45cc-a08a-1bc77259bf79",
+            "id": "2bc3ebce-ed5f-4343-a325-8cfb5dc6c894",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2777,7 +2777,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-8",
+              "requirement_id": "assignment-202",
               "group_id": "1r APGI",
               "subject_id": "Dx artístic",
               "teacher_id": "Bet",
@@ -2799,7 +2799,7 @@
         },
         {
           "teaching_block": {
-            "id": "0db3b694-6039-47c7-a9de-6c46fe1a8b38",
+            "id": "a96f7bdb-41d2-41cc-8650-9fdc0a77e280",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2809,7 +2809,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-11",
+              "requirement_id": "assignment-205",
               "group_id": "1r COM",
               "subject_id": "Dx artístic",
               "teacher_id": "Eulàlia",
@@ -2831,7 +2831,7 @@
         },
         {
           "teaching_block": {
-            "id": "8306d1ce-eef1-46d3-8c81-f39b1aa53ad2",
+            "id": "d985a6ef-1604-4519-ac20-0673d9b9e7d2",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2841,7 +2841,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-12",
+              "requirement_id": "assignment-206",
               "group_id": "1r APGI",
               "subject_id": "Dx Tècnic",
               "teacher_id": "Bet",
@@ -2863,7 +2863,7 @@
         },
         {
           "teaching_block": {
-            "id": "e0f8ab6e-e77b-4ff5-97a0-7a74ff80fec5",
+            "id": "3ee778fc-c29e-43b6-8a03-4f8f57321679",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2873,7 +2873,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-13",
+              "requirement_id": "assignment-207",
               "group_id": "1r COM",
               "subject_id": "Dx Tècnic",
               "teacher_id": "Bet",
@@ -2895,7 +2895,7 @@
         },
         {
           "teaching_block": {
-            "id": "beba4a3d-866c-4711-8dbf-0c1ecf7c19c6",
+            "id": "af9edcc1-6776-4dc0-9c04-83d890f4285d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2905,7 +2905,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-14",
+              "requirement_id": "assignment-208",
               "group_id": "1r APGI",
               "subject_id": "Edició web",
               "teacher_id": "Inno",
@@ -2927,7 +2927,7 @@
         },
         {
           "teaching_block": {
-            "id": "8961f834-2579-46d6-88f7-acd4037f7c34",
+            "id": "0945720b-e409-4e53-9a42-f61b0b268a67",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2937,7 +2937,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-16",
+              "requirement_id": "assignment-210",
               "group_id": "2n COM",
               "subject_id": "Espais 1Q",
               "teacher_id": "Cristina",
@@ -2959,7 +2959,7 @@
         },
         {
           "teaching_block": {
-            "id": "e803816c-d2c1-428f-b5fa-aeca31e3991b",
+            "id": "e14baaf1-4fdc-4015-8ee7-9912bc200e00",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -2969,7 +2969,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-17",
+              "requirement_id": "assignment-211",
               "group_id": "2n COM",
               "subject_id": "Impressió 3D 2Q",
               "teacher_id": "Cristina",
@@ -2991,7 +2991,7 @@
         },
         {
           "teaching_block": {
-            "id": "e8c90ed0-7d8d-4f50-b6b1-a9b74abc2e38",
+            "id": "9a413e70-9b2a-423e-aeb6-e8c80908069c",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3001,7 +3001,7 @@
             "fixed_day": "Dilluns",
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-20",
+              "requirement_id": "assignment-214",
               "group_id": "1r COM",
               "subject_id": "FOL UF1",
               "teacher_id": "Carme",
@@ -3023,7 +3023,7 @@
         },
         {
           "teaching_block": {
-            "id": "0d82d99e-f398-4991-8d3d-62eb6aa2a43e",
+            "id": "0ff2c41b-d5e3-4377-9bf1-b13410cb1f5e",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3033,7 +3033,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-28",
+              "requirement_id": "assignment-222",
               "group_id": "1r APGI",
               "subject_id": "Foto 1Q",
               "teacher_id": "Noëlle",
@@ -3055,7 +3055,7 @@
         },
         {
           "teaching_block": {
-            "id": "572a8c3c-e52b-4284-b395-8467872d6993",
+            "id": "d4711982-354d-49ca-ac5c-c2c9913a4e00",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3065,7 +3065,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-29",
+              "requirement_id": "assignment-223",
               "group_id": "2n APGI",
               "subject_id": "Foto 1Q",
               "teacher_id": "Sònia",
@@ -3087,7 +3087,7 @@
         },
         {
           "teaching_block": {
-            "id": "aa6c1ade-6beb-4cfe-a7e8-17f9b1b49bb3",
+            "id": "74de1484-1c0d-46c0-9c3d-3287ebc25ff0",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3097,7 +3097,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-30",
+              "requirement_id": "assignment-224",
               "group_id": "Comú",
               "subject_id": "Foto UF1 i 2",
               "teacher_id": "Noëlle",
@@ -3119,7 +3119,7 @@
         },
         {
           "teaching_block": {
-            "id": "4fbb866b-be71-4443-aecb-f41c9862fd39",
+            "id": "4c1501ce-c22e-43c6-9886-fbc20afbb733",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3129,7 +3129,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-31",
+              "requirement_id": "assignment-225",
               "group_id": "GP",
               "subject_id": "Foto UF3",
               "teacher_id": "Noëlle",
@@ -3151,7 +3151,7 @@
         },
         {
           "teaching_block": {
-            "id": "3e4d7cc2-7c69-4f6f-b6ea-7e28a3a145d9",
+            "id": "79c94bf6-ce22-4666-88bb-9dc1c31b3d5e",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3161,7 +3161,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-35",
+              "requirement_id": "assignment-229",
               "group_id": "2n COM",
               "subject_id": "GPP",
               "teacher_id": "Eli",
@@ -3183,7 +3183,7 @@
         },
         {
           "teaching_block": {
-            "id": "90b0baee-b613-4db5-8c24-3a25ec8dd4a5",
+            "id": "313b6468-9471-4dc7-aba9-d1073a0fda09",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3193,7 +3193,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-37",
+              "requirement_id": "assignment-231",
               "group_id": "GP",
               "subject_id": "GPP",
               "teacher_id": "Noëlle",
@@ -3215,7 +3215,7 @@
         },
         {
           "teaching_block": {
-            "id": "4e634792-13e6-4685-8f23-022153b62ec0",
+            "id": "9df9c056-e35b-4c71-b4b9-c3af575003bc",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3225,7 +3225,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-39",
+              "requirement_id": "assignment-233",
               "group_id": "1r COM",
               "subject_id": "Hª de l'art UF1",
               "teacher_id": "Bet",
@@ -3247,7 +3247,7 @@
         },
         {
           "teaching_block": {
-            "id": "3f80267e-a975-4d4f-8f66-09add65c902b",
+            "id": "3f70403a-499c-442f-8f95-61b806bccc07",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3257,7 +3257,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-41",
+              "requirement_id": "assignment-235",
               "group_id": "GI",
               "subject_id": "Hª del DG",
               "teacher_id": "Roger",
@@ -3279,7 +3279,7 @@
         },
         {
           "teaching_block": {
-            "id": "0ba4187b-a4a4-455c-9b7d-68de9d566ac7",
+            "id": "54f09d0b-e100-48cd-9471-c0add9f401d5",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3289,7 +3289,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-42",
+              "requirement_id": "assignment-236",
               "group_id": "GP",
               "subject_id": "Hª del DG",
               "teacher_id": "Roger",
@@ -3311,7 +3311,7 @@
         },
         {
           "teaching_block": {
-            "id": "445d404f-4d15-44e0-9672-6562958e77e7",
+            "id": "951e4ab9-c460-4f9a-b789-3b4523eb81fd",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3321,7 +3321,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-43",
+              "requirement_id": "assignment-237",
               "group_id": "1r APGI",
               "subject_id": "Hª del DG",
               "teacher_id": "Roger",
@@ -3343,7 +3343,7 @@
         },
         {
           "teaching_block": {
-            "id": "b6fcd0ab-e0e3-49be-98df-021891e94c27",
+            "id": "f4a1d134-5e5c-4af9-b66a-c13842b4fa52",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3353,7 +3353,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-45",
+              "requirement_id": "assignment-239",
               "group_id": "GI",
               "subject_id": "Ll. disp. comunicació projecte 2Q",
               "teacher_id": "Sònia",
@@ -3375,7 +3375,7 @@
         },
         {
           "teaching_block": {
-            "id": "20cc8beb-7e69-4c54-a0f4-69044a40b6e8",
+            "id": "dd02c79f-06c6-4737-9b26-d01f3d6fde35",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3385,7 +3385,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-46",
+              "requirement_id": "assignment-240",
               "group_id": "Comú",
               "subject_id": "Ll. disp. Taller producció",
               "teacher_id": "Eulàlia",
@@ -3407,7 +3407,7 @@
         },
         {
           "teaching_block": {
-            "id": "92f94b83-7c45-4252-bab4-0e74253efce8",
+            "id": "d41b3dc6-f530-4082-8046-5d2d6d8958d2",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3417,7 +3417,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-47",
+              "requirement_id": "assignment-241",
               "group_id": "Comú",
               "subject_id": "Ll. programació",
               "teacher_id": "Inno",
@@ -3439,7 +3439,7 @@
         },
         {
           "teaching_block": {
-            "id": "53e6cd38-e6ec-4dbd-b2ec-3a76a78367e8",
+            "id": "a915b3ea-5444-4d33-bd26-c746ddb31b26",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3449,7 +3449,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-48",
+              "requirement_id": "assignment-242",
               "group_id": "GI",
               "subject_id": "Ll. programació",
               "teacher_id": "Inno",
@@ -3471,7 +3471,7 @@
         },
         {
           "teaching_block": {
-            "id": "7a84f721-c068-4cc0-972a-64a727e6b46a",
+            "id": "75dc6dda-c157-4834-b353-20ea4a2406e3",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3481,7 +3481,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-54",
+              "requirement_id": "assignment-248",
               "group_id": "1r APGI",
               "subject_id": "Metodologia 2Q",
               "teacher_id": "Sònia",
@@ -3503,7 +3503,7 @@
         },
         {
           "teaching_block": {
-            "id": "6c46ecdf-d60c-4823-8523-a3351b516811",
+            "id": "3d893f07-bd58-4a09-9308-d7ecd05240fa",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3513,7 +3513,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-55",
+              "requirement_id": "assignment-249",
               "group_id": "1r APGI",
               "subject_id": "Mitjans informàtics",
               "teacher_id": "Alfred",
@@ -3535,7 +3535,7 @@
         },
         {
           "teaching_block": {
-            "id": "4dff01f9-e24c-42be-9111-c7aaa4a1c761",
+            "id": "5d225faf-cdc2-4521-852f-b39f97538308",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3545,7 +3545,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-56",
+              "requirement_id": "assignment-250",
               "group_id": "2n APGI",
               "subject_id": "Mitjans informàtics 1Q",
               "teacher_id": "Alfred",
@@ -3567,7 +3567,7 @@
         },
         {
           "teaching_block": {
-            "id": "ff8df8b4-16e2-48a2-a56e-0391a40f0f46",
+            "id": "cab95866-589b-4a8e-8778-68179dcd8b10",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3577,7 +3577,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-57",
+              "requirement_id": "assignment-251",
               "group_id": "1r COM",
               "subject_id": "Mitjans informàtics",
               "teacher_id": "Núria",
@@ -3599,7 +3599,7 @@
         },
         {
           "teaching_block": {
-            "id": "2c9333d4-6aba-40b1-b138-4fb29d4b2293",
+            "id": "f3734384-5a6b-4e2c-8094-31cf0d69ed57",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3609,7 +3609,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-59",
+              "requirement_id": "assignment-253",
               "group_id": "1r APGI",
               "subject_id": "Multimèdia UF1 1Q",
               "teacher_id": "Sònia",
@@ -3631,7 +3631,7 @@
         },
         {
           "teaching_block": {
-            "id": "40ba95fd-f999-4897-9a26-ce7e02271298",
+            "id": "fcc34508-9657-4a04-9b84-a8da46dfa9ab",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3641,7 +3641,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-64",
+              "requirement_id": "assignment-258",
               "group_id": "2n APGI",
               "subject_id": "Obra Final",
               "teacher_id": "Inno",
@@ -3663,7 +3663,7 @@
         },
         {
           "teaching_block": {
-            "id": "d5b9afc2-22ad-403a-ae7e-e75e7248af21",
+            "id": "419adb74-4130-4979-abc8-4f8f2fe86a0f",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3673,7 +3673,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-65",
+              "requirement_id": "assignment-259",
               "group_id": "2n APGI",
               "subject_id": "Packaging 2Q",
               "teacher_id": "Alfred",
@@ -3695,7 +3695,7 @@
         },
         {
           "teaching_block": {
-            "id": "3389d863-158d-42be-bf59-418e100077e3",
+            "id": "ddb2d0cf-2bf2-4df9-949d-8692b799cb0c",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3705,7 +3705,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-70",
+              "requirement_id": "assignment-264",
               "group_id": "PFI",
               "subject_id": "PFI RRLL",
               "teacher_id": "Sara",
@@ -3727,7 +3727,7 @@
         },
         {
           "teaching_block": {
-            "id": "b2379320-b9ed-4178-8979-7d513a739d5a",
+            "id": "112ef6f3-bb26-4412-b62f-a3be72ec963b",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3737,7 +3737,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-74",
+              "requirement_id": "assignment-268",
               "group_id": "GP",
               "subject_id": "Projecte Integrat",
               "teacher_id": "Cristina",
@@ -3759,7 +3759,7 @@
         },
         {
           "teaching_block": {
-            "id": "5025ea6b-b04f-46c1-8e9d-5d75307f2354",
+            "id": "78cadd00-2d60-44b9-a627-74166a2dc715",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3769,7 +3769,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-76",
+              "requirement_id": "assignment-270",
               "group_id": "GI",
               "subject_id": "Projecte Integrat",
               "teacher_id": "Sònia",
@@ -3791,7 +3791,7 @@
         },
         {
           "teaching_block": {
-            "id": "3beae53e-491e-4723-9d55-c6e758a3e81c",
+            "id": "fe0be33b-db61-4e84-ba4b-91b83c9e20e7",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3801,7 +3801,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-77",
+              "requirement_id": "assignment-271",
               "group_id": "GP",
               "subject_id": "Projectes UF4 1Q",
               "teacher_id": "Cristina",
@@ -3823,7 +3823,7 @@
         },
         {
           "teaching_block": {
-            "id": "7ca56341-130e-409a-9855-2ae77f588788",
+            "id": "b83d3e91-191b-4156-a4c9-80390ff0692f",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3833,7 +3833,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-78",
+              "requirement_id": "assignment-272",
               "group_id": "1r COM",
               "subject_id": "Projectes",
               "teacher_id": "Eli",
@@ -3855,7 +3855,7 @@
         },
         {
           "teaching_block": {
-            "id": "0768a5a4-5d59-44b9-88cf-80ec86b09620",
+            "id": "400736df-b66a-4dbb-ab2d-00956ae08f86",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3865,7 +3865,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-81",
+              "requirement_id": "assignment-275",
               "group_id": "GI",
               "subject_id": "Projectes 1Q",
               "teacher_id": "Sònia",
@@ -3887,7 +3887,7 @@
         },
         {
           "teaching_block": {
-            "id": "8bc381e5-a620-4e02-a43d-2ba3050ec5d9",
+            "id": "3b8e743b-50b1-4404-9fad-30f750f790a9",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3897,7 +3897,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-84",
+              "requirement_id": "assignment-278",
               "group_id": "PFI",
               "subject_id": "PFI Taller",
               "teacher_id": "Marc F.",
@@ -3919,7 +3919,7 @@
         },
         {
           "teaching_block": {
-            "id": "44f5bdaf-98f4-43b3-9e84-9f4e9e2917b6",
+            "id": "3148b627-c0da-4c5a-9b11-2ff39a03b809",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3929,7 +3929,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-87",
+              "requirement_id": "assignment-281",
               "group_id": "1r COM",
               "subject_id": "Taller",
               "teacher_id": "Jordi",
@@ -3951,7 +3951,7 @@
         },
         {
           "teaching_block": {
-            "id": "a99a33a6-cf8a-48cb-9b16-0695023ad4c8",
+            "id": "cfa04504-fdd2-4232-a064-794e6f0e0061",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3961,7 +3961,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-88",
+              "requirement_id": "assignment-282",
               "group_id": "PFI",
               "subject_id": "PFI Taller",
               "teacher_id": "Joan Carles",
@@ -3983,7 +3983,7 @@
         },
         {
           "teaching_block": {
-            "id": "2a414bab-f095-43c0-b993-9443883a03a7",
+            "id": "d0f35aea-310a-41c8-838b-c368a7e945fb",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3993,7 +3993,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-91",
+              "requirement_id": "assignment-285",
               "group_id": "GP",
               "subject_id": "Teoria publ i mkt",
               "teacher_id": "Marc",
@@ -4015,7 +4015,7 @@
         },
         {
           "teaching_block": {
-            "id": "8abd16d2-dc76-48a0-ae8c-5102a6c4152c",
+            "id": "7428e51c-a9b8-4308-81b3-cfb53e979344",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4025,7 +4025,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-94",
+              "requirement_id": "assignment-288",
               "group_id": "GP",
               "subject_id": "Tipografia",
               "teacher_id": "Noëlle",
@@ -4047,7 +4047,7 @@
         },
         {
           "teaching_block": {
-            "id": "8e5668d0-da40-4a71-ace5-5de559b01673",
+            "id": "84856db9-6e87-4972-9661-dc1e9f162300",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4057,7 +4057,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-95",
+              "requirement_id": "assignment-289",
               "group_id": "1r APGI",
               "subject_id": "Tipografia",
               "teacher_id": "Noëlle",
@@ -4079,7 +4079,7 @@
         },
         {
           "teaching_block": {
-            "id": "064a6b4a-2d65-4571-8022-875abe2cd57c",
+            "id": "9f274e3a-f9ff-4c2c-8ff8-e7b3a95e548d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4089,7 +4089,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-96",
+              "requirement_id": "assignment-290",
               "group_id": "2n COM",
               "subject_id": "Volum UF1 1Q",
               "teacher_id": "Eulàlia",
@@ -4111,7 +4111,7 @@
         },
         {
           "teaching_block": {
-            "id": "9babc5d1-840f-4c50-9a07-2a040e569ff0",
+            "id": "9b49acd4-4bde-4ba2-a866-c8d59fbd3e11",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4121,7 +4121,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-97",
+              "requirement_id": "assignment-291",
               "group_id": "1r COM",
               "subject_id": "Volum UF2",
               "teacher_id": "Eulàlia",
@@ -4143,7 +4143,7 @@
         },
         {
           "teaching_block": {
-            "id": "a3d4b77d-ceed-4b98-b462-f3825c6d57e8",
+            "id": "a4721de9-2a85-443a-ba05-ec0fb5a6611b",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -4153,7 +4153,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-38",
+              "requirement_id": "assignment-232",
               "group_id": "GI",
               "subject_id": "GPP",
               "teacher_id": "Marc",
@@ -4175,7 +4175,7 @@
         },
         {
           "teaching_block": {
-            "id": "6d02eeb8-6037-477b-8310-280923b5e2bf",
+            "id": "43ea9b0a-0cea-41a7-a052-9fd9126a1109",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -4185,7 +4185,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-60",
+              "requirement_id": "assignment-254",
               "group_id": "1r APGI",
               "subject_id": "Multimèdia UF2",
               "teacher_id": "Bego",
@@ -4207,7 +4207,7 @@
         },
         {
           "teaching_block": {
-            "id": "097d3c00-a427-4e74-8614-3490ef8bfcb9",
+            "id": "c8af8e4b-c46e-473a-a299-7b4dc0c8f80d",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -4217,7 +4217,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-79",
+              "requirement_id": "assignment-273",
               "group_id": "GP",
               "subject_id": "Projectes UF3",
               "teacher_id": "Noëlle",
@@ -4239,7 +4239,7 @@
         },
         {
           "teaching_block": {
-            "id": "0260a534-1b94-427c-8dca-b91c6605b081",
+            "id": "d6e7a428-424e-479b-b6cd-4d16a4fc0d0e",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -4249,7 +4249,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-82",
+              "requirement_id": "assignment-276",
               "group_id": "Comú",
               "subject_id": "Projectes UF2",
               "teacher_id": "Inno",
@@ -4271,7 +4271,7 @@
         },
         {
           "teaching_block": {
-            "id": "01309626-314b-46a3-8070-f821bffb7d29",
+            "id": "6bfc7dea-20b8-4760-b58b-9fcd6ef0df9d",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -4281,7 +4281,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-15",
+              "requirement_id": "assignment-209",
               "group_id": "2n APGI",
               "subject_id": "Edició web",
               "teacher_id": "Inno",
@@ -4303,7 +4303,7 @@
         },
         {
           "teaching_block": {
-            "id": "af07383f-a44a-4b19-974f-c3227e07cd0e",
+            "id": "0554e5f7-d7a6-4719-a74e-77df2835e3bf",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -4313,7 +4313,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-34",
+              "requirement_id": "assignment-228",
               "group_id": "GP",
               "subject_id": "GPP",
               "teacher_id": "Cristina",
@@ -4335,7 +4335,7 @@
         },
         {
           "teaching_block": {
-            "id": "ae1f6984-c67e-4615-baa4-1227ff9fb2d4",
+            "id": "4687b154-d65e-4c61-bcd0-2d5cb3603c29",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -4345,7 +4345,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-50",
+              "requirement_id": "assignment-244",
               "group_id": "GI, GP",
               "subject_id": "Ll. Tec. Audio UF3 2Q",
               "teacher_id": "Bego",
@@ -4367,7 +4367,7 @@
         },
         {
           "teaching_block": {
-            "id": "f16dc317-6e71-46f7-a203-df2a9505ce97",
+            "id": "65f9f4b2-a448-47d0-82be-bbbffc670e9e",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -4377,7 +4377,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-68",
+              "requirement_id": "assignment-262",
               "group_id": "PFI",
               "subject_id": "PFI M3 Mates",
               "teacher_id": "Judit",
@@ -4399,7 +4399,7 @@
         },
         {
           "teaching_block": {
-            "id": "88113ef3-5e0f-4191-ba10-2df72eaba49f",
+            "id": "e8d80f41-059b-4d66-829e-33f4d5223617",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -4409,7 +4409,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-71",
+              "requirement_id": "assignment-265",
               "group_id": "PFI",
               "subject_id": "PFI Taller",
               "teacher_id": "Marc F.",
@@ -4431,7 +4431,7 @@
         },
         {
           "teaching_block": {
-            "id": "900eedb6-9601-4528-b57c-76d6b6aaf9ef",
+            "id": "32fd57b6-542f-4092-bf9d-760581af3224",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -4441,7 +4441,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-86",
+              "requirement_id": "assignment-280",
               "group_id": "2n COM",
               "subject_id": "Taller",
               "teacher_id": "Jordi",
@@ -4463,7 +4463,7 @@
         },
         {
           "teaching_block": {
-            "id": "aec499ce-24d4-41f1-a586-5af21a3bfac9",
+            "id": "c1ee147d-5e11-4851-8cdc-dec02a048286",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -4473,7 +4473,7 @@
             "fixed_day": null,
             "fixed_start": "15:00:00",
             "metadata": {
-              "requirement_id": "assignment-3",
+              "requirement_id": "assignment-197",
               "group_id": "ACADA",
               "subject_id": "ACADA",
               "teacher_id": "Imma",
@@ -4495,7 +4495,7 @@
         },
         {
           "teaching_block": {
-            "id": "43f34ffa-b6d0-4534-b5dd-7b2fc065ff6e",
+            "id": "6719fde1-a0a5-4ac5-be32-6710d9ff9cfd",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -4505,7 +4505,7 @@
             "fixed_day": null,
             "fixed_start": "15:00:00",
             "metadata": {
-              "requirement_id": "assignment-3",
+              "requirement_id": "assignment-197",
               "group_id": "ACADA",
               "subject_id": "ACADA",
               "teacher_id": "Imma",
@@ -4527,7 +4527,7 @@
         },
         {
           "teaching_block": {
-            "id": "7e710924-5a7a-487c-9b2b-9d7e01471e27",
+            "id": "b392af04-a70b-466a-b1d7-0624105356b5",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -4537,7 +4537,7 @@
             "fixed_day": null,
             "fixed_start": "15:00:00",
             "metadata": {
-              "requirement_id": "assignment-3",
+              "requirement_id": "assignment-197",
               "group_id": "ACADA",
               "subject_id": "ACADA",
               "teacher_id": "Imma",
@@ -4559,7 +4559,7 @@
         },
         {
           "teaching_block": {
-            "id": "f0948ee5-ef01-474b-ba84-ff1769460219",
+            "id": "07e5ac8b-44f5-496f-bb42-a46f6e947bca",
             "duration": 3.5,
             "order": 1,
             "duration_blocks": 7,
@@ -4569,7 +4569,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-66",
+              "requirement_id": "assignment-260",
               "group_id": "PFI",
               "subject_id": "PFI M1 Comunicació",
               "teacher_id": "Imma",
@@ -4591,7 +4591,7 @@
         },
         {
           "teaching_block": {
-            "id": "ab5eb884-43f1-4153-9df1-fc92617c94dc",
+            "id": "9a7f32a0-d588-4482-8c43-18fdb806b6d9",
             "duration": 3.5,
             "order": 1,
             "duration_blocks": 7,
@@ -4601,7 +4601,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-86",
+              "requirement_id": "assignment-280",
               "group_id": "2n COM",
               "subject_id": "Taller",
               "teacher_id": "Jordi",
@@ -4623,7 +4623,7 @@
         },
         {
           "teaching_block": {
-            "id": "95109107-20da-4425-8c75-556ca2fd2e4c",
+            "id": "ebc2e2ea-ffbb-4a5c-826d-6b3072c87701",
             "duration": 3.5,
             "order": 1,
             "duration_blocks": 7,
@@ -4633,7 +4633,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-86",
+              "requirement_id": "assignment-280",
               "group_id": "2n COM",
               "subject_id": "Taller",
               "teacher_id": "Jordi",
@@ -4670,7 +4670,7 @@
       },
       "unscheduled_activities": [
         {
-          "id": 753844725,
+          "id": 2807088774,
           "teacher": "Carme",
           "subject": "FOL UF1",
           "group": "1r APGI",
@@ -4679,7 +4679,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 1050433778,
+          "id": 4268668217,
           "teacher": "Carme",
           "subject": "FOL UF1",
           "group": "Comú",
@@ -4688,7 +4688,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 3859611997,
+          "id": 2364423902,
           "teacher": "Bego",
           "subject": "Teoria de la  imatge",
           "group": "Comú",
@@ -4697,7 +4697,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 265034325,
+          "id": 4136605957,
           "teacher": "Alfred",
           "subject": "GPP",
           "group": "2n APGI",
@@ -4706,7 +4706,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 3655007529,
+          "id": 2196474452,
           "teacher": "Bet",
           "subject": "Fonaments DG",
           "group": "GP",
@@ -4715,7 +4715,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 729906416,
+          "id": 3151874691,
           "teacher": "Bego",
           "subject": "Ll. Tec. Audio UF3 1Q",
           "group": "GI",
@@ -4724,7 +4724,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 1023308952,
+          "id": 3992343151,
           "teacher": "Marc F.",
           "subject": "Taller",
           "group": "1r COM",
@@ -4733,7 +4733,7 @@
           "reason": "No s'ha pogut col·locar."
         },
         {
-          "id": 1437150006,
+          "id": 385890961,
           "teacher": "Joan Carles",
           "subject": "PFI Taller",
           "group": "PFI",
@@ -4754,7 +4754,7 @@
   },
   "unscheduled_activities": [
     {
-      "id": 753844725,
+      "id": 2807088774,
       "teacher": "Carme",
       "subject": "FOL UF1",
       "group": "1r APGI",
@@ -4763,7 +4763,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 1050433778,
+      "id": 4268668217,
       "teacher": "Carme",
       "subject": "FOL UF1",
       "group": "Comú",
@@ -4772,7 +4772,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 3859611997,
+      "id": 2364423902,
       "teacher": "Bego",
       "subject": "Teoria de la  imatge",
       "group": "Comú",
@@ -4781,7 +4781,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 265034325,
+      "id": 4136605957,
       "teacher": "Alfred",
       "subject": "GPP",
       "group": "2n APGI",
@@ -4790,7 +4790,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 3655007529,
+      "id": 2196474452,
       "teacher": "Bet",
       "subject": "Fonaments DG",
       "group": "GP",
@@ -4799,7 +4799,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 729906416,
+      "id": 3151874691,
       "teacher": "Bego",
       "subject": "Ll. Tec. Audio UF3 1Q",
       "group": "GI",
@@ -4808,7 +4808,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 1023308952,
+      "id": 3992343151,
       "teacher": "Marc F.",
       "subject": "Taller",
       "group": "1r COM",
@@ -4817,7 +4817,7 @@
       "reason": "No s'ha pogut col·locar."
     },
     {
-      "id": 1437150006,
+      "id": 385890961,
       "teacher": "Joan Carles",
       "subject": "PFI Taller",
       "group": "PFI",
