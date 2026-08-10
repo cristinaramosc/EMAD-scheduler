@@ -73,6 +73,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
             if excluded_days and day in excluded_days:
                 continue
 
+            if teaching_block.fixed_day and not teaching_block.fixed_start and self._day_name(day) != teaching_block.fixed_day.strip().lower():
+                continue
+
             for slot in context.school_calendar.periods_for_day(day):
                 if self._is_blocked(slot, context.blocked_time_slots):
                     continue
@@ -163,6 +166,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         for _, day, _period, slot in candidates:
             if excluded_days and day in excluded_days:
+                continue
+            if teaching_block.fixed_day and not teaching_block.fixed_start and self._day_name(day) != teaching_block.fixed_day.strip().lower():
                 continue
             if self._is_blocked(slot, context.blocked_time_slots):
                 continue
