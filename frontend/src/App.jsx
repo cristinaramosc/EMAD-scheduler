@@ -501,6 +501,8 @@ export default function App() {
   const [selectedGroup, setSelectedGroup] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
   const [teacherScheduleActivities, setTeacherScheduleActivities] = useState([]);
+  const [roomFilter, setRoomFilter] = useState("");
+  const [roomScheduleActivities, setRoomScheduleActivities] = useState([]);
   const [currentScreen, setCurrentScreen] = useState("timetable");
   const [academicTab, setAcademicTab] = useState("teachers");
 
@@ -618,6 +620,25 @@ export default function App() {
       setTeacherScheduleActivities((data.activities || []).map(normalizeTimetableActivity));
     } catch {
       setTeacherScheduleActivities([]);
+    }
+  }
+
+  async function loadRoomSchedule(roomName) {
+    if (!roomName) {
+      setRoomScheduleActivities([]);
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/scheduler/room/${encodeURIComponent(roomName)}/schedule`);
+      if (!response.ok) {
+        setRoomScheduleActivities([]);
+        return;
+      }
+      const data = await response.json();
+      setRoomScheduleActivities((data.activities || []).map(normalizeTimetableActivity));
+    } catch {
+      setRoomScheduleActivities([]);
     }
   }
 
@@ -1352,6 +1373,10 @@ export default function App() {
       // amb classe matí i tarda ha de tenir com a mínim 1h lliure entre les
       // 12h i les 16h. S'assigna automàticament en acceptar l'horari.
       await assignLunchBreaks({ silent: true });
+      // Igual que el dinar: les hores de centre/coordinació de cada
+      // professor s'apliquen automàticament en acceptar l'horari, no cal
+      // fer-ho a mà cada cop.
+      await assignCenterAndCoordinationHours({ silent: true });
       setSuccessMessage("La proposta s'ha acceptat i ara és l'horari actiu.");
     } catch (err) {
       setError(err.message || "No s'ha pogut acceptar la proposta.");
@@ -1413,10 +1438,10 @@ export default function App() {
       return;
     }
 
-    // Si s'està consultant l'horari complet d'un professor, no hem de
-    // tornar a seleccionar cap grup automàticament: l'usuari ha buidat
-    // selectedGroup expressament i volem veure TOTS els grups on imparteix.
-    if (teacherFilter) {
+    // Si s'està consultant l'horari complet d'un professor o d'una aula, no
+    // hem de tornar a seleccionar cap grup automàticament: l'usuari ha
+    // buidat selectedGroup expressament i volem veure TOTS els grups.
+    if (teacherFilter || roomFilter) {
       return;
     }
 
@@ -1426,7 +1451,7 @@ export default function App() {
       }
       return timetableGroupOptions[0]?.name || "";
     });
-  }, [timetableGroupOptions, teacherFilter]);
+  }, [timetableGroupOptions, teacherFilter, roomFilter]);
 
   useEffect(() => {
     if (selectedGroup) {
@@ -1438,10 +1463,18 @@ export default function App() {
     loadTeacherSchedule(teacherFilter);
   }, [teacherFilter, activities]);
 
+  useEffect(() => {
+    loadRoomSchedule(roomFilter);
+  }, [roomFilter, activities]);
+
   const filteredActivities = useMemo(() => {
     let nextActivities = teacherFilter && teacherScheduleActivities.length > 0
       ? teacherScheduleActivities
       : activities;
+
+    if (roomFilter && roomScheduleActivities.length > 0) {
+      nextActivities = roomScheduleActivities;
+    }
 
     if (selectedGroup) {
       nextActivities = nextActivities.filter((activity) => getGroupParentName(activity?.group) === selectedGroup);
@@ -1451,11 +1484,15 @@ export default function App() {
       nextActivities = nextActivities.filter((activity) => activity.teacher === teacherFilter);
     }
 
+    if (roomFilter) {
+      nextActivities = nextActivities.filter((activity) => activity.room === roomFilter);
+    }
+
     return nextActivities;
-  }, [activities, selectedGroup, teacherFilter, teacherScheduleActivities]);
+  }, [activities, selectedGroup, teacherFilter, teacherScheduleActivities, roomFilter, roomScheduleActivities]);
 
   const syntheticBreakActivities = useMemo(() => {
-    if (!selectedGroup || teacherFilter) {
+    if (!selectedGroup || teacherFilter || roomFilter) {
       return [];
     }
 
@@ -1499,7 +1536,7 @@ export default function App() {
         };
       })
       .filter(Boolean);
-  }, [activities, groupRestrictionDraft.break_slots, selectedGroup, teacherFilter]);
+  }, [activities, groupRestrictionDraft.break_slots, selectedGroup, teacherFilter, roomFilter]);
 
   const visibleTimetableActivities = useMemo(
     () => [...filteredActivities, ...syntheticBreakActivities],
@@ -1691,6 +1728,37 @@ export default function App() {
       }
     } catch {
       setError("No s'han pogut assignar les hores de dinar.");
+    }
+  }
+
+  async function assignCenterAndCoordinationHours({ silent = false } = {}) {
+    if (!silent) {
+      setError("");
+      setSuccessMessage("");
+    }
+    try {
+      const response = await fetch(`${API_URL}/scheduler/center-coordination-hours/assign`, { method: "POST" });
+      const data = await response.json();
+      if (!data.ok) {
+        if (!silent) setError("No s'han pogut assignar les hores de centre/coordinació.");
+        return;
+      }
+      setActivities((data.activities || []).map(normalizeTimetableActivity));
+      setConflicts(data.conflicts || []);
+      const addedCount = (data.added_meetings?.length || 0) + (data.added_hours?.length || 0);
+      const skippedCount = data.skipped_no_slot?.length || 0;
+      // Un professor sense cap dia amb classe on encabir les hores de
+      // centre/coordinació és un problema real d'horari: s'avisa sempre,
+      // encara que la crida sigui automàtica.
+      if (skippedCount > 0) {
+        setError(
+          `${skippedCount} professor(s) no tenen cap dia amb classe on encabir les hores de centre/coordinació.`
+        );
+      } else if (!silent) {
+        setSuccessMessage(`S'han afegit ${addedCount} hores de centre/coordinació.`);
+      }
+    } catch {
+      if (!silent) setError("No s'han pogut assignar les hores de centre/coordinació.");
     }
   }
 
@@ -3734,14 +3802,19 @@ export default function App() {
                         </td>
                         <td>
                           {assignmentEdit === a.id ? (
-                            <input
-                              type="text"
-                              style={{ width: 90 }}
+                            <select
+                              style={{ width: 160 }}
                               value={assignmentEditValues.consecutive_group}
                               onChange={(event) => setAssignmentEditValues({ ...assignmentEditValues, consecutive_group: event.target.value })}
-                              title="Escriu la mateixa etiqueta a dues assignacions perquè el generador les col·loqui una justa darrere l'altra"
-                              placeholder="p.ex. bloc1"
-                            />
+                              title="Selecciona l'assignatura del mateix grup amb què ha d'anar consecutiva"
+                            >
+                              <option value="">(cap)</option>
+                              {teachingAssignments
+                                .filter((other) => other.group === a.group && other.id !== a.id)
+                                .map((other) => (
+                                  <option key={other.id} value={other.subject}>{other.subject}</option>
+                                ))}
+                            </select>
                           ) : (
                             a.consecutive_group || "—"
                           )}
@@ -3937,13 +4010,19 @@ export default function App() {
                         </div>
                       </td>
                       <td>
-                        <input
-                          type="text"
-                          style={{ width: 90 }}
+                        <select
+                          style={{ width: 160 }}
                           value={assignmentDraft.consecutive_group}
-                          placeholder="p.ex. bloc1"
                           onChange={(event) => setAssignmentDraft({ ...assignmentDraft, consecutive_group: event.target.value })}
-                        />
+                          title="Selecciona l'assignatura del mateix grup amb què ha d'anar consecutiva"
+                        >
+                          <option value="">(cap)</option>
+                          {teachingAssignments
+                            .filter((other) => other.group === assignmentDraft.group)
+                            .map((other) => (
+                              <option key={other.id} value={other.subject}>{other.subject}</option>
+                            ))}
+                        </select>
                       </td>
                       <td>
                         <button onClick={async () => {
@@ -3991,7 +4070,7 @@ export default function App() {
                   key={group.name}
                   type="button"
                   className={selectedGroup === group.name ? "group-tab group-tab--active" : "group-tab"}
-                  onClick={() => { setSelectedGroup(group.name); setTeacherFilter(""); }}
+                  onClick={() => { setSelectedGroup(group.name); setTeacherFilter(""); setRoomFilter(""); }}
                 >
                   {group.name}
                 </button>
@@ -4005,7 +4084,7 @@ export default function App() {
                   value={teacherFilter}
                   onChange={(event) => {
                     setTeacherFilter(event.target.value);
-                    if (event.target.value) setSelectedGroup("");
+                    if (event.target.value) { setSelectedGroup(""); setRoomFilter(""); }
                   }}
                   disabled={isFetchingEntities}
                 >
@@ -4013,6 +4092,24 @@ export default function App() {
                   {teachers.map((teacher) => (
                     <option key={teacher.name} value={teacher.name}>
                       {teacher.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label style={{ marginLeft: 12 }}>
+                Aula
+                <select
+                  value={roomFilter}
+                  onChange={(event) => {
+                    setRoomFilter(event.target.value);
+                    if (event.target.value) { setSelectedGroup(""); setTeacherFilter(""); }
+                  }}
+                  disabled={isFetchingEntities}
+                >
+                  <option value="">Totes</option>
+                  {rooms.map((room) => (
+                    <option key={room.name} value={room.name}>
+                      {room.name}
                     </option>
                   ))}
                 </select>

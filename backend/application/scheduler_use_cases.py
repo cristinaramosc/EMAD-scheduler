@@ -1102,19 +1102,38 @@ class SchedulerUseCases:
     def _apply_consecutive_group_preferences(
         self, proposal: ScheduleProposal, assignments: List[Dict[str, Any]], hour_names: List[str]
     ) -> ScheduleProposal:
-        """Si dues assignacions comparteixen una mateixa etiqueta `consecutive_group`,
-        intenta col·locar-les una justa darrere l'altra (mateix dia, sense forat).
-        Preferència: si una acaba en '1Q' i l'altra en '2Q', la 1Q va primera, però
-        s'accepta l'ordre invers si és l'única manera de fer-les consecutives."""
+        """Si una assignació té `consecutive_group` apuntant al nom d'una
+        altra assignatura del mateix grup, intenta col·locar-les una justa
+        darrere l'altra (mateix dia, sense forat). Preferència: si una
+        acaba en '1Q' i l'altra en '2Q', la 1Q va primera, però s'accepta
+        l'ordre invers si és l'única manera de fer-les consecutives."""
         hour_index = {name: index for index, name in enumerate(hour_names)}
 
-        tags: Dict[str, List[Dict[str, Any]]] = {}
+        by_group_subject: Dict[tuple, Dict[str, Any]] = {}
         for assignment in assignments:
-            tag = (assignment.get("consecutive_group") or "").strip()
-            if tag:
-                tags.setdefault(tag, []).append(assignment)
+            key = (
+                str(assignment.get("group") or "").strip(),
+                str(assignment.get("subject") or "").strip(),
+            )
+            by_group_subject[key] = assignment
 
-        if not tags:
+        pairs: List[tuple] = []
+        seen_pairs: set = set()
+        for assignment in assignments:
+            partner_subject = (assignment.get("consecutive_group") or "").strip()
+            if not partner_subject:
+                continue
+            group = str(assignment.get("group") or "").strip()
+            partner = by_group_subject.get((group, partner_subject))
+            if partner is None or partner is assignment:
+                continue
+            pair_id = frozenset({id(assignment), id(partner)})
+            if pair_id in seen_pairs:
+                continue
+            seen_pairs.add(pair_id)
+            pairs.append((assignment, partner))
+
+        if not pairs:
             return proposal
 
         activities = list(proposal.activities)
@@ -1136,11 +1155,9 @@ class SchedulerUseCases:
                 and hour_index[second.start] == hour_index[first.start] + (first.duration or 1)
             )
 
-        for tag, members in tags.items():
-            if len(members) != 2:
-                continue
-            key_a = (members[0]["subject"], members[0]["group"], members[0]["teacher"])
-            key_b = (members[1]["subject"], members[1]["group"], members[1]["teacher"])
+        for assignment_a, assignment_b in pairs:
+            key_a = (assignment_a["subject"], assignment_a["group"], assignment_a["teacher"])
+            key_b = (assignment_b["subject"], assignment_b["group"], assignment_b["teacher"])
             act_a = by_key.get(key_a)
             act_b = by_key.get(key_b)
             if act_a is None or act_b is None or act_a is act_b:

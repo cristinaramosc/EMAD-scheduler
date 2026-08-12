@@ -6,6 +6,7 @@ try:
     from backend.scheduler_engine.constraints.base import Constraint
     from backend.scheduler_engine.models import Conflict
     from backend.scheduler_engine.quarter_utils import (
+        group_names,
         is_valid_quarter_pair,
         normalize_group_name,
         parent_and_quarter as _parent_and_quarter,
@@ -14,6 +15,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.models import Conflict
     from scheduler_engine.quarter_utils import (
+        group_names,
         is_valid_quarter_pair,
         normalize_group_name,
         parent_and_quarter as _parent_and_quarter,
@@ -33,6 +35,11 @@ class GroupConflictConstraint(Constraint):
 
     Excepció: dues activitats del mateix grup pare poden coincidir si una
     correspon al 1Q i l'altra al 2Q (al nom del grup o de l'assignatura).
+
+    Els grups es comparen individualment (una activitat de 'GI, GP' compta
+    per a GI i per a GP per separat), perquè dues activitats que comparteixin
+    NOMÉS un dels grups (p.ex. 'GI' sola i 'GI, GP' combinada) també han de
+    detectar-se com a possible conflicte (o excepció 1Q/2Q) per a GI.
     """
 
     def validate(self, schedule):
@@ -46,51 +53,63 @@ class GroupConflictConstraint(Constraint):
                 continue
 
             parent_group, _ = _parent_and_quarter(activity.group, activity.subject)
+            individual_names = group_names(parent_group) or (parent_group,)
 
             for slot in self._iter_slots(activity):
-                key = (parent_group, activity.day, slot)
-                bucket = occupied.setdefault(key, [])
+                conflict_found = None
 
-                if not bucket:
-                    bucket.append(activity)
-                    continue
-
-                if len(bucket) == 1 and is_valid_quarter_pair(
-                    bucket[0].group, bucket[0].subject, activity.group, activity.subject
-                ):
-                    bucket.append(activity)
-                    continue
-
-                previous = bucket[-1]
-
-                # Excepció: si el grup està marcat com a desdoblat, dues
-                # activitats simultànies són vàlides quan tenen professor i
-                # aula diferents (cada subgrup va per lliure).
-                group_is_split = parent_group in split_groups or normalize_group_name(activity.group) in split_groups
-                if group_is_split:
-                    different_teacher = (
-                        previous.teacher and activity.teacher and previous.teacher != activity.teacher
-                    )
-                    different_room = previous.room and activity.room and previous.room != activity.room
-                    if different_teacher and different_room:
-                        bucket.append(activity)
+                for name in individual_names:
+                    key = (name, activity.day, slot)
+                    bucket = occupied.get(key)
+                    if not bucket:
                         continue
 
-                activities = [previous.id, activity.id]
-                conflicts.append(
-                    Conflict(
-                        type="group_conflict",
-                        message=(
-                            f"El grup '{activity.group}' té més d'una activitat "
-                            f"{activity.day} a les {activity.start}."
-                        ),
-                        day=activity.day,
-                        start=activity.start,
-                        activities=activities,
-                        data={"group": activity.group},
+                    for previous in bucket:
+                        if previous.id == activity.id:
+                            continue
+
+                        if is_valid_quarter_pair(
+                            previous.group, previous.subject, activity.group, activity.subject
+                        ):
+                            continue
+
+                        # Excepció: si el grup està marcat com a desdoblat, dues
+                        # activitats simultànies són vàlides quan tenen
+                        # professor i aula diferents (cada subgrup va per
+                        # lliure).
+                        group_is_split = name in split_groups
+                        if group_is_split:
+                            different_teacher = (
+                                previous.teacher and activity.teacher and previous.teacher != activity.teacher
+                            )
+                            different_room = previous.room and activity.room and previous.room != activity.room
+                            if different_teacher and different_room:
+                                continue
+
+                        conflict_found = previous
+                        break
+
+                    if conflict_found is not None:
+                        break
+
+                if conflict_found is not None:
+                    conflicts.append(
+                        Conflict(
+                            type="group_conflict",
+                            message=(
+                                f"El grup '{activity.group}' té més d'una activitat "
+                                f"{activity.day} a les {activity.start}."
+                            ),
+                            day=activity.day,
+                            start=activity.start,
+                            activities=[conflict_found.id, activity.id],
+                            data={"group": activity.group},
+                        )
                     )
-                )
-                bucket.append(activity)
+
+                for name in individual_names:
+                    key = (name, activity.day, slot)
+                    occupied.setdefault(key, []).append(activity)
 
         return conflicts
 

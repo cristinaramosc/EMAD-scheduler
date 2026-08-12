@@ -50,6 +50,22 @@ def normalize_group_name(text: Optional[str]) -> str:
     return re.sub(r"\s+", " ", (text or "").strip()).casefold()
 
 
+def group_names(text: Optional[str]) -> Tuple[str, ...]:
+    """Retorna els noms de grup individuals d'un camp que pot contenir
+    diversos grups separats per coma (p.ex. 'GI, GP'), normalitzats.
+    Igual que `teacher_names`, però per a grups."""
+    if not text:
+        return ()
+    parts = [normalize_group_name(part) for part in str(text).split(",")]
+    unique: list[str] = []
+    seen = set()
+    for part in parts:
+        if part and part not in seen:
+            seen.add(part)
+            unique.append(part)
+    return tuple(unique)
+
+
 def with_quarter_suffix(base_name: str, quarter: Optional[str]) -> str:
     """Construeix l'etiqueta d'assignatura que ha de veure el motor de
     col·locació, a partir del nom net (vingui del CRUD, amb el seu ID
@@ -89,14 +105,19 @@ def is_valid_quarter_pair(
     second_group: Optional[str],
     second_subject: Optional[str],
 ) -> bool:
-    """Dues activitats del mateix grup pare poden coexistir a la mateixa
-    franja horària si comparteixen grup pare i una és 1Q i l'altra 2Q —
-    poden ser assignatures completament diferents (p.ex. 'FOL 1Q' i
-    'Anglès 2Q'), ja que en aquest grup no hi ha mai classe simultània de
-    1Q i 2Q: només compten com la mateixa franja del grup.
+    """Dues activitats poden coexistir a la mateixa franja horària si una
+    és 1Q i l'altra 2Q, i comparteixen ALGUN grup pare — no cal que els
+    grups siguin idèntics: p.ex. 'GI' (1Q) i 'GI, GP' (2Q) són vàlids
+    perquè GI és comú a totes dues, encara que a la segona també hi
+    assisteixi GP. Poden ser assignatures completament diferents
+    (p.ex. 'FOL 1Q' i 'Anglès 2Q'), ja que en un grup no hi ha mai
+    classe simultània de 1Q i 2Q: només compten com la mateixa franja.
     """
     parent_a, quarter_a = parent_and_quarter(first_group, first_subject)
     parent_b, quarter_b = parent_and_quarter(second_group, second_subject)
-    if parent_a != parent_b:
+    if not (quarter_a is not None and quarter_b is not None and quarter_a != quarter_b):
         return False
-    return quarter_a is not None and quarter_b is not None and quarter_a != quarter_b
+
+    names_a = set(group_names(parent_a)) or {parent_a}
+    names_b = set(group_names(parent_b)) or {parent_b}
+    return bool(names_a & names_b)
