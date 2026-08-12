@@ -55,6 +55,16 @@ def get_group_time_window(
         by_day = entry.get("by_day") or {}
         if day:
             day_window = _as_window(by_day.get(day))
+            if day_window is None:
+                # Cerca insensible a majúscules/minúscules, ja que el dia
+                # pot arribar en formats diferents ("Dimecres" vingut de
+                # les dades acadèmiques, "dimecres" vingut de l'índex
+                # numèric del motor de col·locació).
+                target = str(day).strip().casefold()
+                for stored_day, stored_window in by_day.items():
+                    if str(stored_day).strip().casefold() == target:
+                        day_window = _as_window(stored_window)
+                        break
             if day_window is not None:
                 return day_window
         return _as_window(entry.get("default"))
@@ -78,12 +88,12 @@ class GroupTimeWindowConstraint(Constraint):
                 continue
 
             required_slots = max(int(getattr(activity, "duration", 1) or 1), 1)
-            start_slot = self._parse_slot_index(activity.start)
+            start_minutes = self._parse_slot_index(activity.start)
             for offset in range(required_slots):
-                slot_index = start_slot + offset
-                if slot_index < 0:
+                slot_minutes = start_minutes + offset * 30
+                if slot_minutes < 0:
                     continue
-                if not self._is_within_window(slot_index, window):
+                if not self._is_within_window(slot_minutes, window):
                     conflicts.append(
                         Conflict(
                             type="group_time_window",
@@ -101,14 +111,17 @@ class GroupTimeWindowConstraint(Constraint):
         return conflicts
 
     def _parse_slot_index(self, value):
+        """Retorna els minuts des de mitjanit (p.ex. '15:00' -> 900), per
+        poder-los comparar directament amb la finestra (que ja es guarda en
+        minuts a `_build_group_time_window_constraints`)."""
         text_value = str(value or "")
         match = re.match(r"\s*(\d+):(\d+)", text_value)
         if match is None:
             digits = re.search(r"(\d+)", text_value)
-            return int(digits.group(1)) * 2 if digits else 0
+            return int(digits.group(1)) * 30 if digits else 0
         hours = int(match.group(1))
         minutes = int(match.group(2))
-        return (hours * 60 + minutes) // 30
+        return hours * 60 + minutes
 
     def _is_within_window(self, slot_index: int, window: Tuple[int, int]) -> bool:
         start, end = window

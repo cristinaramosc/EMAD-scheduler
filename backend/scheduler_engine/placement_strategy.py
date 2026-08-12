@@ -11,7 +11,7 @@ except ModuleNotFoundError:  # pragma: no cover
 from .constraints.group_time_window import get_group_time_window
 from .constraints.group_max_days import get_group_max_days
 from .models import GenerationContext, ScheduledActivity, TimeSlot
-from .quarter_utils import is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter, quarter_suffix
+from .quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter, quarter_suffix
 from .teacher_utils import teacher_label, teacher_names
 
 
@@ -115,6 +115,11 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         return None
 
+    def _groups_overlap(self, parent_a: str, parent_b: str) -> bool:
+        names_a = set(group_names(parent_a)) or {parent_a}
+        names_b = set(group_names(parent_b)) or {parent_b}
+        return bool(names_a & names_b)
+
     def _try_quarter_pair_slot(
         self,
         teaching_block: TeachingBlock,
@@ -147,7 +152,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
         for activity in all_activities:
             existing_subject = (activity.teaching_block.metadata or {}).get("subject")
             activity_parent, activity_quarter = _parent_and_quarter(activity.group_id, existing_subject)
-            if activity_parent != candidate_parent or activity_quarter is None:
+            if not self._groups_overlap(activity_parent, candidate_parent) or activity_quarter is None:
                 continue
             if activity_quarter == candidate_quarter:
                 continue
@@ -377,7 +382,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 continue
             existing_subject = (activity.teaching_block.metadata or {}).get("subject")
             activity_parent, _ = _parent_and_quarter(activity.group_id, existing_subject)
-            if activity_parent != candidate_parent:
+            if not self._groups_overlap(activity_parent, candidate_parent):
                 continue
             activity_end = activity.start_timeslot.period + activity.duration
             candidate_end = start_slot.period + required_slots
@@ -435,7 +440,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
         for activity in activities:
             existing_subject = (activity.teaching_block.metadata or {}).get("subject")
             activity_parent, _ = _parent_and_quarter(activity.group_id, existing_subject)
-            if activity_parent != candidate_parent:
+            if not self._groups_overlap(activity_parent, candidate_parent):
                 continue
             used_days.add(activity.day)
 
@@ -460,7 +465,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
             return False
 
         window = get_group_time_window(
-            group_id, context.configuration.get("group_time_window_constraints"), day=start_slot.day
+            group_id, context.configuration.get("group_time_window_constraints"), day=self._day_name(start_slot.day)
         )
         if window is None:
             return False

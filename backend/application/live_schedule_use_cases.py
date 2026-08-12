@@ -86,6 +86,18 @@ class LiveScheduleUseCases:
             "activities": activities,
         }
 
+    def room_schedule(self, room_name: str) -> Dict[str, Any]:
+        current_state = self.state()
+        activities = [
+            activity
+            for activity in current_state.get("activities", [])
+            if activity.get("room") == room_name
+        ]
+        return {
+            "room": room_name,
+            "activities": activities,
+        }
+
     @staticmethod
     def _conflict_key(conflict: Any) -> tuple:
         return (

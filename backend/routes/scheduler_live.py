@@ -30,6 +30,12 @@ def teacher_schedule(teacher_name: str):
     return use_cases.teacher_schedule(teacher_name)
 
 
+@router.get("/room/{room_name}/schedule")
+def room_schedule(room_name: str):
+    use_cases = get_live_schedule_use_cases()
+    return use_cases.room_schedule(room_name)
+
+
 @router.post("/move")
 def move(move_data: MoveDTO):
     use_cases = get_live_schedule_use_cases()
