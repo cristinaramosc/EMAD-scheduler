@@ -604,6 +604,27 @@ export default function App() {
     }
   }
 
+  async function downloadScheduleExport() {
+    try {
+      const response = await fetch(`${API_URL}/scheduler/export`);
+      if (!response.ok) {
+        setError("No s'ha pogut generar l'Excel dels horaris.");
+        return;
+      }
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "horaris.xlsx";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError("No s'ha pogut generar l'Excel dels horaris.");
+    }
+  }
+
   async function loadTeacherSchedule(teacherName) {
     if (!teacherName) {
       setTeacherScheduleActivities([]);
@@ -3843,7 +3864,11 @@ export default function App() {
                               </select>
                             </div>
                           ) : (
-                            a.fixed_day && a.fixed_start ? `${a.fixed_day} ${a.fixed_start}` : "—"
+                            a.fixed_day && a.fixed_start
+                              ? `${a.fixed_day} ${a.fixed_start}`
+                              : a.fixed_day
+                                ? `${a.fixed_day} (qualsevol hora)`
+                                : "—"
                           )}
                         </td>
                         <td>
@@ -4114,6 +4139,14 @@ export default function App() {
                   ))}
                 </select>
               </label>
+              <button
+                type="button"
+                style={{ marginLeft: 16 }}
+                onClick={downloadScheduleExport}
+                title="Descarrega un Excel amb l'horari de cada grup, professor i aula"
+              >
+                ⬇️ Descarrega horaris
+              </button>
             </div>
             {proposals && proposals.length > 0 && (
               <div style={{ marginLeft: 12 }}>

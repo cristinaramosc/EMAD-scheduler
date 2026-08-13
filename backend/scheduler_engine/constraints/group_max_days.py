@@ -6,10 +6,12 @@ try:
     from backend.scheduler_engine.constraints.base import Constraint
     from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter
     from backend.scheduler_engine.models import Conflict
+    from backend.scheduler_engine.quarter_utils import group_names
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.constraints.group_conflict import _parent_and_quarter
     from scheduler_engine.models import Conflict
+    from scheduler_engine.quarter_utils import group_names
 
 
 def _normalize_constraint_key(group_name: Optional[str]) -> Optional[str]:
@@ -46,16 +48,20 @@ class GroupMaxDaysConstraint(Constraint):
         if not constraints:
             return conflicts
 
-        activities_by_parent: Dict[str, List[Any]] = {}
+        # Cada activitat compta per a CADA grup individual que hi assisteix,
+        # no nomes pel text exacte del grup pare: una activitat de 'GI, GP'
+        # ha de comptar tant per al limit de dies de GI com per al de GP.
+        activities_by_individual_group: Dict[str, List[Any]] = {}
         for activity in schedule.all():
             if not activity.group or not activity.day:
                 continue
             parent_group, _ = _parent_and_quarter(activity.group, getattr(activity, "subject", None))
-            activities_by_parent.setdefault(parent_group, []).append(activity)
+            for individual_name in group_names(parent_group) or (parent_group,):
+                activities_by_individual_group.setdefault(individual_name, []).append(activity)
 
-        for parent_group, activities in activities_by_parent.items():
+        for individual_name, activities in activities_by_individual_group.items():
             sample_group_name = activities[0].group
-            max_days = get_group_max_days(sample_group_name, constraints)
+            max_days = get_group_max_days(sample_group_name, constraints) or get_group_max_days(individual_name, constraints)
             if max_days is None:
                 continue
 
