@@ -1,13 +1,16 @@
 from typing import List, Dict
 
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
 if __package__ and __package__.startswith("backend"):
     from backend.dependencies import get_live_schedule_use_cases
     from backend.schemas.scheduler import ManualActivityDTO, MoveDTO, ToggleGroupBreakDTO
+    from backend.services.schedule_exporter import build_schedule_export
 else:  # pragma: no cover
     from dependencies import get_live_schedule_use_cases
     from schemas.scheduler import ManualActivityDTO, MoveDTO, ToggleGroupBreakDTO
+    from services.schedule_exporter import build_schedule_export
 
 router = APIRouter(prefix="/scheduler")
 
@@ -22,6 +25,20 @@ def load(activities: List[Dict]):
 def state():
     use_cases = get_live_schedule_use_cases()
     return use_cases.state()
+
+
+@router.get("/export")
+def export_schedule():
+    """Descarrega un .xlsx amb una pestanya per a cada grup, professor i
+    aula de l'horari actiu."""
+    use_cases = get_live_schedule_use_cases()
+    activities = use_cases.state().get("activities", [])
+    buffer = build_schedule_export(activities)
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=horaris.xlsx"},
+    )
 
 
 @router.get("/teacher/{teacher_name}/schedule")

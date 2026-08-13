@@ -134,23 +134,31 @@ class ProposalScorer:
         for activity in proposal.activities:
             if not activity.group or not activity.day or not activity.start:
                 continue
-            parent, quarter = parent_and_quarter(activity.group, activity.subject)
+            _, quarter = parent_and_quarter(activity.group, activity.subject)
             if quarter is None:
                 continue
-            slot_buckets.setdefault((parent, activity.day, activity.start), []).append(activity)
+            # Es bucketitza nomes per dia+hora (no pel text exacte del grup
+            # pare): una parella com 'GI' i 'GI, GP' pot compartir franja
+            # sense tenir el mateix text de grup.
+            slot_buckets.setdefault((activity.day, activity.start), []).append(activity)
 
         score = 0.0
+        counted_pairs: set = set()
         for bucket in slot_buckets.values():
-            if len(bucket) != 2:
-                continue
-            first, second = bucket
-            if not is_valid_quarter_pair(first.group, first.subject, second.group, second.subject):
-                continue
+            for i in range(len(bucket)):
+                for j in range(i + 1, len(bucket)):
+                    first, second = bucket[i], bucket[j]
+                    if not is_valid_quarter_pair(first.group, first.subject, second.group, second.subject):
+                        continue
+                    pair_key = frozenset({id(first), id(second)})
+                    if pair_key in counted_pairs:
+                        continue
+                    counted_pairs.add(pair_key)
 
-            first_teachers = set(teacher_names(first.teacher))
-            second_teachers = set(teacher_names(second.teacher))
-            if first_teachers and second_teachers and not first_teachers.isdisjoint(second_teachers):
-                score += self._QUARTER_PAIR_TEACHER_MATCH_WEIGHT
+                    first_teachers = set(teacher_names(first.teacher))
+                    second_teachers = set(teacher_names(second.teacher))
+                    if first_teachers and second_teachers and not first_teachers.isdisjoint(second_teachers):
+                        score += self._QUARTER_PAIR_TEACHER_MATCH_WEIGHT
 
         return score
 

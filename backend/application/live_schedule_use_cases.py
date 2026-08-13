@@ -7,13 +7,13 @@ try:
     from backend.scheduler_engine.models.activity import Activity
     from backend.scheduler_engine.models.schedule import Schedule
     from backend.repositories.academic_data_repository import AcademicDataRepository
-    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
+    from backend.scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
 except ModuleNotFoundError:  # pragma: no cover
     from repositories.working_timetable_repository import WorkingTimetableRepository, WorkingTimetableSnapshot
     from scheduler_engine.models.activity import Activity
     from scheduler_engine.models.schedule import Schedule
     from repositories.academic_data_repository import AcademicDataRepository
-    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
+    from scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
 
 from .serializers import serialize_activity, serialize_conflicts
 
@@ -680,11 +680,22 @@ class LiveScheduleUseCases:
             parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
             if quarter_marker is None:
                 continue
-            by_parent.setdefault(parent, {"1q": [], "2q": []})[quarter_marker].append(activity)
+            # Cada activitat compta per a CADA grup individual que hi
+            # assisteix, no nomes pel text exacte del grup pare: una
+            # activitat de 'GI, GP' ha de poder-se aparellar tant amb una
+            # activitat nomes de GI com nomes de GP.
+            for individual_name in group_names(parent) or (parent,):
+                by_parent.setdefault(individual_name, {"1q": [], "2q": []})[quarter_marker].append(activity)
 
         pairs_to_align: List[tuple] = []
+        seen_pairs: set = set()
         for buckets in by_parent.values():
-            pairs_to_align.extend(self._match_quarter_pairs(buckets["1q"], buckets["2q"]))
+            for pair in self._match_quarter_pairs(buckets["1q"], buckets["2q"]):
+                pair_key = frozenset({id(pair[0]), id(pair[1])})
+                if pair_key in seen_pairs:
+                    continue
+                seen_pairs.add(pair_key)
+                pairs_to_align.append(pair)
 
         aligned: List[Dict[str, Any]] = []
         skipped: List[Dict[str, Any]] = []
