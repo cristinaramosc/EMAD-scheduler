@@ -69,6 +69,23 @@ class GreedyPlacementStrategy(PlacementStrategy):
         if preferred is not None:
             return preferred
 
+        # Si l'assignatura és 1Q/2Q però no s'ha trobat cap parella amb qui
+        # compartir franja, es prioritza col·locar-la a la primera o última
+        # hora del dia (per no deixar-la enmig d'un dia, ja que només
+        # s'imparteix mig curs i deixaria un forat estrany la resta de
+        # l'any).
+        metadata = teaching_block.metadata or {}
+        candidate_group = metadata.get("group_id") or metadata.get("group")
+        candidate_subject = metadata.get("subject")
+        if candidate_group is not None:
+            _, candidate_quarter = _parent_and_quarter(candidate_group, candidate_subject)
+            if candidate_quarter is not None:
+                edge = self._try_day_edge_slot(
+                    teaching_block, context, all_activities, required_slots, excluded_days
+                )
+                if edge is not None:
+                    return edge
+
         for day in context.school_calendar.days:
             if excluded_days and day in excluded_days:
                 continue
@@ -119,6 +136,62 @@ class GreedyPlacementStrategy(PlacementStrategy):
         names_a = set(group_names(parent_a)) or {parent_a}
         names_b = set(group_names(parent_b)) or {parent_b}
         return bool(names_a & names_b)
+
+    def _try_day_edge_slot(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        all_activities: Sequence[ScheduledActivity],
+        required_slots: int,
+        excluded_days: Optional[set],
+    ) -> Optional[ScheduledActivity]:
+        """Per a assignatures 1Q/2Q sense parella, prova primer l'última
+        franja vàlida del dia i després la primera, abans de fer la cerca
+        general (que aniria omplint des de la primera franja lliure
+        qualsevol). Això evita deixar l'assignatura enmig del dia, on
+        deixaria un forat estrany quan no s'imparteix (és de mig curs)."""
+        for day in context.school_calendar.days:
+            if excluded_days and day in excluded_days:
+                continue
+            if teaching_block.fixed_day and not teaching_block.fixed_start and self._day_name(day) != teaching_block.fixed_day.strip().lower():
+                continue
+
+            day_slots = context.school_calendar.periods_for_day(day)
+            if len(day_slots) < required_slots:
+                continue
+
+            last_fit_slot = day_slots[len(day_slots) - required_slots]
+            first_fit_slot = day_slots[0]
+            candidate_slots = [last_fit_slot] if last_fit_slot == first_fit_slot else [last_fit_slot, first_fit_slot]
+
+            for slot in candidate_slots:
+                if self._is_blocked(slot, context.blocked_time_slots):
+                    continue
+                if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
+                    continue
+                if self._group_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+                if self._teacher_conflict_exists(teaching_block, slot, all_activities):
+                    continue
+                if self._group_time_window_conflict_exists(teaching_block, slot, context):
+                    continue
+                if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+                if self._room_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+
+                return ScheduledActivity(
+                    teaching_block=teaching_block,
+                    day=day,
+                    start_timeslot=slot,
+                    duration=required_slots,
+                    room_id=teaching_block.preferred_room_id,
+                    teacher_id=teaching_block.preferred_teacher_id,
+                    group_id=(teaching_block.metadata or {}).get("group_id")
+                    or (teaching_block.metadata or {}).get("group"),
+                )
+
+        return None
 
     def _try_quarter_pair_slot(
         self,

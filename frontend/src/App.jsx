@@ -363,6 +363,36 @@ function getGroupParentName(groupName) {
   return subgroupMatch ? subgroupMatch[1].trim() : trimmed;
 }
 
+// Un camp de grup pot contenir diversos grups separats per coma (p.ex.
+// "GI, GP"). Aquesta funció retorna cada grup individual per separat, amb
+// el sufix 1Q/2Q ja retirat de cadascun.
+function individualGroupNames(groupField) {
+  return String(groupField || "")
+    .split(",")
+    .map((part) => getGroupParentName(part))
+    .filter(Boolean);
+}
+
+// Retorna cert si l'activitat pertany al grup seleccionat, tant si el seu
+// camp de grup és un sol grup com si és una combinació (p.ex. una activitat
+// de "GI, GP" pertany tant a "GI" com a "GP" individualment).
+function activityBelongsToGroup(groupField, selectedGroup) {
+  if (!selectedGroup) {
+    return false;
+  }
+  const target = selectedGroup.trim().toLowerCase();
+  return individualGroupNames(groupField).some((name) => name.toLowerCase() === target);
+}
+
+// Retorna cert si dos camps de grup comparteixen algun grup individual en
+// comú (no cal que siguin idèntics): "GI" i "GI, GP" es consideren el
+// mateix grup a efectes de conflicte/agrupació perquè GI és comú a totes
+// dues.
+function groupsOverlap(groupFieldA, groupFieldB) {
+  const namesB = new Set(individualGroupNames(groupFieldB).map((name) => name.toLowerCase()));
+  return individualGroupNames(groupFieldA).some((name) => namesB.has(name.toLowerCase()));
+}
+
 function isSubgroupGroupName(groupName) {
   return /(?:^|\s)(?:1Q|2Q)$/i.test(String(groupName || "").trim());
 }
@@ -376,7 +406,7 @@ function getVisibleActivitiesForSlot(slotActivities, selectedGroup) {
   }
 
   const matchingActivities = (slotActivities || []).filter((activity) => {
-    return getGroupParentName(activity?.group) === selectedGroup;
+    return activityBelongsToGroup(activity?.group, selectedGroup);
   });
 
   if (!matchingActivities.length) {
@@ -424,7 +454,7 @@ function canShareSlotWithQuarter(existingActivity, candidateActivity) {
     return false;
   }
 
-  if (getGroupParentName(existingActivity.group) !== getGroupParentName(candidateActivity.group)) {
+  if (!groupsOverlap(existingActivity.group, candidateActivity.group)) {
     return false;
   }
 
@@ -1498,7 +1528,7 @@ export default function App() {
     }
 
     if (selectedGroup) {
-      nextActivities = nextActivities.filter((activity) => getGroupParentName(activity?.group) === selectedGroup);
+      nextActivities = nextActivities.filter((activity) => activityBelongsToGroup(activity?.group, selectedGroup));
     }
 
     if (teacherFilter) {
@@ -1535,7 +1565,7 @@ export default function App() {
           const subject = String(item?.subject || "").trim().toLowerCase();
           return (
             subject === "descans"
-            && getGroupParentName(item?.group) === selectedGroup
+            && activityBelongsToGroup(item?.group, selectedGroup)
             && normalizeDayLabel(item?.day) === day
             && String(item?.start) === start
           );
@@ -2105,7 +2135,7 @@ export default function App() {
       return false;
     }
 
-    if (getGroupParentName(existingActivity.group) !== getGroupParentName(candidateActivity.group)) {
+    if (!groupsOverlap(existingActivity.group, candidateActivity.group)) {
       return false;
     }
 
@@ -2140,7 +2170,7 @@ export default function App() {
       (a) => String(a.day) === String(day) && String(a.start) === String(start)
     );
     const sameGroupActivities = slotActivities.filter(
-      (item) => getGroupParentName(item.group) === getGroupParentName(activity.group)
+      (item) => groupsOverlap(item.group, activity.group)
     );
 
     if (!sameGroupActivities.length) {
@@ -3725,7 +3755,7 @@ export default function App() {
                       teachingAssignments.filter(
                         (a) =>
                           matchesSearch(academicSearch, [a.teacher, a.subject, a.group]) &&
-                          (!academicAssignmentGroupFilter || getGroupParentName(a.group) === academicAssignmentGroupFilter)
+                          (!academicAssignmentGroupFilter || activityBelongsToGroup(a.group, academicAssignmentGroupFilter))
                       ),
                       academicSort
                     )
