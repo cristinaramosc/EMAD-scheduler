@@ -1162,6 +1162,70 @@ export default function App() {
     }
   }
 
+  async function saveGroupRestrictionsForAllGroups() {
+    if (!timetableGroupOptions.length) {
+      return;
+    }
+    if (
+      !window.confirm(
+        `Vols aplicar aquestes restriccions (hores màx., franges, dies...) a TOTS els grups (${timetableGroupOptions.length})? Els descansos propis de cada grup no es tocaran.`
+      )
+    ) {
+      return;
+    }
+
+    setIsSavingGroupRestrictions(true);
+    setError("");
+    setSuccessMessage("");
+
+    // Nomes s'apliquen les restriccions generals; break_days/break_slots
+    // s'ometen expressament perque cada grup manté el seu propi descans
+    // (el backend preserva el valor existent quan no s'envia el camp).
+    const sharedPayload = {
+      no_gaps: Boolean(groupRestrictionDraft.no_gaps),
+      max_hours_per_day: groupRestrictionDraft.max_hours_per_day === "" ? null : Number(groupRestrictionDraft.max_hours_per_day),
+      max_consecutive_hours: groupRestrictionDraft.max_consecutive_hours === "" ? null : Number(groupRestrictionDraft.max_consecutive_hours),
+      max_days: groupRestrictionDraft.max_days === "" || groupRestrictionDraft.max_days === null || groupRestrictionDraft.max_days === undefined ? null : Number(groupRestrictionDraft.max_days),
+      preferred_availability: groupRestrictionDraft.preferred_availability || [],
+      unavailable_slots: groupRestrictionDraft.unavailable_slots || [],
+      daily_start_time: groupRestrictionDraft.daily_start_time || "",
+      daily_max_end_time: groupRestrictionDraft.daily_max_end_time || "",
+      daily_windows: groupRestrictionDraft.daily_windows || {},
+    };
+
+    const failedGroups = [];
+    let successCount = 0;
+
+    for (const group of timetableGroupOptions) {
+      try {
+        const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(group.name)}/restrictions`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ group: group.name, ...sharedPayload }),
+        });
+        if (!response.ok) {
+          failedGroups.push(group.name);
+        } else {
+          successCount += 1;
+        }
+      } catch {
+        failedGroups.push(group.name);
+      }
+    }
+
+    if (selectedGroup) {
+      await loadGroupRestrictions(selectedGroup);
+    }
+    await loadTimetableEntities();
+
+    if (failedGroups.length > 0) {
+      setError(`Desat a ${successCount} grups, però ha fallat per: ${failedGroups.join(", ")}.`);
+    } else {
+      setSuccessMessage(`Restriccions aplicades als ${successCount} grups (descansos propis mantinguts).`);
+    }
+    setIsSavingGroupRestrictions(false);
+  }
+
   async function toggleSelectedGroupNoGaps() {
     if (!selectedGroup) {
       return;
@@ -4418,6 +4482,15 @@ export default function App() {
 
                 <button type="button" onClick={() => saveGroupRestrictions()} disabled={isSavingGroupRestrictions}>
                   {isSavingGroupRestrictions ? "S'està desant..." : "Desa restriccions"}
+                </button>
+                <button
+                  type="button"
+                  onClick={saveGroupRestrictionsForAllGroups}
+                  disabled={isSavingGroupRestrictions}
+                  style={{ marginLeft: 8 }}
+                  title="Aplica aquestes mateixes restriccions (hores màx., franges, dies...) a tots els grups, sense tocar el descans propi de cadascun"
+                >
+                  {isSavingGroupRestrictions ? "S'està desant..." : "Desa per a tots els grups"}
                 </button>
               </div>
             )}
