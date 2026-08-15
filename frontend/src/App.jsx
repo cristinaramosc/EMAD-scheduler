@@ -557,6 +557,7 @@ export default function App() {
   const [isSavingTeacherRestrictions, setIsSavingTeacherRestrictions] = useState(false);
   const [groupRestrictions, setGroupRestrictions] = useState([]);
   const [groupRestrictionDraft, setGroupRestrictionDraft] = useState(createGroupRestrictionDraft(""));
+  const [bulkSaveSelectedGroups, setBulkSaveSelectedGroups] = useState([]);
   const [isSavingGroupRestrictions, setIsSavingGroupRestrictions] = useState(false);
   const [availabilitySelectionAnchor, setAvailabilitySelectionAnchor] = useState(null);
   const [unavailableSelectionAnchor, setUnavailableSelectionAnchor] = useState(null);
@@ -1163,12 +1164,14 @@ export default function App() {
   }
 
   async function saveGroupRestrictionsForAllGroups() {
-    if (!timetableGroupOptions.length) {
+    const targetGroups = timetableGroupOptions.filter((group) => bulkSaveSelectedGroups.includes(group.name));
+    if (!targetGroups.length) {
+      setError("Selecciona almenys un grup abans de desar-ho per a diversos grups.");
       return;
     }
     if (
       !window.confirm(
-        `Vols aplicar aquestes restriccions (hores màx., franges, dies...) a TOTS els grups (${timetableGroupOptions.length})? Els descansos propis de cada grup no es tocaran.`
+        `Vols aplicar aquestes restriccions (hores màx., franges, dies...) als ${targetGroups.length} grups seleccionats (${targetGroups.map((g) => g.name).join(", ")})? Els descansos propis de cada grup no es tocaran.`
       )
     ) {
       return;
@@ -1196,7 +1199,7 @@ export default function App() {
     const failedGroups = [];
     let successCount = 0;
 
-    for (const group of timetableGroupOptions) {
+    for (const group of targetGroups) {
       try {
         const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(group.name)}/restrictions`, {
           method: "PATCH",
@@ -4480,17 +4483,52 @@ export default function App() {
                   </div>
                 </div>
 
+                <div style={{ marginTop: 12, marginBottom: 8 }}>
+                  <p className="muted" style={{ marginTop: 0, marginBottom: 6 }}>
+                    Grups als quals aplicar "Desa per a diversos grups" (per exemple, no barregis grups de matí i de tarda):
+                  </p>
+                  <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+                    <button
+                      type="button"
+                      onClick={() => setBulkSaveSelectedGroups(timetableGroupOptions.map((g) => g.name))}
+                    >
+                      Selecciona tots
+                    </button>
+                    <button type="button" onClick={() => setBulkSaveSelectedGroups([])}>
+                      Neteja selecció
+                    </button>
+                  </div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px" }}>
+                    {timetableGroupOptions.map((group) => (
+                      <label key={group.name} style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: "normal" }}>
+                        <input
+                          type="checkbox"
+                          checked={bulkSaveSelectedGroups.includes(group.name)}
+                          onChange={(event) => {
+                            setBulkSaveSelectedGroups((current) =>
+                              event.target.checked
+                                ? [...current, group.name]
+                                : current.filter((name) => name !== group.name)
+                            );
+                          }}
+                        />
+                        {group.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
                 <button type="button" onClick={() => saveGroupRestrictions()} disabled={isSavingGroupRestrictions}>
                   {isSavingGroupRestrictions ? "S'està desant..." : "Desa restriccions"}
                 </button>
                 <button
                   type="button"
                   onClick={saveGroupRestrictionsForAllGroups}
-                  disabled={isSavingGroupRestrictions}
+                  disabled={isSavingGroupRestrictions || bulkSaveSelectedGroups.length === 0}
                   style={{ marginLeft: 8 }}
-                  title="Aplica aquestes mateixes restriccions (hores màx., franges, dies...) a tots els grups, sense tocar el descans propi de cadascun"
+                  title="Aplica aquestes mateixes restriccions (hores màx., franges, dies...) nomes als grups marcats a dalt, sense tocar el descans propi de cadascun"
                 >
-                  {isSavingGroupRestrictions ? "S'està desant..." : "Desa per a tots els grups"}
+                  {isSavingGroupRestrictions ? "S'està desant..." : `Desa per als grups seleccionats (${bulkSaveSelectedGroups.length})`}
                 </button>
               </div>
             )}
