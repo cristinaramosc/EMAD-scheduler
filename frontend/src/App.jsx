@@ -561,6 +561,7 @@ export default function App() {
   const [isSavingGroupRestrictions, setIsSavingGroupRestrictions] = useState(false);
   const [availabilitySelectionAnchor, setAvailabilitySelectionAnchor] = useState(null);
   const [unavailableSelectionAnchor, setUnavailableSelectionAnchor] = useState(null);
+  const [groupUnavailableSelectionAnchor, setGroupUnavailableSelectionAnchor] = useState(null);
 
   const [groupDraft, setGroupDraft] = useState({ name: "", course: "", active: true, is_split: false });
   const [groupEdit, setGroupEdit] = useState(null);
@@ -4478,6 +4479,62 @@ export default function App() {
                             );
                           })}
                         </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="restriction-section">
+                  <h4>Franges concretes no disponibles (forats enmig del dia)</h4>
+                  <p className="restriction-hint">
+                    Per a coses que "hora d'inici/final" no pot expressar, com un grup que té classe
+                    al matí, no té classe entre les 14:00 i les 16:00, i torna a tenir classe de 16:00
+                    a 19:00 el mateix dia. Clic simple per marcar/desmarcar una franja no disponible.
+                    Maj + clic per seleccionar un rang.
+                  </p>
+                  <div className="restriction-presets">
+                    <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setGroupUnavailableSelectionAnchor)}>Entre les 10:00 i les 14:00 (tots els dies)</button>
+                    <button
+                      type="button"
+                      className="ghost"
+                      onClick={() => clearAvailabilitySelection(groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setGroupUnavailableSelectionAnchor)}
+                    >
+                      Neteja selecció
+                    </button>
+                  </div>
+                  <div className="availability-grid-wrap">
+                    <table className="availability-grid">
+                      <thead>
+                        <tr>
+                          <th></th>
+                          {HOURS.map((hour) => (
+                            <th key={hour}>{hour}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {DAYS.map((day) => (
+                          <tr key={day}>
+                            <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
+                            {HOURS.map((hour) => {
+                              const slotKey = `${day}-${hour}`;
+                              const isUnavailable = (groupRestrictionDraft.unavailable_slots || []).includes(slotKey);
+                              const cellClass = isUnavailable
+                                ? "availability-cell availability-cell--unavailable"
+                                : "availability-cell";
+                              return (
+                                <td key={slotKey}>
+                                  <button
+                                    type="button"
+                                    className={cellClass}
+                                    onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setGroupUnavailableSelectionAnchor(slotKey); }}
+                                    onClick={(event) => updateAvailabilitySelection(slotKey, event, groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", groupUnavailableSelectionAnchor, setGroupUnavailableSelectionAnchor)}
+                                  />
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
