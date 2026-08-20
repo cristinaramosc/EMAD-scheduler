@@ -575,9 +575,9 @@ export default function App() {
   const [roomEdit, setRoomEdit] = useState(null);
   const [roomEditValues, setRoomEditValues] = useState({ name: "", capacity: "" });
 
-  const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+  const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
   const [assignmentEdit, setAssignmentEdit] = useState(null);
-  const [assignmentEditValues, setAssignmentEditValues] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", allowed_session_lengths: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+  const [assignmentEditValues, setAssignmentEditValues] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", allowed_session_lengths: "", preferred_room: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
 
   function parseSessionLengths(value) {
     return value
@@ -3812,6 +3812,7 @@ export default function App() {
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("subject", setAcademicSort)}>Assignatura{sortIndicator("subject", academicSort)}</th>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("weekly_hours", setAcademicSort)}>Hores setmanals{sortIndicator("weekly_hours", academicSort)}</th>
                       <th>Durades de sessió permeses</th>
+                      <th>Aula preferida</th>
                       <th>Màx. dies per repartir</th>
                       <th>Consecutiva amb (etiqueta)</th>
                       <th>Horari fix</th>
@@ -3903,6 +3904,17 @@ export default function App() {
                             />
                           ) : (
                             formatSessionLengths(a.allowed_session_lengths)
+                          )}
+                        </td>
+                        <td>
+                          {assignmentEdit === a.id ? (
+                            <input
+                              value={assignmentEditValues.preferred_room}
+                              placeholder="(opcional)"
+                              onChange={(event) => setAssignmentEditValues({ ...assignmentEditValues, preferred_room: event.target.value })}
+                            />
+                          ) : (
+                            a.preferred_room || "—"
                           )}
                         </td>
                         <td>
@@ -4015,6 +4027,7 @@ export default function App() {
                                   group: a.group,
                                   weekly_hours: a.weekly_hours || "",
                                   allowed_session_lengths: formatSessionLengths(a.allowed_session_lengths),
+                                  preferred_room: a.preferred_room || "",
                                   fixed_day: a.fixed_day || "",
                                   fixed_start: a.fixed_start || "",
                                   max_session_days: a.max_session_days || "",
