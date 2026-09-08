@@ -32,7 +32,7 @@ class GenerateRequest(BaseModel):
 @router.post("/validate")
 def validate(activities: list[ActivityDto]):
     use_cases = get_scheduler_use_cases()
-    return use_cases.validate([activity.dict() for activity in activities])
+    return use_cases.validate([activity.model_dump() for activity in activities])
 
 
 @router.post("/generate")

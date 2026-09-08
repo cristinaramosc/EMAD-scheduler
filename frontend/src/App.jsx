@@ -114,6 +114,7 @@ function createGroupRestrictionDraft(groupName = "") {
     daily_windows: {},
     break_days: [],
     break_slots: [],
+    locked: false,
   };
 }
 
@@ -573,7 +574,8 @@ export default function App() {
 
   const [roomDraft, setRoomDraft] = useState({ name: "", capacity: "" });
   const [roomEdit, setRoomEdit] = useState(null);
-  const [roomEditValues, setRoomEditValues] = useState({ name: "", capacity: "" });
+  const [roomEditValues, setRoomEditValues] = useState({ name: "", capacity: "", unavailable_slots: [] });
+  const [roomUnavailableSelectionAnchor, setRoomUnavailableSelectionAnchor] = useState(null);
 
   const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
   const [assignmentEdit, setAssignmentEdit] = useState(null);
@@ -638,22 +640,22 @@ export default function App() {
 
   async function downloadScheduleExport() {
     try {
-      const response = await fetch(`${API_URL}/scheduler/export`);
+      const response = await fetch(`${API_URL}/scheduler/export/pdf`);
       if (!response.ok) {
-        setError("No s'ha pogut generar l'Excel dels horaris.");
+        setError("No s'ha pogut generar el PDF dels horaris.");
         return;
       }
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = "horaris.xlsx";
+      link.download = "horaris.pdf";
       document.body.appendChild(link);
       link.click();
       link.remove();
       window.URL.revokeObjectURL(url);
     } catch {
-      setError("No s'ha pogut generar l'Excel dels horaris.");
+      setError("No s'ha pogut generar el PDF dels horaris.");
     }
   }
 
@@ -1107,6 +1109,7 @@ export default function App() {
         daily_windows: data.daily_windows && typeof data.daily_windows === "object" ? data.daily_windows : {},
         break_days: Array.isArray(data.break_days) ? data.break_days : [],
         break_slots: Array.isArray(data.break_slots) ? data.break_slots : [],
+        locked: Boolean(data.locked),
       };
       setGroupRestrictionDraft(nextDraft);
       setGroupRestrictions((current) => {
@@ -1141,6 +1144,7 @@ export default function App() {
         daily_windows: updatedDraft.daily_windows || {},
         break_days: updatedDraft.break_days || [],
         break_slots: updatedDraft.break_slots || [],
+        locked: Boolean(updatedDraft.locked),
       };
 
       const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(updatedDraft.group)}/restrictions`, {
@@ -1160,6 +1164,37 @@ export default function App() {
     } catch (err) {
       setError(err.message || "No s'ha pogut desar les restriccions del grup.");
     } finally {
+      setIsSavingGroupRestrictions(false);
+    }
+  }
+
+  async function toggleGroupLock(groupName, nextLocked) {
+    if (!groupName) {
+      return;
+    }
+
+    setIsSavingGroupRestrictions(true);
+    setError("");
+    setSuccessMessage("");
+
+    try {
+      // Es recarrega l'estat complet de les restriccions abans de desar per no
+      // arrossegar valors obsolets del formulari a altres camps (el PATCH no fa
+      // merge parcial de tots els camps al backend).
+      const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(groupName)}/restrictions`);
+      const data = response.ok ? await response.json().catch(() => ({})) : {};
+      const baseDraft = {
+        ...createGroupRestrictionDraft(groupName),
+        ...data,
+        group: groupName,
+        locked: nextLocked,
+      };
+      await saveGroupRestrictions(baseDraft);
+      if (selectedGroup === groupName) {
+        await loadGroupRestrictions(groupName);
+      }
+    } catch (err) {
+      setError(err.message || "No s'ha pogut actualitzar el bloqueig del grup.");
       setIsSavingGroupRestrictions(false);
     }
   }
@@ -1480,6 +1515,17 @@ export default function App() {
         if (data.error === "unscheduled_activities_pending") {
           throw new Error("Encara hi ha activitats sense franja. Cal ubicar-les abans d'acceptar la proposta.");
         }
+        if (Array.isArray(data.conflicts) && data.conflicts.length > 0) {
+          const details = data.conflicts
+            .map((conflict) => conflict.message)
+            .filter(Boolean)
+            .join(" · ");
+          throw new Error(
+            `No s'ha pogut acceptar la proposta: hi ha ${data.conflicts.length} conflicte(s) real(s) a l'horari final.${
+              details ? ` ${details}` : ""
+            }`
+          );
+        }
         throw new Error(data.detail || "No s'ha pogut acceptar la proposta.");
       }
 
@@ -1597,6 +1643,14 @@ export default function App() {
 
     if (selectedGroup) {
       nextActivities = nextActivities.filter((activity) => activityBelongsToGroup(activity?.group, selectedGroup));
+      if (!teacherFilter && !roomFilter) {
+        // La Tutoria no ocupa cap franja del grup: només és informativa
+        // (surt com a nota sota el nom del grup a la descàrrega). Al seu
+        // horari sí que ha d'aparèixer com a bloc normal.
+        nextActivities = nextActivities.filter(
+          (activity) => (activity?.subject || "").trim().toLowerCase() !== "tutoria"
+        );
+      }
     }
 
     if (teacherFilter) {
@@ -1818,6 +1872,32 @@ export default function App() {
     } catch {
       setError("No s'ha pogut eliminar l'activitat.");
     }
+  }
+
+  // Afegeix una hora manual (p.ex. Tutoria, Coordinació) a la casella buida
+  // del calendari on es fa doble clic. Cal tenir un grup seleccionat, ja que
+  // aquesta hora s'assigna a l'horari d'un grup concret.
+  function handleAddManualActivityAt(day, start) {
+    if (!selectedGroup) {
+      setError("Selecciona primer un grup al calendari per afegir-hi una hora manual (p.ex. Tutoria).");
+      return;
+    }
+    const subject = window.prompt("Nom de l'activitat (p.ex. Tutoria):", "Tutoria");
+    if (!subject || !subject.trim()) {
+      return;
+    }
+    const teacher = window.prompt("Professor/a responsable:", "") || "";
+    const durationInput = window.prompt("Durada en blocs de 30 min (2 = 1 hora):", "2");
+    const duration = parseInt(durationInput, 10);
+    addManualActivity({
+      subject: subject.trim(),
+      day,
+      start,
+      duration: Number.isFinite(duration) && duration > 0 ? duration : 2,
+      teacher: teacher.trim(),
+      group: selectedGroup,
+      room: "",
+    });
   }
 
   async function assignLunchBreaks({ silent = false } = {}) {
@@ -2424,7 +2504,7 @@ export default function App() {
     const isSelected = selectedActivityId === activity.id;
     const normalizedSubject = (activity.subject || "").trim().toLowerCase();
     const isSyntheticBreak = Boolean(activity.isSyntheticBreak);
-    const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio";
+    const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio" || normalizedSubject === "tutoria";
     const groupColor = !hasConflict && !isBreakOrCoordination ? getGroupColor(activity.group) : null;
 
     return (
@@ -3640,7 +3720,8 @@ export default function App() {
                   </thead>
                   <tbody>
                     {applyAcademicSort(rooms.filter((r) => matchesSearch(academicSearch, [r.name])), academicSort).map((r) => (
-                      <tr key={r.name}>
+                      <React.Fragment key={r.name}>
+                      <tr>
                         <td>
                           {roomEdit === r.name ? (
                             <input
@@ -3670,6 +3751,7 @@ export default function App() {
                                 const payload = {
                                   name: roomEditValues.name,
                                   capacity: parseInt(roomEditValues.capacity, 10) || 0,
+                                  unavailable_slots: roomEditValues.unavailable_slots || [],
                                 };
                                 const res = await updateRoom(r.name, payload);
                                 if (res.ok) {
@@ -3685,7 +3767,7 @@ export default function App() {
                             <>
                               <button onClick={() => {
                                 setRoomEdit(r.name);
-                                setRoomEditValues({ name: r.name, capacity: r.capacity ?? "" });
+                                setRoomEditValues({ name: r.name, capacity: r.capacity ?? "", unavailable_slots: r.unavailable_slots || [] });
                               }}>Edita</button>
                               <button onClick={async () => {
                                 const res = await deleteRoom(r.name);
@@ -3695,6 +3777,59 @@ export default function App() {
                           )}
                         </td>
                       </tr>
+                      {roomEdit === r.name ? (
+                        <tr>
+                          <td colSpan={3}>
+                            <div className="restriction-presets">
+                              <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", roomEditValues, setRoomEditValues, "unavailable_slots", setRoomUnavailableSelectionAnchor)}>Entre les 10:00 i les 14:00 (tots els dies)</button>
+                              <button
+                                type="button"
+                                className="ghost"
+                                onClick={() => clearAvailabilitySelection(roomEditValues, setRoomEditValues, "unavailable_slots", setRoomUnavailableSelectionAnchor)}
+                              >
+                                Neteja selecció
+                              </button>
+                            </div>
+                            <div className="availability-grid-wrap">
+                              <table className="availability-grid">
+                                <thead>
+                                  <tr>
+                                    <th></th>
+                                    {HOURS.map((hour) => (
+                                      <th key={hour}>{hour}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {DAYS.map((day) => (
+                                    <tr key={day}>
+                                      <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
+                                      {HOURS.map((hour) => {
+                                        const slotKey = `${day}-${hour}`;
+                                        const isUnavailable = (roomEditValues.unavailable_slots || []).includes(slotKey);
+                                        const cellClass = isUnavailable
+                                          ? "availability-cell availability-cell--unavailable"
+                                          : "availability-cell";
+                                        return (
+                                          <td key={slotKey}>
+                                            <button
+                                              type="button"
+                                              className={cellClass}
+                                              onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setRoomUnavailableSelectionAnchor(slotKey); }}
+                                              onClick={(event) => updateAvailabilitySelection(slotKey, event, roomEditValues, setRoomEditValues, "unavailable_slots", roomUnavailableSelectionAnchor, setRoomUnavailableSelectionAnchor)}
+                                            />
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </React.Fragment>
                     ))}
                     <tr>
                       <td>
@@ -4254,7 +4389,7 @@ export default function App() {
                 type="button"
                 style={{ marginLeft: 16 }}
                 onClick={downloadScheduleExport}
-                title="Descarrega un Excel amb l'horari de cada grup, professor i aula"
+                title="Descarrega un PDF amb l'horari de cada grup, professor i aula"
               >
                 ⬇️ Descarrega horaris
               </button>
@@ -4304,6 +4439,8 @@ export default function App() {
                       setDropPreviewValid(true);
                     }}
                     onDrop={(event) => handleDrop(event, day, hour)}
+                    onDoubleClick={() => handleAddManualActivityAt(day, hour)}
+                    title="Doble clic per afegir una hora manual (p.ex. Tutoria)"
                   />
                 );
               })}
@@ -4347,6 +4484,17 @@ export default function App() {
             ) : (
               <div className="restriction-editor">
                 <p className="muted">{selectedGroup}</p>
+                <div style={{ marginBottom: 12 }}>
+                  <button
+                    type="button"
+                    className={groupRestrictionDraft.locked ? "primary" : ""}
+                    onClick={() => toggleGroupLock(selectedGroup, !groupRestrictionDraft.locked)}
+                    disabled={isSavingGroupRestrictions}
+                    title="Manté aquest grup a la mateixa posició quan es torni a generar l'horari"
+                  >
+                    {groupRestrictionDraft.locked ? "🔒 Horari bloquejat (clica per desbloquejar)" : "🔓 Bloqueja horari d'aquest grup"}
+                  </button>
+                </div>
                 <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
                   <label>
                     Màx. hores consecutives
