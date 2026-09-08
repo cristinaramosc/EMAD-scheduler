@@ -7,10 +7,12 @@ if __package__ and __package__.startswith("backend"):
     from backend.dependencies import get_live_schedule_use_cases
     from backend.schemas.scheduler import ManualActivityDTO, MoveDTO, ToggleGroupBreakDTO
     from backend.services.schedule_exporter import build_schedule_export
+    from backend.services.schedule_pdf_exporter import build_schedule_pdf
 else:  # pragma: no cover
     from dependencies import get_live_schedule_use_cases
     from schemas.scheduler import ManualActivityDTO, MoveDTO, ToggleGroupBreakDTO
     from services.schedule_exporter import build_schedule_export
+    from services.schedule_pdf_exporter import build_schedule_pdf
 
 router = APIRouter(prefix="/scheduler")
 
@@ -38,6 +40,21 @@ def export_schedule():
         buffer,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=horaris.xlsx"},
+    )
+
+
+@router.get("/export/pdf")
+def export_schedule_pdf():
+    """Descarrega un .pdf amb una pàgina per a cada grup, professor i
+    aula de l'horari actiu, amb un aspecte de calendari (graella per
+    mitges hores i blocs blaus per a les activitats)."""
+    use_cases = get_live_schedule_use_cases()
+    activities = use_cases.state().get("activities", [])
+    buffer = build_schedule_pdf(activities)
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=horaris.pdf"},
     )
 
 

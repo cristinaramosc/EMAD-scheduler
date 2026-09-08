@@ -91,6 +91,7 @@ class GroupRestrictionDTO(BaseModel):
     exception_slots: Optional[List[str]] = []
     break_days: Optional[List[str]] = []
     break_slots: Optional[List[str]] = []
+    locked: Optional[bool] = False
 
 
 class GroupRestrictionUpdateDTO(BaseModel):
@@ -107,6 +108,7 @@ class GroupRestrictionUpdateDTO(BaseModel):
     exception_slots: Optional[List[str]] = None
     break_days: Optional[List[str]] = None
     break_slots: Optional[List[str]] = None
+    locked: Optional[bool] = None
 
 
 class SubjectDTO(BaseModel):
@@ -175,7 +177,7 @@ def list_teachers():
 def create_teacher(payload: TeacherDTO):
     repo = get_academic_data_repo()
     try:
-        record = payload.dict()
+        record = payload.model_dump()
         active = record.pop("active", True)
         repo.create_teacher(record)
         if not active:
@@ -196,7 +198,7 @@ def update_teacher(name: str, payload: TeacherUpdateDTO):
     if payload.active is False:
         repo.delete_teacher(name)
         return {"ok": True}
-    updated = {**current, **{k: v for k, v in payload.dict().items() if v is not None and k != "active"}}
+    updated = {**current, **{k: v for k, v in payload.model_dump().items() if v is not None and k != "active"}}
     try:
         repo.update_teacher(name, updated)
         if payload.unavailable_slots is not None:
@@ -269,7 +271,7 @@ def list_groups():
 def create_group(payload: GroupDTO):
     repo = get_academic_data_repo()
     try:
-        record = payload.dict()
+        record = payload.model_dump()
         active = record.pop("active", True)
         repo.create_group(record)
         if not active:
@@ -294,7 +296,7 @@ def update_group(name: str, payload: GroupUpdateDTO):
     if payload.active is False:
         repo.delete_group(name)
         return {"ok": True}
-    updated = {**current, **{k: v for k, v in payload.dict().items() if v is not None and k != "active"}}
+    updated = {**current, **{k: v for k, v in payload.model_dump().items() if v is not None and k != "active"}}
     try:
         repo.update_group(name, updated)
         if payload.unavailable_slots is not None or payload.fixed_slots is not None:
@@ -356,6 +358,7 @@ def update_group_restrictions(name: str, payload: GroupRestrictionUpdateDTO):
         "exception_slots": payload.exception_slots if payload.exception_slots is not None else existing_restriction.get("exception_slots", []),
         "break_days": payload.break_days if payload.break_days is not None else existing_restriction.get("break_days", []),
         "break_slots": payload.break_slots if payload.break_slots is not None else existing_restriction.get("break_slots", []),
+        "locked": payload.locked if payload.locked is not None else existing_restriction.get("locked", False),
     }
     repo.upsert_group_restriction(record)
     return {"ok": True}
@@ -370,7 +373,7 @@ def list_subjects():
 def create_subject(payload: SubjectDTO):
     repo = get_academic_data_repo()
     try:
-        repo.create_subject(payload.dict())
+        repo.create_subject(payload.model_dump())
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"ok": True}
@@ -382,7 +385,7 @@ def update_subject(name: str, payload: SubjectUpdateDTO):
     current = next((s for s in repo.list_subjects() if s["name"] == name), None)
     if current is None:
         raise HTTPException(status_code=404, detail="subject_not_found")
-    updated = {**current, **{k: v for k, v in payload.dict().items() if v is not None}}
+    updated = {**current, **{k: v for k, v in payload.model_dump().items() if v is not None}}
     try:
         repo.update_subject(name, updated)
     except KeyError as exc:
@@ -409,7 +412,7 @@ def list_rooms():
 def create_room(payload: RoomDTO):
     repo = get_academic_data_repo()
     try:
-        repo.create_room(payload.dict())
+        repo.create_room(payload.model_dump())
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"ok": True}
@@ -421,7 +424,7 @@ def update_room(name: str, payload: RoomUpdateDTO):
     current = next((r for r in repo.list_rooms() if r["name"] == name), None)
     if current is None:
         raise HTTPException(status_code=404, detail="room_not_found")
-    updated = {**current, **{k: v for k, v in payload.dict().items() if v is not None}}
+    updated = {**current, **{k: v for k, v in payload.model_dump().items() if v is not None}}
     try:
         repo.update_room(name, updated)
     except KeyError as exc:
@@ -451,7 +454,7 @@ def create_assignment(payload: AssignmentDTO):
     if subject is None:
         raise HTTPException(status_code=400, detail="subject_not_found")
     try:
-        record = payload.dict()
+        record = payload.model_dump()
         record["allowed_session_lengths"] = subject.get("allowed_session_lengths", [])
         assignment_id = repo.create_canonical_assignment(record)
     except KeyError as exc:
@@ -465,7 +468,7 @@ def update_assignment(assignment_id: str, payload: AssignmentUpdateDTO):
     current = next((a for a in repo.active_canonical_assignments() if a["id"] == assignment_id), None)
     if current is None:
         raise HTTPException(status_code=404, detail="assignment_not_found")
-    updated = {**current, **{k: v for k, v in payload.dict().items() if v is not None}}
+    updated = {**current, **{k: v for k, v in payload.model_dump().items() if v is not None}}
     subject = next((s for s in repo.list_subjects() if s["name"] == updated["subject"]), None)
     if subject:
         updated["allowed_session_lengths"] = subject.get("allowed_session_lengths", [])

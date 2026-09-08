@@ -4,5 +4,7 @@ sqlalchemy
 lxml
 pytest
 openpyxl
+Pillow
+reportlab
 anthropic
 python-multipart

@@ -64,14 +64,14 @@ def list_requirements():
 @router.post("/requirements")
 def create_requirement(payload: RequirementCreateDTO):
     service = get_requirement_service()
-    created = service.create(payload.dict())
+    created = service.create(payload.model_dump())
     return serialize_requirement(created)
 
 
 @router.patch("/requirements/{requirement_id}")
 def update_requirement(requirement_id: str, payload: RequirementUpdateDTO):
     service = get_requirement_service()
-    data = {k: v for k, v in payload.dict().items() if v is not None}
+    data = {k: v for k, v in payload.model_dump().items() if v is not None}
     try:
         updated = service.update(requirement_id, data)
     except KeyError:

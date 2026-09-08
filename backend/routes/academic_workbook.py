@@ -25,7 +25,7 @@ class AcademicWorkbookImportRequest(BaseModel):
 def import_academic_workbook(payload: AcademicWorkbookImportRequest):
     importer = get_academic_workbook_importer()
     try:
-        report = importer.import_base64_files([item.dict() for item in payload.files])
+        report = importer.import_base64_files([item.model_dump() for item in payload.files])
     except AcademicWorkbookImportError as exc:
         raise HTTPException(
             status_code=400,

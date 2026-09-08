@@ -4,10 +4,10 @@ import zlib
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
-    from backend.scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
+    from backend.scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter
     from backend.scheduler_engine.teacher_utils import teacher_label, teacher_names
 except ModuleNotFoundError:  # pragma: no cover
-    from scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
+    from scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter
     from scheduler_engine.teacher_utils import teacher_label, teacher_names
 
 try:
@@ -213,9 +213,20 @@ class SchedulerUseCases:
         day_indexes = {name: index for index, name in enumerate(day_names)}
         hour_indexes = {name: index for index, name in enumerate(hour_names)}
 
+        group_restrictions = self._academic_data_repo.active_group_restrictions()
+        locked_group_names = {
+            normalize_group_name(restriction.get("group"))
+            for restriction in group_restrictions
+            if restriction.get("locked")
+        }
+        locked_placements = (
+            self._build_locked_placements(locked_group_names) if locked_group_names else {}
+        )
+
         flexible_assignments = []
         fixed_scheduled_activities: List[ScheduledActivity] = []
         for assignment in assignments:
+            assignment = self._apply_locked_placement(assignment, locked_group_names, locked_placements)
             fixed_day = (assignment.get("fixed_day") or "").strip()
             fixed_start = (assignment.get("fixed_start") or "").strip()
             if fixed_day and fixed_start and fixed_day in day_indexes and fixed_start in hour_indexes:
@@ -228,7 +239,6 @@ class SchedulerUseCases:
                 flexible_assignments.append(assignment)
 
         teacher_restrictions = self._academic_data_repo.active_teacher_restrictions()
-        group_restrictions = self._academic_data_repo.active_group_restrictions()
 
         restricted_teacher_names = {
             name
@@ -811,6 +821,60 @@ class SchedulerUseCases:
             )
 
         return sorted(unscheduled, key=lambda activity: activity["id"])
+
+    def _build_locked_placements(self, locked_group_names: set) -> Dict[Tuple[str, str, str], Tuple[str, str]]:
+        """Retorna un mapa (grup, assignatura, professor) normalitzats -> (dia, hora)
+        amb la posició ACTUAL de cada activitat de l'horari actiu que pertany a un
+        grup bloquejat, per poder-la injectar com a fixed_day/fixed_start abans de
+        tornar a generar."""
+        placements: Dict[Tuple[str, str, str], Tuple[str, str]] = {}
+        if not locked_group_names or self._working_timetable_repo is None:
+            return placements
+
+        active_schedule = self._load_snapshot().active_schedule
+        for entry in active_schedule:
+            entry_groups = group_names(entry.get("group"))
+            if not entry_groups:
+                continue
+            day = entry.get("day")
+            start = entry.get("start")
+            if not day or not start:
+                continue
+            subject_key = normalize_group_name(entry.get("subject"))
+            teacher_key = normalize_group_name(entry.get("teacher"))
+            for entry_group in entry_groups:
+                if entry_group in locked_group_names:
+                    placements[(entry_group, subject_key, teacher_key)] = (day, start)
+        return placements
+
+    def _apply_locked_placement(
+        self,
+        assignment: Dict[str, Any],
+        locked_group_names: set,
+        locked_placements: Dict[Tuple[str, str, str], Tuple[str, str]],
+    ) -> Dict[str, Any]:
+        """Si l'assignació pertany a un grup bloquejat i en coneixem la posició
+        actual, retorna una còpia de l'assignació amb fixed_day/fixed_start
+        omplerts amb aquesta posició. Si no, retorna l'assignació original sense
+        modificar."""
+        if not locked_group_names:
+            return assignment
+
+        assignment_groups = group_names(assignment.get("group"))
+        if not assignment_groups:
+            return assignment
+
+        subject_key = normalize_group_name(assignment.get("subject"))
+        teacher_key = normalize_group_name(assignment.get("teacher"))
+        for assignment_group in assignment_groups:
+            if assignment_group not in locked_group_names:
+                continue
+            placement = locked_placements.get((assignment_group, subject_key, teacher_key))
+            if placement is not None:
+                locked_assignment = dict(assignment)
+                locked_assignment["fixed_day"], locked_assignment["fixed_start"] = placement
+                return locked_assignment
+        return assignment
 
     def _build_fixed_activity_from_assignment(
         self, assignment: Dict[str, Any], day_index: int, hour_index: int
