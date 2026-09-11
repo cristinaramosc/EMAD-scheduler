@@ -195,21 +195,27 @@ class AcademicWorkbookImporter:
 
     def _parse_workload(self, rows: List[Dict[str, Any]], issues: List[ValidationIssue]) -> Dict[str, Any]:
         worksheet = "01_Carrega_docent.xlsx"
-        header_map = self._expect_headers(
-            worksheet,
-            rows,
-            issues,
-            [
-                "Teacher",
-                "Subject",
-                "Student Group",
-                "Weekly Hours",
-                "Allowed Session Lengths",
-                "Preferred Room",
-                "Notes",
-            ],
+        if not rows:
+            issues.append(ValidationIssue(worksheet=worksheet, row=1, column="A", message="worksheet_is_empty"))
+            return {"assignments": [], "teachers": set(), "groups": set(), "subjects": set(), "rooms": set()}
+
+        headers = [str(value).strip() for value in rows[0]["values"]]
+        required_headers = ["Teacher", "Subject", "Student Group", "Weekly Hours", "Preferred Room", "Notes"]
+        header_map = {name: headers.index(name) for name in required_headers if name in headers}
+        for name in required_headers:
+            if name not in header_map:
+                issues.append(ValidationIssue(worksheet=worksheet, row=1, column="A", message=f"missing_expected_header:{name}"))
+
+        duration_header = next(
+            (name for name in ("Allowed Session Lengths", "Activity Duration") if name in headers),
+            None,
         )
-        if header_map is None:
+        if duration_header is None:
+            issues.append(ValidationIssue(worksheet=worksheet, row=1, column="A", message="missing_expected_header:Allowed Session Lengths"))
+        else:
+            header_map["Allowed Session Lengths"] = headers.index(duration_header)
+
+        if any(issue.worksheet == worksheet and issue.row == 1 for issue in issues):
             return {"assignments": [], "teachers": set(), "groups": set(), "subjects": set(), "rooms": set()}
 
         assignments: List[Dict[str, Any]] = []
@@ -227,6 +233,7 @@ class AcademicWorkbookImporter:
             weekly_hours_raw = self._cell(values, header_map, "Weekly Hours")
             allowed_sessions_raw = self._cell(values, header_map, "Allowed Session Lengths")
             preferred_room = self._cell(values, header_map, "Preferred Room")
+            notes = self._cell(values, header_map, "Notes")
 
             if not any([teacher, subject, group, weekly_hours_raw, allowed_sessions_raw, preferred_room]):
                 continue
@@ -256,6 +263,7 @@ class AcademicWorkbookImporter:
                     "weekly_hours": weekly_hours,
                     "allowed_session_lengths": allowed_sessions,
                     "preferred_room": preferred_room,
+                    "notes": notes,
                 }
             )
             teachers.add(teacher)

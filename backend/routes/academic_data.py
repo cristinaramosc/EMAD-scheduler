@@ -40,6 +40,7 @@ class TeacherUpdateDTO(BaseModel):
 class TeacherRestrictionDTO(BaseModel):
     teacher: str
     no_gaps: Optional[bool] = False
+    max_days: Optional[int] = None
     max_hours_per_day: Optional[float] = None
     max_consecutive_hours: Optional[float] = None
     preferred_availability: Optional[List[str]] = []
@@ -51,6 +52,7 @@ class TeacherRestrictionDTO(BaseModel):
 class TeacherRestrictionUpdateDTO(BaseModel):
     teacher: Optional[str] = None
     no_gaps: Optional[bool] = None
+    max_days: Optional[int] = None
     max_hours_per_day: Optional[float] = None
     max_consecutive_hours: Optional[float] = None
     preferred_availability: Optional[List[str]] = None
@@ -142,6 +144,7 @@ class AssignmentDTO(BaseModel):
     subject: str
     group: str
     weekly_hours: float
+    allowed_session_lengths: Optional[List[float]] = []
     preferred_room: Optional[str] = ""
     notes: Optional[str] = ""
     fixed_day: Optional[str] = ""
@@ -155,6 +158,7 @@ class AssignmentUpdateDTO(BaseModel):
     subject: Optional[str] = None
     group: Optional[str] = None
     weekly_hours: Optional[float] = None
+    allowed_session_lengths: Optional[List[float]] = None
     preferred_room: Optional[str] = None
     notes: Optional[str] = None
     fixed_day: Optional[str] = None
@@ -246,6 +250,7 @@ def update_teacher_restrictions(name: str, payload: TeacherRestrictionUpdateDTO)
     record = {
         "teacher": payload.teacher or name,
         "no_gaps": payload.no_gaps if payload.no_gaps is not None else False,
+        "max_days": payload.max_days if payload.max_days is not None else (existing_restriction or {}).get("max_days"),
         "max_hours_per_day": payload.max_hours_per_day,
         "max_consecutive_hours": payload.max_consecutive_hours,
         "preferred_availability": payload.preferred_availability if payload.preferred_availability is not None else [],

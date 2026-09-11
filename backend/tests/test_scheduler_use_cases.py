@@ -119,6 +119,35 @@ def test_max_session_days_from_academic_data_limits_block_splitting() -> None:
     assert requirement.max_days == 1
 
 
+def test_max_session_days_field_is_used_when_present() -> None:
+    """Si les dades acadèmiques venen amb `max_session_days`, aquest valor
+    és el que ha de decidir com es reparteix el bloc i no el default de 1."""
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=1),
+        academic_data_repo=AcademicDataRepository(),
+    )
+
+    requirement = use_cases._build_requirement_from_assignment(
+        1,
+        {
+            "teacher": "Ana",
+            "subject": "Dibuix",
+            "group": "1A",
+            "weekly_hours": 3.0,
+            "min_block_duration": 0.5,
+            "max_consecutive_hours": 2.0,
+            "max_session_days": "2",
+        },
+        set(),
+        set(),
+    )
+
+    assert requirement.max_days == 2
+
+
 def test_max_session_days_missing_falls_back_to_default() -> None:
     """Sense max_session_days configurat, per defecte no es reparteix
     (max_days=1): una casella buida vol dir "va tot en un sol bloc"."""
@@ -145,3 +174,49 @@ def test_max_session_days_missing_falls_back_to_default() -> None:
     )
 
     assert requirement.max_days == 1
+
+
+def test_preferred_teacher_availability_accepts_excel_slot_format() -> None:
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=1),
+        academic_data_repo=AcademicDataRepository(),
+        time_labels={
+            "day_names": ["Dilluns", "Dimarts"],
+            "hour_names": ["8:00", "8:30"],
+        },
+    )
+
+    blocked_slots = use_cases._expand_preferred_availability_to_blocked_slots(
+        ["Dilluns 8:00", "Dilluns 8:30"],
+        ["Dilluns", "Dimarts"],
+        ["8:00", "8:30"],
+    )
+
+    assert "Dilluns 8:00" not in blocked_slots
+    assert "Dilluns 8:30" not in blocked_slots
+    assert "Dimarts 8:00" in blocked_slots
+    assert "Dimarts 8:30" in blocked_slots
+
+
+def test_unavailable_teacher_slots_accept_hyphenated_format() -> None:
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=1),
+        academic_data_repo=AcademicDataRepository(),
+        time_labels={"day_names": ["Dilluns"], "hour_names": ["8:00"]},
+    )
+
+    blocked = use_cases._build_blocked_activities_from_restrictions(
+        [{"teacher": "Carme", "unavailable_slots": ["Dilluns-8:00"]}],
+        [],
+    )
+
+    assert len(blocked) == 1
+    assert blocked[0].teacher_id == "Carme"
+    assert blocked[0].day == 0
+    assert blocked[0].start_timeslot.period == 0

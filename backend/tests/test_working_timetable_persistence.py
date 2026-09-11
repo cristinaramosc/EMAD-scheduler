@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from backend.bootstrap import get_dependencies, reset_dependencies
 from backend.repositories.working_timetable_repository import JsonWorkingTimetableRepository, WorkingTimetableSnapshot
+from backend.routes.academic_workbook import AcademicWorkbookImportRequest, import_academic_workbook
 from backend.routes.scheduler import GenerateRequest, generate_proposals
 from backend.scheduler_engine.engine_instance import engine as shared_engine
 from backend.scheduler_engine.models import Activity, Schedule
+from backend.tests.test_academic_workbook_import_api import _build_templates
 
 
 def test_json_working_timetable_repository_roundtrip(tmp_path: Path) -> None:
@@ -77,6 +80,10 @@ def test_pending_proposal_is_restored_after_dependency_reset(tmp_path: Path, mon
 
     reset_dependencies()
     shared_engine.load(Schedule())
+    with TemporaryDirectory() as tmp_dir:
+        import_academic_workbook(
+            AcademicWorkbookImportRequest(files=_build_templates(tmp_dir))
+        )
     body = generate_proposals(GenerateRequest(requirement_ids=[]))
     proposal_id = body["best_proposal"]["id"]
 
@@ -86,4 +93,4 @@ def test_pending_proposal_is_restored_after_dependency_reset(tmp_path: Path, mon
 
     assert state["proposal"] is not None
     assert state["proposal"]["id"] == proposal_id
-    assert state["unscheduled_activities"]
+    assert state["unscheduled_activities"] == []

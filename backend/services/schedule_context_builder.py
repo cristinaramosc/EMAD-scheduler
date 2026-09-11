@@ -1,5 +1,5 @@
 """Construeix el GenerationContext (i la llista de TeachingRequirement)
-a partir de la base de dades, en substitució de `fet_importer.load_generation_inputs`.
+a partir de les dades acadèmiques importades des d'Excel.
 
 AJUSTA els noms de model/camp de la secció "Suposicions" al teu esquema
 real (SQLAlchemy). La resta (construcció del GenerationContext, gestió
@@ -67,9 +67,8 @@ def build_teaching_requirements(db) -> List[TeachingRequirement]:
 
 
 def build_generation_context(db) -> GenerationContext:
-    """Substitueix `fet_importer.load_generation_inputs`: construeix el
-    GenerationContext llegint el calendari i les restriccions de la BD
-    en lloc del XML de FET."""
+    """Construeix el GenerationContext llegint el calendari i les
+    restriccions de la base de dades."""
 
     # school_config = db.query(SchoolConfig).first()  # <-- ajusta
     # school_calendar = SchoolCalendar(

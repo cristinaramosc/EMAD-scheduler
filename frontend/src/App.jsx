@@ -27,6 +27,7 @@ const ASSIGNMENT_SHEET_COLUMNS = [
   { ...keyColumn("subject", textColumn), title: "Assignatura" },
   { ...keyColumn("group", textColumn), title: "Grup" },
   { ...keyColumn("weekly_hours", floatColumn), title: "Hores setmanals" },
+  { ...keyColumn("allowed_session_lengths", textColumn), title: "Durades de sessió" },
   { ...keyColumn("preferred_room", textColumn), title: "Aula preferida" },
   { ...keyColumn("max_session_days", textColumn), title: "Màx. dies" },
   { ...keyColumn("fixed_day", textColumn), title: "Dia fix" },
@@ -81,6 +82,7 @@ const HOURS = [
   "20:00",
   "20:30",
   "21:00",
+  "21:30",
 ];
 
 function activityKey(activity) {
@@ -398,6 +400,10 @@ function isSubgroupGroupName(groupName) {
   return /(?:^|\s)(?:1Q|2Q)$/i.test(String(groupName || "").trim());
 }
 
+function isCombinedGroupName(groupName) {
+  return individualGroupNames(groupName).length > 1;
+}
+
 function getVisibleActivitiesForSlot(slotActivities, selectedGroup) {
   if (!selectedGroup) {
     // Sense grup seleccionat estem en vista de professor: les activitats
@@ -414,9 +420,13 @@ function getVisibleActivitiesForSlot(slotActivities, selectedGroup) {
     return [];
   }
 
-  const hasFullParentActivity = matchingActivities.some((activity) => activity?.group === selectedGroup);
+  const hasFullParentActivity = matchingActivities.some((activity) => (
+    activity?.group === selectedGroup && !isCombinedGroupName(activity?.group)
+  ));
   if (hasFullParentActivity) {
-    return matchingActivities.filter((activity) => activity?.group === selectedGroup);
+    return matchingActivities.filter((activity) => (
+      activity?.group === selectedGroup || isCombinedGroupName(activity?.group)
+    ));
   }
 
   const visibleActivities = [];
@@ -1584,18 +1594,25 @@ export default function App() {
     const parentGroups = [];
     const seenGroups = new Set();
 
-    groups.forEach((group) => {
-      const parentName = getGroupParentName(group?.name);
-      if (!parentName || seenGroups.has(parentName)) {
-        return;
-      }
+    const sourceGroups = [
+      ...groups.map((group) => group?.name),
+      ...activities.map((activity) => activity?.group),
+    ];
 
-      seenGroups.add(parentName);
-      parentGroups.push({ name: parentName });
+    sourceGroups.forEach((groupName) => {
+      individualGroupNames(groupName).forEach((name) => {
+        const parentName = getGroupParentName(name);
+        if (!parentName || seenGroups.has(parentName)) {
+          return;
+        }
+
+        seenGroups.add(parentName);
+        parentGroups.push({ name: parentName });
+      });
     });
 
     return parentGroups;
-  }, [groups]);
+  }, [groups, activities]);
 
   useEffect(() => {
     if (!timetableGroupOptions.length) {
@@ -2727,6 +2744,7 @@ export default function App() {
       subject: a.subject || "",
       group: a.group || "",
       weekly_hours: typeof a.weekly_hours === "number" ? a.weekly_hours : parseFloat(a.weekly_hours) || 0,
+      allowed_session_lengths: formatSessionLengths(a.allowed_session_lengths),
       preferred_room: a.preferred_room || "",
       max_session_days: a.max_session_days || "",
       fixed_day: a.fixed_day || "",
@@ -2781,6 +2799,7 @@ export default function App() {
           subject: row.subject,
           group: row.group,
           weekly_hours: row.weekly_hours,
+          allowed_session_lengths: parseSessionLengths(String(row.allowed_session_lengths || "")),
           preferred_room: row.preferred_room,
           notes: row.notes,
           fixed_day: row.fixed_day,
@@ -2798,6 +2817,7 @@ export default function App() {
           subject: row.subject,
           group: row.group,
           weekly_hours: row.weekly_hours,
+          allowed_session_lengths: parseSessionLengths(String(row.allowed_session_lengths || "")),
           preferred_room: row.preferred_room,
           notes: row.notes,
           fixed_day: row.fixed_day,
@@ -4419,7 +4439,13 @@ export default function App() {
 
           {HOURS.map((hour, hourIndex) => (
             <React.Fragment key={hour}>
-              <div className="hour-cell" style={{ gridColumn: 1, gridRow: hourIndex + 2 }}>{hour}</div>
+              <div
+                className={`hour-cell${hour === "21:30" ? " hour-cell--end" : ""}`}
+                style={{ gridColumn: 1, gridRow: hourIndex + 2 }}
+              >
+                <span>{hour}</span>
+                {hour === "21:30" && <small>final</small>}
+              </div>
 
               {DAYS.map((day, dayIndex) => {
                 const key = `${day}-${hour}`;

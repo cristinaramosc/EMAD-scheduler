@@ -330,6 +330,19 @@ def test_group_conflict_detects_adjacent_slot_overlap():
     assert any(c.type == "group_conflict" for c in conflicts)
 
 
+def test_group_conflict_reports_one_incidence_for_a_multi_slot_overlap():
+    schedule = Schedule()
+    schedule.add(Activity(1, "Ana", "Dibuix", "PFI", "A1", "Dilluns", "12:30", 2))
+    schedule.add(Activity(2, "Biel", "Música", "PFI", "A2", "Dilluns", "12:30", 2))
+
+    engine = SchedulerEngine()
+    engine.load(schedule)
+    conflicts = [conflict for conflict in engine.get_conflicts() if conflict.type == "group_conflict"]
+
+    assert len(conflicts) == 1
+    assert conflicts[0].activities == [1, 2]
+
+
 def test_group_conflict_detects_overlap_despite_group_name_spacing_and_case_variants():
     """Dues activitats amb el mateix grup pare escrit de forma lleugerament
     diferent (espais extra, majúscules) han de detectar-se com el mateix

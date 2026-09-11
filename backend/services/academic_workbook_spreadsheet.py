@@ -1,6 +1,6 @@
 """Exporta i importa un únic full de càlcul (.xlsx) amb totes les dades
 acadèmiques (professors, grups, assignatures i aules), com a alternativa
-a treballar directament amb l'arxiu FET.
+a treballar directament amb els llibres Excel acadèmics.
 
 Unitat de temps: sempre en HORES, en format decimal (p.ex. 1,5 = una hora
 i mitja). El mínim per sessió és 1 hora.

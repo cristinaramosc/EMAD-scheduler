@@ -309,6 +309,19 @@ button.primary:hover:not(:disabled) {
   padding: 6px;
 }
 
+.hour-cell--end {
+  background: var(--color-accent-soft);
+  color: var(--color-text-primary);
+  font-weight: 700;
+  justify-content: space-between;
+}
+
+.hour-cell--end small {
+  color: var(--color-accent);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
 .slot {
   background: var(--color-surface);
   display: flex;
