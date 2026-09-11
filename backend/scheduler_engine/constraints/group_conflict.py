@@ -47,6 +47,7 @@ class GroupConflictConstraint(Constraint):
         occupied = {}
         raw_split_groups = getattr(schedule, "configuration", {}).get("split_groups", set()) if hasattr(schedule, "configuration") else set()
         split_groups = {normalize_group_name(name) for name in raw_split_groups}
+        reported_conflicts = set()
 
         for activity in schedule.all():
             if not activity.group or not activity.day or not activity.start:
@@ -93,6 +94,15 @@ class GroupConflictConstraint(Constraint):
                         break
 
                 if conflict_found is not None:
+                    conflict_key = (
+                        min(conflict_found.id, activity.id),
+                        max(conflict_found.id, activity.id),
+                        activity.day,
+                        activity.start,
+                    )
+                    if conflict_key in reported_conflicts:
+                        continue
+                    reported_conflicts.add(conflict_key)
                     conflicts.append(
                         Conflict(
                             type="group_conflict",

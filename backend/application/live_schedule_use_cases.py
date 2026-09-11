@@ -123,6 +123,9 @@ class LiveScheduleUseCases:
         exactament el motiu del "cap classe aquell dia per aquest grup"
         en activar un descans sobre una proposta acabada de generar.
         """
+        if self._engine.state.all():
+            return
+
         snapshot = self._working_timetable_repo.load_snapshot()
         if snapshot.current_proposal is None:
             return
@@ -165,7 +168,7 @@ class LiveScheduleUseCases:
                 "ok": False,
                 "error": "validation_failed",
                 "conflicts": serialize_conflicts(new_conflicts),
-                **self.state(conflicts=baseline_conflicts),
+                **self.state(conflicts=new_conflicts),
             }
 
         self._persist_active_schedule(clear_proposal=False)

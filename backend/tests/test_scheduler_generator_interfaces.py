@@ -450,6 +450,85 @@ def test_scheduler_generator_marks_impossible_placement():
     assert any("No s'ha pogut col·locar" in warning.get("label", "") for warning in result.warnings)
 
 
+def test_scheduler_generator_does_not_leak_warnings_from_discarded_orderings():
+    from scheduler_engine.models import ScheduledActivity, TimeSlot
+
+    class OrderingSensitiveStrategy:
+        def place(self, teaching_block, context, current_scheduled_activities, excluded_days=None):
+            if teaching_block.id == "block-2" and any(
+                activity.teaching_block.id == "block-1"
+                for activity in current_scheduled_activities
+            ):
+                return None
+
+            return ScheduledActivity(
+                teaching_block=teaching_block,
+                day=0,
+                start_timeslot=TimeSlot(day=0, period=len(current_scheduled_activities)),
+                duration=1,
+                teacher_id=teaching_block.preferred_teacher_id,
+                group_id=(teaching_block.metadata or {}).get("group"),
+            )
+
+        def explain_failure(self, teaching_block, context, current_scheduled_activities):
+            return ["blocked for this ordering"]
+
+    generator = SchedulerGenerator(placement_strategy=OrderingSensitiveStrategy())
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=2),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    result = generator.generate(
+        [TeachingBlock(id="block-1", duration=1.0, order=1), TeachingBlock(id="block-2", duration=1.0, order=2)],
+        context,
+    )
+
+    assert result.valid is True
+    assert result.warnings == []
+    assert result.schedule_proposal is not None
+    assert result.schedule_proposal.warnings == []
+
+
+def test_scheduler_generator_reorganizes_a_flexible_activity_for_a_later_block():
+    generator = SchedulerGenerator()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=3),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=((0, 1),),
+        configuration={},
+    )
+    flexible = TeachingBlock(
+        id="flexible",
+        duration=1.0,
+        order=1,
+        duration_blocks=1,
+        preferred_teacher_id="Biel",
+        metadata={"teacher": "Biel", "group": "1A", "subject": "Optativa"},
+    )
+    constrained = TeachingBlock(
+        id="constrained",
+        duration=1.0,
+        order=2,
+        duration_blocks=1,
+        preferred_teacher_id="Carme",
+        metadata={"teacher": "Carme", "group": "1B", "subject": "FOL"},
+    )
+
+    result = generator.generate([flexible, constrained], context)
+
+    assert result.valid is True
+    assert result.warnings == []
+    assert {activity.teaching_block.id for activity in result.generated_scheduled_activities} == {
+        "flexible",
+        "constrained",
+    }
+
+
 def test_group_no_gaps_restriction_blocks_non_contiguous_placement():
     from scheduler_engine.placement_strategy import GreedyPlacementStrategy
 

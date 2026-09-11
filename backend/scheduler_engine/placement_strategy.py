@@ -10,6 +10,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from backend.models.teaching_block import TeachingBlock
 from .constraints.group_time_window import get_group_time_window
 from .constraints.group_max_days import get_group_max_days
+from .constraints.teacher_max_days import get_teacher_max_days
 from .models import GenerationContext, ScheduledActivity, TimeSlot
 from .quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter, quarter_suffix
 from .teacher_utils import teacher_label, teacher_names
@@ -111,6 +112,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
                 if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
+                if self._teacher_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
 
                 if self._room_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
@@ -176,6 +179,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if self._group_time_window_conflict_exists(teaching_block, slot, context):
                     continue
                 if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+                if self._teacher_max_days_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
                 if self._room_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
@@ -258,6 +263,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
             if self._group_time_window_conflict_exists(teaching_block, slot, context):
                 continue
             if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+                continue
+            if self._teacher_max_days_conflict_exists(teaching_block, slot, all_activities, context):
                 continue
             if self._room_conflict_exists(teaching_block, slot, all_activities, context):
                 continue
@@ -374,6 +381,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if self._group_time_window_conflict_exists(teaching_block, slot, context):
                     continue
                 if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+                if self._teacher_max_days_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
                 if self._room_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
@@ -521,6 +530,39 @@ class GreedyPlacementStrategy(PlacementStrategy):
             return False
 
         return len(used_days) >= max_days
+
+    def _teacher_max_days_conflict_exists(
+        self,
+        teaching_block: TeachingBlock,
+        start_slot: TimeSlot,
+        activities: Sequence[ScheduledActivity],
+        context: GenerationContext,
+    ) -> bool:
+        if teaching_block.fixed and teaching_block.fixed_day and teaching_block.fixed_start:
+            return False
+
+        teacher_id = (teaching_block.metadata or {}).get("teacher") or teaching_block.preferred_teacher_id
+        teacher_ids = teacher_names(teacher_id)
+        if not teacher_ids:
+            return False
+
+        constraints = context.configuration.get("teacher_max_days_constraints")
+        for teacher_name in teacher_ids:
+            max_days = get_teacher_max_days(teacher_name, constraints)
+            if max_days is None:
+                continue
+
+            used_days = {
+                activity.day
+                for activity in activities
+                if teacher_name.casefold() in {
+                    name.casefold() for name in teacher_names(activity.teacher_id)
+                }
+            }
+            if start_slot.day not in used_days and len(used_days) >= max_days:
+                return True
+
+        return False
 
     def _group_time_window_conflict_exists(
         self,

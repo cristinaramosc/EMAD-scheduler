@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import zlib
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
@@ -132,6 +133,24 @@ class SchedulerUseCases:
         self._working_timetable_repo = working_timetable_repo
         self._move_history: Dict[str, List[Any]] = {}
         self._redo_history: Dict[str, List[Any]] = {}
+
+    def _generate_empty_generation_result(self) -> Dict[str, Any]:
+        """Return an explicit empty state until an academic workbook is imported."""
+        return {
+            "valid": False,
+            "best_proposal": None,
+            "proposals": [],
+            "scores": [],
+            "conflicts": [],
+            "statistics": {
+                "source": "academic_workbook",
+                "fixed_activities_total": 0,
+                "floating_activities_total": 0,
+                "unscheduled_activities_total": 0,
+                "proposals_generated": 0,
+            },
+            "unscheduled_activities": [],
+        }
 
     def validate(self, activities: List[Dict[str, Any]]) -> List[Any]:
         schedule = Schedule()
@@ -286,6 +305,7 @@ class SchedulerUseCases:
                 "split_groups": split_groups,
                 "group_time_window_constraints": self._build_group_time_window_constraints(group_restrictions, hour_names),
                 "group_max_days_constraints": self._build_group_max_days_constraints(group_restrictions),
+                "teacher_max_days_constraints": self._build_teacher_max_days_constraints(teacher_restrictions),
             },
         )
 
@@ -312,11 +332,34 @@ class SchedulerUseCases:
             self._apply_consecutive_group_preferences(proposal, assignments, hour_names)
             for proposal in proposals
         ]
-        proposals = [self._apply_quarter_pair_alignment(proposal) for proposal in proposals]
         for proposal in proposals:
+            original_positions = {
+                id(activity): (activity.day, activity.start)
+                for activity in proposal.activities
+            }
+            baseline_schedule = self._build_schedule(list(proposal.activities))
+            baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
+            baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
             compacted_activities, _ = self._compact_activities(list(proposal.activities))
             proposal.activities = self._insert_default_group_breaks(compacted_activities)
-        proposals.sort(key=lambda proposal: proposal.score, reverse=True)
+            aligned_proposal = self._apply_quarter_pair_alignment(proposal)
+            final_schedule = self._build_schedule(list(aligned_proposal.activities))
+            final_conflicts = self._scheduler_engine.validate(final_schedule)
+            new_conflicts = [
+                conflict
+                for conflict in final_conflicts
+                if self._conflict_key(conflict) not in baseline_keys
+            ]
+            if new_conflicts:
+                for activity in proposal.activities:
+                    original_position = original_positions.get(id(activity))
+                    if original_position is not None:
+                        activity.day, activity.start = original_position
+                proposal.conflicts = baseline_conflicts
+            else:
+                proposal.activities = aligned_proposal.activities
+                proposal.conflicts = final_conflicts
+        proposals.sort(key=lambda proposal: (len(proposal.warnings), -proposal.score))
 
         for proposal in proposals:
             self._proposal_store[proposal.id] = proposal
@@ -736,7 +779,7 @@ class SchedulerUseCases:
         metadata = scheduled_activity.teaching_block.metadata or {}
         return Activity(
             id=metadata.get(
-                "fet_id",
+                "assignment_id",
                 zlib.crc32(
                     f"{scheduled_activity.teaching_block.id}|{scheduled_activity.day}|{scheduled_activity.start_timeslot.period}".encode(
                         "utf-8"
@@ -804,13 +847,13 @@ class SchedulerUseCases:
 
         for block in payload["floating_blocks"]:
             metadata = block.metadata or {}
-            fet_id = metadata.get("fet_id")
-            if fet_id in scheduled_ids:
+            assignment_id = metadata.get("assignment_id")
+            if assignment_id in scheduled_ids:
                 continue
 
             unscheduled.append(
                 {
-                    "id": fet_id,
+                    "id": assignment_id,
                     "teacher": metadata.get("teacher", ""),
                     "subject": metadata.get("subject", block.id),
                     "group": metadata.get("group", ""),
@@ -940,7 +983,11 @@ class SchedulerUseCases:
                     end_minutes = max(preferred_minutes)
 
             default_window = None
-            if start_minutes is not None and end_minutes is not None:
+            if start_minutes is not None or end_minutes is not None:
+                if start_minutes is None:
+                    start_minutes = 0
+                if end_minutes is None:
+                    end_minutes = 24 * 60
                 if start_minutes > end_minutes:
                     start_minutes, end_minutes = end_minutes, start_minutes
                 default_window = (start_minutes, end_minutes)
@@ -1001,6 +1048,31 @@ class SchedulerUseCases:
 
         return constraints
 
+    def _build_teacher_max_days_constraints(
+        self,
+        teacher_restrictions: List[Dict[str, Any]],
+    ) -> Dict[str, int]:
+        constraints: Dict[str, int] = {}
+
+        for restriction in teacher_restrictions:
+            teacher_names_list = teacher_names(restriction.get("teacher"))
+            raw_max_days = restriction.get("max_days")
+            if not teacher_names_list or raw_max_days in (None, ""):
+                continue
+
+            try:
+                max_days = int(raw_max_days)
+            except (TypeError, ValueError):
+                continue
+
+            if max_days <= 0:
+                continue
+
+            for teacher_name in teacher_names_list:
+                constraints[teacher_name.casefold()] = max_days
+
+        return constraints
+
     def _parse_time_to_minutes(self, value: Any, hour_names: List[str]) -> Optional[int]:
         if value is None:
             return None
@@ -1041,6 +1113,14 @@ class SchedulerUseCases:
         has_teacher_restrictions = bool(set(teacher_list).intersection(restricted_teacher_names))
         has_group_restrictions = group in restricted_group_names
 
+        max_days_value = (
+            assignment.get("max_days")
+            if assignment.get("max_days") not in (None, "")
+            else assignment.get("max_distribution_days")
+        )
+        if max_days_value in (None, ""):
+            max_days_value = assignment.get("max_session_days")
+
         return TeachingRequirement(
             id=str(assignment.get("id") or f"assignment-{index}"),
             group_id=group,
@@ -1048,7 +1128,7 @@ class SchedulerUseCases:
             teacher_id=teacher_label(teacher_list or teacher),
             weekly_hours=weekly_hours,
             min_days=int(assignment.get("min_days") or assignment.get("min_distribution_days") or 1),
-            max_days=int(assignment.get("max_days") or assignment.get("max_distribution_days") or 1),
+            max_days=int(max_days_value if max_days_value not in (None, "") else 1),
             min_block_duration=float(assignment.get("min_block_duration") or 0.5),
             max_consecutive_hours=float(assignment.get("max_consecutive_hours") or weekly_hours or 0.5),
             allow_half_hour_blocks=allow_half_hour_blocks,
@@ -1073,12 +1153,20 @@ class SchedulerUseCases:
         respecti de veritat aquesta restricció (i no només l'usi per prioritzar),
         cal bloquejar totes les franges de la setmana que NO hi apareixen.
         Si la llista és buida, no es bloqueja res (no hi ha restricció)."""
+        day_lookup = {str(day).casefold(): str(day) for day in day_names}
+        hour_lookup = {str(hour).casefold(): str(hour) for hour in hour_names}
         allowed_pairs: set[Tuple[str, str]] = set()
         for slot in preferred_slots:
-            day_label, separator, hour_label = str(slot).partition("-")
+            text = str(slot).strip()
+            day_label, separator, hour_label = text.partition("-")
+            if not separator:
+                day_label, separator, hour_label = text.rpartition(" ")
             if not separator:
                 continue
-            allowed_pairs.add((day_label.strip(), hour_label.strip()))
+            normalized_day = day_lookup.get(day_label.strip().casefold())
+            normalized_hour = hour_lookup.get(hour_label.strip().casefold())
+            if normalized_day and normalized_hour:
+                allowed_pairs.add((normalized_day, normalized_hour))
 
         if not allowed_pairs:
             return []
@@ -1109,15 +1197,26 @@ class SchedulerUseCases:
             slot_label: str,
             constraint: str,
         ) -> None:
-            parts = slot_label.rsplit(" ", 1)
-            if len(parts) != 2:
-                return
-            day_label, hour_label = parts
-            if day_label not in day_indexes or hour_label not in hour_indexes:
+            text = str(slot_label).strip()
+            day_label, separator, hour_label = text.rpartition(" ")
+            if not separator:
+                day_label, separator, hour_label = text.rpartition("-")
+            if not separator:
                 return
 
-            day_index = day_indexes[day_label]
-            hour_index = hour_indexes[hour_label]
+            day_key = next(
+                (name for name in day_indexes if name.casefold() == day_label.strip().casefold()),
+                None,
+            )
+            hour_key = next(
+                (name for name in hour_indexes if name.casefold() == hour_label.strip().casefold()),
+                None,
+            )
+            if day_key is None or hour_key is None:
+                return
+
+            day_index = day_indexes[day_key]
+            hour_index = hour_indexes[hour_key]
             teaching_block = TeachingBlock(
                 id=f"blocked-{constraint}-{teacher_id or group_id}-{day_index}-{hour_index}",
                 duration=0.5,
@@ -1305,6 +1404,11 @@ class SchedulerUseCases:
 
         return pairs
 
+    @staticmethod
+    def _subject_ending_quarter(subject: str) -> Optional[str]:
+        match = re.search(r"(?:^|\s)(1Q|2Q)$", str(subject or "").strip(), re.IGNORECASE)
+        return match.group(1).lower() if match else None
+
     def _apply_quarter_pair_alignment(self, proposal: ScheduleProposal) -> ScheduleProposal:
         """Si dues activitats són la variant 1Q i 2Q del mateix grup pare,
         intenta que comparteixin exactament la mateixa casella (dia i hora),
@@ -1322,7 +1426,8 @@ class SchedulerUseCases:
 
         by_parent: Dict[str, Dict[str, List[Activity]]] = {}
         for activity in activities:
-            parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
+            quarter_marker = self._subject_ending_quarter(activity.subject)
+            parent = normalize_group_name(activity.group)
             if quarter_marker is None:
                 continue
             # Cada activitat compta per a CADA grup individual que hi
@@ -1348,26 +1453,45 @@ class SchedulerUseCases:
         baseline_schedule = self._build_schedule(activities)
         baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
         baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
+        original_positions = {
+            id(activity): (activity.day, activity.start)
+            for activity in activities
+        }
 
         for act_a, act_b in pairs_to_align:
             if act_a.day == act_b.day and act_a.start == act_b.start:
                 continue  # ja comparteixen casella
 
-            if not is_valid_quarter_pair(act_a.group, act_a.subject, act_b.group, act_b.subject):
+            if (
+                self._subject_ending_quarter(act_a.subject) != "1q"
+                or self._subject_ending_quarter(act_b.subject) != "2q"
+            ) and (
+                self._subject_ending_quarter(act_a.subject) != "2q"
+                or self._subject_ending_quarter(act_b.subject) != "1q"
+            ):
                 continue
 
             aligned = False
 
-            if act_a.duration == act_b.duration:
-                earliest = self._earliest_common_slot_for_pair(act_a, act_b, activities, baseline_keys)
-                if earliest is not None:
-                    day, start = earliest
-                    act_a.day, act_a.start = day, start
-                    act_b.day, act_b.start = day, start
-                    aligned = True
+            earliest = self._earliest_common_slot_for_pair(act_a, act_b, activities, baseline_keys)
+            if earliest is not None:
+                day, start = earliest
+                act_a.day, act_a.start = day, start
+                act_b.day, act_b.start = day, start
+                aligned = True
 
             if not aligned:
+                pair_start_indexes = [
+                    self._time_labels.get("hour_names", []).index(start)
+                    for start in (act_a.start, act_b.start)
+                    if start in self._time_labels.get("hour_names", [])
+                ]
+                earliest_allowed_index = max(pair_start_indexes, default=0)
                 for first, second in ((act_a, act_b), (act_b, act_a)):
+                    if first.start not in self._time_labels.get("hour_names", []):
+                        continue
+                    if self._time_labels["hour_names"].index(first.start) < earliest_allowed_index:
+                        continue
                     original_day, original_start = second.day, second.start
                     second.day, second.start = first.day, first.start
 
@@ -1384,6 +1508,16 @@ class SchedulerUseCases:
 
         final_schedule = self._build_schedule(activities)
         final_conflicts = self._scheduler_engine.validate(final_schedule)
+        final_new_conflicts = [
+            conflict
+            for conflict in final_conflicts
+            if self._conflict_key(conflict) not in baseline_keys
+        ]
+        if final_new_conflicts:
+            for activity in activities:
+                activity.day, activity.start = original_positions[id(activity)]
+            final_schedule = self._build_schedule(activities)
+            final_conflicts = self._scheduler_engine.validate(final_schedule)
 
         return ScheduleProposal(
             id=proposal.id,
@@ -1410,12 +1544,20 @@ class SchedulerUseCases:
 
         original_a = (act_a.day, act_a.start)
         original_b = (act_b.day, act_b.start)
-        required_slots = act_a.duration or 1
+        original_start_indexes = [
+            hour_names.index(start)
+            for _, start in (original_a, original_b)
+            if start in hour_names
+        ]
+        earliest_allowed_index = max(original_start_indexes, default=0)
+        required_slots = max(act_a.duration or 1, act_b.duration or 1)
 
         for day_index in self._school_calendar.days:
             if day_index >= len(day_names):
                 continue
             for slot in self._school_calendar.periods_for_day(day_index):
+                if slot.period < earliest_allowed_index:
+                    continue
                 if slot.period + required_slots > self._school_calendar.periods_per_day:
                     continue
                 if slot.period >= len(hour_names):
@@ -1461,6 +1603,9 @@ class SchedulerUseCases:
             },
             "group_time_window_constraints": self._build_group_time_window_constraints(group_restrictions, hour_names),
             "group_max_days_constraints": self._build_group_max_days_constraints(group_restrictions),
+            "teacher_max_days_constraints": self._build_teacher_max_days_constraints(
+                self._academic_data_repo.active_teacher_restrictions()
+            ),
         }
         return schedule
 
@@ -1532,6 +1677,30 @@ class SchedulerUseCases:
         hour_index = {name: index for index, name in enumerate(hour_names)}
 
         blocked_slots = self._collect_blocked_slots()
+        normalized_group_blocked: Dict[str, set] = {}
+        for (kind, name), slots in blocked_slots.items():
+            if kind != "group":
+                continue
+            normalized_group_blocked.setdefault(normalize_group_name(name), set()).update(slots)
+
+        group_restrictions = (
+            self._academic_data_repo.active_group_restrictions() if self._academic_data_repo else []
+        )
+        group_time_windows = self._build_group_time_window_constraints(group_restrictions, hour_names)
+
+        def first_valid_slot_index_after(minutes: int) -> int:
+            for idx, slot in enumerate(hour_names):
+                slot_minutes = self._parse_time_to_minutes(slot, hour_names)
+                if slot_minutes is not None and slot_minutes >= minutes:
+                    return idx
+            return len(hour_names)
+
+        def last_valid_slot_index_before(minutes: int) -> int:
+            for idx in range(len(hour_names) - 1, -1, -1):
+                slot_minutes = self._parse_time_to_minutes(hour_names[idx], hour_names)
+                if slot_minutes is not None and slot_minutes <= minutes:
+                    return idx
+            return -1
 
         by_group_day: Dict[tuple[str, str], List[Activity]] = {}
         untouched: List[Activity] = []
@@ -1542,43 +1711,111 @@ class SchedulerUseCases:
             else:
                 untouched.append(activity)
 
+        compact_groups_by_day: Dict[tuple[str, str], List[Activity]] = {}
+        compact_group_names_by_day: Dict[str, List[set[str]]] = {}
+        for day in {activity_day for _, activity_day in by_group_day}:
+            entries = [
+                (group, group_activities)
+                for (group, entry_day), group_activities in by_group_day.items()
+                if entry_day == day
+            ]
+            parents = list(range(len(entries)))
+
+            def find(index: int) -> int:
+                while parents[index] != index:
+                    parents[index] = parents[parents[index]]
+                    index = parents[index]
+                return index
+
+            def union(first: int, second: int) -> None:
+                first_root, second_root = find(first), find(second)
+                if first_root != second_root:
+                    parents[second_root] = first_root
+
+            entry_names = [
+                set(group_names(group) or (normalize_group_name(group),))
+                for group, _ in entries
+            ]
+            for first in range(len(entries)):
+                for second in range(first + 1, len(entries)):
+                    if entry_names[first] & entry_names[second]:
+                        union(first, second)
+
+            components: Dict[int, set[str]] = {}
+            component_activities: Dict[int, List[Activity]] = {}
+            for index, ((_group, _activities), names) in enumerate(zip(entries, entry_names)):
+                root = find(index)
+                components.setdefault(root, set()).update(names)
+                component_activities.setdefault(root, []).extend(_activities)
+
+            compact_group_names_by_day[day] = []
+            for component_index, root in enumerate(sorted(components)):
+                compact_group_names_by_day[day].append(components[root])
+                compact_groups_by_day[(f"{day}:{component_index}", day)] = component_activities[root]
+
+        by_group_day = compact_groups_by_day
+
         moved_ids: List[int] = []
         result: List[Activity] = list(untouched)
 
         for (group, day), group_activities in by_group_day.items():
             day_idx = day_index[day]
-            group_blocked = blocked_slots.get(("group", group), set())
+            component_index = int(group.rsplit(":", 1)[1])
+            individual_names = compact_group_names_by_day[day][component_index]
+            group_blocked: set = set()
+            for name in individual_names:
+                group_blocked |= normalized_group_blocked.get(name, set())
+
+            group_window_start_idx = 0
+            group_window_end_idx = len(hour_names) - 1
+            for name in individual_names:
+                entry = group_time_windows.get((name or "").upper())
+                if not entry:
+                    continue
+                window = entry.get("by_day", {}).get(day) or entry.get("default")
+                if not window:
+                    continue
+                start_minutes, end_minutes = window
+                group_window_start_idx = max(
+                    group_window_start_idx,
+                    first_valid_slot_index_after(start_minutes)
+                    if start_minutes is not None else group_window_start_idx,
+                )
+                if end_minutes is not None:
+                    group_window_end_idx = min(
+                        group_window_end_idx,
+                        last_valid_slot_index_before(end_minutes),
+                    )
+
             ordered = sorted(group_activities, key=lambda activity: hour_index[activity.start])
+            if len(ordered) == 1 and not group_window_start_idx and len(individual_names) > 1:
+                result.extend(ordered)
+                continue
 
-            cursor = 0
-            position = 0
-            while position < len(ordered):
-                current = ordered[position]
-                same_slot = [current]
-                next_position = position + 1
-                while (
-                    next_position < len(ordered)
-                    and hour_index[ordered[next_position].start] == hour_index[current.start]
-                ):
-                    same_slot.append(ordered[next_position])
-                    next_position += 1
+            cursor = group_window_start_idx
+            for current in ordered:
+                duration = max(current.duration or 1, 1)
+                candidate = max(cursor, group_window_start_idx)
+                while candidate < len(hour_names):
+                    if candidate > group_window_end_idx:
+                        break
+                    if (day_idx, candidate) in group_blocked:
+                        candidate += 1
+                        continue
+                    if candidate + duration > len(hour_names):
+                        break
+                    break
 
-                start_idx = cursor
-                while (day_idx, start_idx) in group_blocked and start_idx < len(hour_names):
-                    start_idx += 1
+                if candidate > group_window_end_idx:
+                    continue
 
-                if start_idx < len(hour_names):
-                    new_start = hour_names[start_idx]
-                    for occupant in same_slot:
-                        if occupant.start != new_start:
-                            occupant.start = new_start
-                            moved_ids.append(occupant.id)
+                if candidate != hour_index[current.start]:
+                    current.start = hour_names[candidate]
+                    moved_ids.append(current.id)
 
-                max_duration = max((occupant.duration or 1) for occupant in same_slot)
-                cursor = start_idx + max_duration
-                position = next_position
+                cursor = candidate + duration
 
-            result.extend(ordered)
+            result.extend(sorted(ordered, key=lambda activity: hour_index[activity.start]))
 
         return result, moved_ids
 

@@ -63,16 +63,14 @@ def test_requirements_create_endpoint_defaults_to_single_day_distribution() -> N
     assert created["max_days"] == 1
 
 
-def test_scheduler_generation_endpoint_uses_fet_bootstrap_when_request_is_empty() -> None:
+def test_scheduler_generation_endpoint_is_empty_until_excel_is_imported() -> None:
     body = generate_proposals(GenerateRequest(requirement_ids=[]))
 
-    assert body["valid"] is True
-    assert body["best_proposal"] is not None
-    assert body["proposals"]
-    assert body["statistics"]["fixed_activities_total"] >= 1
-    assert body["statistics"]["floating_activities_total"] >= 1
-    assert body["statistics"]["unscheduled_activities_total"] >= 1
-    assert body["unscheduled_activities"]
+    assert body["valid"] is False
+    assert body["best_proposal"] is None
+    assert body["proposals"] == []
+    assert body["statistics"]["source"] == "academic_workbook"
+    assert body["unscheduled_activities"] == []
 
 
 def test_scheduler_generation_prefers_imported_academic_data_when_available() -> None:
@@ -122,14 +120,11 @@ def test_proposal_can_be_accepted_and_updates_active_schedule() -> None:
     assert shared_engine.state.all()[0].id == 1
 
 
-def test_incomplete_fet_proposal_cannot_be_accepted() -> None:
+def test_empty_excel_state_has_no_proposal_to_accept() -> None:
+    reset_dependencies()
     body = generate_proposals(GenerateRequest(requirement_ids=[]))
 
-    result = accept_proposal(body["best_proposal"]["id"])
-
-    assert result["ok"] is False
-    assert result["error"] == "unscheduled_activities_pending"
-    assert result["unscheduled_activities"]
+    assert body["best_proposal"] is None
 
 
 def test_proposal_activity_can_be_moved_inside_pending_proposal() -> None:

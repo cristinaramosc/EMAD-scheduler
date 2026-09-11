@@ -1,5 +1,4 @@
-"""Repositori del calendari escolar (dies i hores lectives), en substitució
-del calendari llegit fins ara del fitxer .fet.
+"""Repositori del calendari escolar (dies i hores lectives).
 
 Segueix el mateix patró que `JsonWorkingTimetableRepository`: un JSON petit
 a `backend/data/`, editable a mà o des d'un futur formulari de configuració,
@@ -45,7 +44,7 @@ class SchoolCalendarSettings:
 
 class SchoolCalendarRepository:
     """Llegeix/escriu la configuració de dies i hores lectives des d'un
-    fitxer JSON, en lloc de llegir-la del .fet."""
+    fitxer JSON independent de la font de dades acadèmiques."""
 
     def __init__(self, storage_file: Path) -> None:
         self._storage_file = storage_file
@@ -69,9 +68,6 @@ class SchoolCalendarRepository:
             json.dumps(settings.to_dict(), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
-
-    # --- Helpers equivalents als que oferia fet_importer, per minimitzar
-    #     el canvi a bootstrap.py i scheduler_use_cases.py -----------------
 
     def load_school_calendar(self) -> SchoolCalendar:
         settings = self.load_settings()

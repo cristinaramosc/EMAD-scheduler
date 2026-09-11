@@ -3,6 +3,7 @@ try:
     from backend.scheduler_engine.constraints.group_conflict import GroupConflictConstraint
     from backend.scheduler_engine.constraints.group_time_window import GroupTimeWindowConstraint
     from backend.scheduler_engine.constraints.group_max_days import GroupMaxDaysConstraint
+    from backend.scheduler_engine.constraints.teacher_max_days import TeacherMaxDaysConstraint
     from backend.scheduler_engine.constraints.teacher_conflict import TeacherConflictConstraint
     from backend.scheduler_engine.constraints.room_conflict import RoomConflictConstraint
 except ModuleNotFoundError:  # pragma: no cover
@@ -10,6 +11,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.group_conflict import GroupConflictConstraint
     from scheduler_engine.constraints.group_time_window import GroupTimeWindowConstraint
     from scheduler_engine.constraints.group_max_days import GroupMaxDaysConstraint
+    from scheduler_engine.constraints.teacher_max_days import TeacherMaxDaysConstraint
     from scheduler_engine.constraints.teacher_conflict import TeacherConflictConstraint
     from scheduler_engine.constraints.room_conflict import RoomConflictConstraint
 
@@ -21,6 +23,7 @@ class SchedulerEngine:
             GroupConflictConstraint(),
             GroupTimeWindowConstraint(),
             GroupMaxDaysConstraint(),
+            TeacherMaxDaysConstraint(),
             TeacherConflictConstraint(),
             RoomConflictConstraint(),
         ]

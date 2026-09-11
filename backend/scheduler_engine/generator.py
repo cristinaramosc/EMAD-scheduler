@@ -75,21 +75,21 @@ class SchedulerGenerator:
             proposal.score_breakdown = breakdown
             proposal.metadata = {**(proposal.metadata or {}), "score_breakdown": breakdown}
             proposals.append(proposal)
-            warnings.extend(placement_warnings)
             if not generated_scheduled_activities and scheduled_activities:
                 generated_scheduled_activities = list(scheduled_activities)
 
-        proposals.sort(key=lambda proposal: proposal.score, reverse=True)
+        proposals.sort(key=lambda proposal: (len(proposal.warnings), -proposal.score))
+        result_warnings = proposals[0].warnings if proposals else warnings
         elapsed_ms = round((time.perf_counter() - started_at) * 1000, 3)
         valid = len(proposals) > 0
 
         return GenerationResult(
             generated_scheduled_activities=generated_scheduled_activities,
-            warnings=warnings,
+            warnings=result_warnings,
             statistics={
                 "blocks_total": total_blocks,
                 "blocks_placed": len(proposals[0].activities) if proposals else 0,
-                "blocks_failed": len(warnings),
+                "blocks_failed": len(result_warnings),
                 "proposals_generated": len(proposals),
             },
             elapsed_time_ms=elapsed_ms,
@@ -171,12 +171,20 @@ class SchedulerGenerator:
                     # en dies diferents queda sense efecte.
                     distribution_used_days: set = set()
                     for teaching_block in candidate_teaching_blocks:
-                        placement = self._placement_strategy.place(
-                            teaching_block,
-                            context,
-                            trial_scheduled,
-                            excluded_days=distribution_used_days if len(candidate_teaching_blocks) > 1 else None,
-                        )
+                        excluded_days = distribution_used_days if len(candidate_teaching_blocks) > 1 else None
+                        if excluded_days:
+                            placement = self._placement_strategy.place(
+                                teaching_block,
+                                context,
+                                trial_scheduled,
+                                excluded_days=excluded_days,
+                            )
+                        else:
+                            placement = self._placement_strategy.place(
+                                teaching_block,
+                                context,
+                                trial_scheduled,
+                            )
                         if placement is None:
                             all_placed = False
                             break
@@ -247,6 +255,35 @@ class SchedulerGenerator:
 
         return conflicts
 
+    def _try_local_reorganization(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        scheduled_activities: List[ScheduledActivity],
+    ) -> Optional[ScheduledActivity]:
+        """Move one flexible block aside to make room for a constrained one."""
+        for index, displaced in enumerate(list(scheduled_activities)):
+            if displaced.teaching_block.fixed:
+                continue
+
+            remaining = scheduled_activities[:index] + scheduled_activities[index + 1 :]
+            replacement = self._placement_strategy.place(teaching_block, context, remaining)
+            if replacement is None:
+                continue
+
+            displaced_replacement = self._placement_strategy.place(
+                displaced.teaching_block,
+                context,
+                remaining + [replacement],
+            )
+            if displaced_replacement is None:
+                continue
+
+            scheduled_activities[:] = remaining + [displaced_replacement]
+            return replacement
+
+        return None
+
     def _fixed_day_first(self, blocks: Sequence[TeachingBlock]) -> List[TeachingBlock]:
         """Manté l'ordre relatiu de cada llista (sort estable) però posa
         primer els blocs amb dia fix, perquè el motor els col·loqui abans
@@ -299,12 +336,26 @@ class SchedulerGenerator:
             requirement_id = (block.metadata or {}).get("requirement_id")
             excluded_days = used_days_by_requirement.get(requirement_id) if requirement_id else None
 
-            placement = self._placement_strategy.place(
-                block,
-                context,
-                scheduled_activities,
-                excluded_days=excluded_days
-            )
+            if excluded_days:
+                placement = self._placement_strategy.place(
+                    block,
+                    context,
+                    scheduled_activities,
+                    excluded_days=excluded_days,
+                )
+            else:
+                placement = self._placement_strategy.place(
+                    block,
+                    context,
+                    scheduled_activities,
+                )
+
+            if placement is None:
+                placement = self._try_local_reorganization(
+                    block,
+                    context,
+                    scheduled_activities,
+                )
 
             if placement is None and excluded_days:
                 # Si no hi ha cap dia lliure diferent dels ja usats pels
@@ -338,7 +389,7 @@ class SchedulerGenerator:
 
                 warnings.append(
                     {
-                        "id": metadata.get("fet_id", zlib.crc32(str(block.id).encode("utf-8"))),
+                        "id": metadata.get("assignment_id", zlib.crc32(str(block.id).encode("utf-8"))),
                         "label": f"No s'ha pogut col·locar {label}",
                         "subject": metadata.get("subject"),
                         "teacher": metadata.get("teacher"),
@@ -362,7 +413,7 @@ class SchedulerGenerator:
     ) -> ScheduleProposal:
         activities = [
             Activity(
-                id=activity.teaching_block.metadata.get("fet_id", index),
+                id=activity.teaching_block.metadata.get("assignment_id", index),
                 teacher=activity.teacher_id or activity.teaching_block.metadata.get("teacher", ""),
                 subject=activity.teaching_block.metadata.get("subject")
                 or activity.teaching_block.metadata.get("subject_id")

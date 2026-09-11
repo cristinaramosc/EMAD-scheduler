@@ -81,6 +81,40 @@ def _build_valid_templates(tmp_dir: str) -> list[tuple[str, bytes]]:
     ]
 
 
+def test_import_accepts_legacy_activity_duration_column() -> None:
+    with TemporaryDirectory() as tmp_dir:
+        root = Path(tmp_dir)
+        workload = root / "01_Carrega_docent.xlsx"
+        _write_xlsx(
+            workload,
+            [{
+                "name": "Carrega_docent",
+                "rows": [
+                    ["Teacher", "Subject", "Student Group", "Weekly Hours", "Activity Duration", "Preferred Room", "Notes"],
+                    ["Carme", "FOL 2Q", "GI, GP", 2.0, "1", "", "Categoria FOL"],
+                ],
+            }],
+        )
+        restriction_rows = [
+            ("02_Restriccions_professors.xlsx", [["Teacher", "Unavailable Slots", "Inferred Available Slots", "Editable Notes"], ["Carme", "", "", ""]]),
+            ("03_Restriccions_grups.xlsx", [["Student Group", "Unavailable Slots", "Fixed Activity Slots", "Future Year Notes", "Future Year Extra Restrictions"], ["GI, GP", "", "", "", ""]]),
+            ("04_Aules.xlsx", [["Room", "Notes"], ["A1", ""]]),
+        ]
+        files = [(workload.name, workload.read_bytes())]
+        for filename, rows in restriction_rows:
+            target = root / filename
+            _write_xlsx(target, [{"name": filename, "rows": rows}])
+            files.append((filename, target.read_bytes()))
+
+        repo = AcademicDataRepository()
+        AcademicWorkbookImporter(repo).import_files(files)
+
+    assignments = repo.active_teaching_assignments()
+    assert len(assignments) == 1
+    assert {item["subject"] for item in assignments} == {"FOL 2Q"}
+    assert all(item["notes"] == "Categoria FOL" for item in assignments)
+
+
 def test_importer_reads_generated_templates_and_updates_academic_repository() -> None:
     repo = AcademicDataRepository()
     importer = AcademicWorkbookImporter(repo)
