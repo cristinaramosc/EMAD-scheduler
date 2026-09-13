@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import zlib
-import re
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
@@ -1404,11 +1403,6 @@ class SchedulerUseCases:
 
         return pairs
 
-    @staticmethod
-    def _subject_ending_quarter(subject: str) -> Optional[str]:
-        match = re.search(r"(?:^|\s)(1Q|2Q)$", str(subject or "").strip(), re.IGNORECASE)
-        return match.group(1).lower() if match else None
-
     def _apply_quarter_pair_alignment(self, proposal: ScheduleProposal) -> ScheduleProposal:
         """Si dues activitats són la variant 1Q i 2Q del mateix grup pare,
         intenta que comparteixin exactament la mateixa casella (dia i hora),
@@ -1426,8 +1420,7 @@ class SchedulerUseCases:
 
         by_parent: Dict[str, Dict[str, List[Activity]]] = {}
         for activity in activities:
-            quarter_marker = self._subject_ending_quarter(activity.subject)
-            parent = normalize_group_name(activity.group)
+            parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
             if quarter_marker is None:
                 continue
             # Cada activitat compta per a CADA grup individual que hi
@@ -1463,11 +1456,11 @@ class SchedulerUseCases:
                 continue  # ja comparteixen casella
 
             if (
-                self._subject_ending_quarter(act_a.subject) != "1q"
-                or self._subject_ending_quarter(act_b.subject) != "2q"
+                _parent_and_quarter(act_a.group, act_a.subject)[1] != "1q"
+                or _parent_and_quarter(act_b.group, act_b.subject)[1] != "2q"
             ) and (
-                self._subject_ending_quarter(act_a.subject) != "2q"
-                or self._subject_ending_quarter(act_b.subject) != "1q"
+                _parent_and_quarter(act_a.group, act_a.subject)[1] != "2q"
+                or _parent_and_quarter(act_b.group, act_b.subject)[1] != "1q"
             ):
                 continue
 
