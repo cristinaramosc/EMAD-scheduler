@@ -446,7 +446,8 @@ function getVisibleActivitiesForSlot(slotActivities, selectedGroup) {
     visibleActivities.push(activity);
   });
 
-  return visibleActivities.filter((activity) => isSubgroupGroupName(activity?.group));
+  const combinedActivities = matchingActivities.filter((activity) => isCombinedGroupName(activity?.group));
+  return [...combinedActivities, ...visibleActivities.filter((activity) => isSubgroupGroupName(activity?.group))];
 }
 
 function getQuarterSuffix(value) {

@@ -87,6 +87,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if edge is not None:
                     return edge
 
+        best_candidate = None
+        best_key = None
+
         for day in context.school_calendar.days:
             if excluded_days and day in excluded_days:
                 continue
@@ -118,22 +121,102 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if self._room_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
 
-                return ScheduledActivity(
-                    teaching_block=teaching_block,
-                    day=day,
-                    start_timeslot=slot,
-                    duration=required_slots,
-                    room_id=teaching_block.preferred_room_id,
-                    teacher_id=teaching_block.preferred_teacher_id,
-                    group_id=(
-                        teaching_block.metadata.get("group_id")
-                        or teaching_block.metadata.get("group")
-                        if teaching_block.metadata
-                        else None
-                    ),
-                )
+                key = self._slot_preference_key(teaching_block, day, slot, all_activities, context)
+                if best_key is None or key < best_key:
+                    best_key = key
+                    best_candidate = ScheduledActivity(
+                        teaching_block=teaching_block,
+                        day=day,
+                        start_timeslot=slot,
+                        duration=required_slots,
+                        room_id=teaching_block.preferred_room_id,
+                        teacher_id=teaching_block.preferred_teacher_id,
+                        group_id=(
+                            teaching_block.metadata.get("group_id")
+                            or teaching_block.metadata.get("group")
+                            if teaching_block.metadata
+                            else None
+                        ),
+                    )
+
+        if best_candidate is not None:
+            return best_candidate
 
         return None
+
+    def _slot_preference_key(
+        self,
+        teaching_block: TeachingBlock,
+        day: int,
+        slot: TimeSlot,
+        all_activities: Sequence[ScheduledActivity],
+        context: GenerationContext,
+    ) -> tuple:
+        group_id = None
+        if teaching_block.metadata:
+            group_id = teaching_block.metadata.get("group_id") or teaching_block.metadata.get("group")
+
+        preferred_start = self._preferred_group_start_period(group_id, context)
+        if preferred_start is not None:
+            afternoon_rank = 0 if slot.period == preferred_start else 1 if slot.period > preferred_start else 2
+            delta = abs(slot.period - preferred_start)
+        else:
+            afternoon_rank = 1
+            delta = 0
+
+        gap_count = self._daily_gap_count(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
+        return (afternoon_rank, gap_count, delta, day, slot.period)
+
+    def _preferred_group_start_period(self, group_id: Optional[str], context: GenerationContext) -> Optional[int]:
+        if not group_id:
+            return None
+
+        normalized = {normalize_group_name(name) for name in group_names(group_id)}
+        if not normalized:
+            return None
+
+        if not ({"comu", "comú", "gp", "gi"} & normalized):
+            return None
+
+        hour_names = context.configuration.get("hour_names") or []
+        for index, hour_name in enumerate(hour_names):
+            if (hour_name or "").strip() == "15:00":
+                return index
+            if (hour_name or "").strip().startswith("15:"):
+                return index
+
+        return 14 if context.school_calendar.periods_per_day >= 15 else None
+
+    def _daily_gap_count(
+        self,
+        group_id: Optional[str],
+        day: int,
+        slot: TimeSlot,
+        required_slots: int,
+        all_activities: Sequence[ScheduledActivity],
+    ) -> int:
+        if not group_id:
+            return 0
+
+        intervals = []
+        for activity in all_activities:
+            if activity.day != day:
+                continue
+            if not self._groups_overlap(group_id, activity.group_id):
+                continue
+            intervals.append((activity.start_timeslot.period, activity.start_timeslot.period + activity.duration))
+
+        intervals.append((slot.period, slot.period + required_slots))
+        intervals.sort()
+
+        gap_count = 0
+        for index in range(1, len(intervals)):
+            previous_end = intervals[index - 1][1]
+            current_start = intervals[index][0]
+            if current_start > previous_end:
+                gap_count += 1
+
+        return gap_count
 
     def _groups_overlap(self, parent_a: str, parent_b: str) -> bool:
         names_a = set(group_names(parent_a)) or {parent_a}
