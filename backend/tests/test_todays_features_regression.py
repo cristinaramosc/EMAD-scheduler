@@ -152,6 +152,38 @@ def test_quarter_pair_alignment_only_matches_opposite_subject_endings():
     assert aligned_start("Projecte", "Projecte 2Q") == ("8:00", "9:00")
 
 
+def test_quarter_pair_alignment_detects_quarter_in_group_for_gi_programming():
+    uc = _make_use_cases([])
+    uc._academic_data_repo = AcademicDataRepository()
+    uc._time_labels = {"day_names": ["Dilluns"], "hour_names": ["8:00", "8:30", "9:00"]}
+    uc._school_calendar = type("Calendar", (), {
+        "days": [0],
+        "periods_per_day": 3,
+        "periods_for_day": lambda self, day: [
+            type("Slot", (), {"day": day, "period": period})() for period in range(3)
+        ],
+    })()
+    uc._scheduler_engine = __import__("scheduler_engine.engine", fromlist=["SchedulerEngine"]).SchedulerEngine()
+
+    proposal = type("Proposal", (), {
+        "id": "gi-programming",
+        "activities": [
+            Activity(1, "Inno", "Ll. programació", "GI 1Q", "", "Dilluns", "8:00", 1),
+            Activity(2, "Inno", "Ll. programació", "GI 2Q", "", "Dilluns", "9:00", 1),
+        ],
+        "score": 0,
+        "warnings": [],
+        "conflicts": [],
+        "score_breakdown": None,
+        "metadata": {},
+    })()
+
+    aligned = uc._apply_quarter_pair_alignment(proposal)
+
+    assert aligned.activities[0].start == "9:00"
+    assert aligned.activities[1].start == "9:00"
+
+
 
 
 # ---------------------------------------------------------------------------
