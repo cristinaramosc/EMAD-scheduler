@@ -579,6 +579,61 @@ def test_group_no_gaps_restriction_blocks_non_contiguous_placement():
     assert second.start_timeslot.period == 1
 
 
+def test_scheduler_generator_prefers_afternoon_start_for_afternoon_groups():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=20),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={"hour_names": [f"{hour}:00" for hour in range(8, 21)]},
+    )
+
+    placement = strategy.place(
+        TeachingBlock(
+            id="block-afternoon",
+            duration=1.0,
+            order=1,
+            duration_blocks=1,
+            metadata={"group": "GP"},
+        ),
+        context,
+        (),
+    )
+
+    assert placement is not None
+    assert placement.start_timeslot.period == 7
+
+
+def test_slot_preference_prefers_afternoon_start_and_compact_day():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=20),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={"hour_names": [f"{hour}:00" for hour in range(8, 21)]},
+    )
+
+    block = TeachingBlock(
+        id="block-afternoon",
+        duration=1.0,
+        order=1,
+        duration_blocks=1,
+        metadata={"group": "GP"},
+    )
+
+    late_key = strategy._slot_preference_key(block, 0, type("Slot", (), {"period": 7})(), (), context)
+    early_key = strategy._slot_preference_key(block, 0, type("Slot", (), {"period": 1})(), (), context)
+
+    assert late_key < early_key
+
+
+
 def test_scheduler_generator_orchestrates_teaching_requirements_into_proposals():
     generator = SchedulerGenerator()
     context = GenerationContext(
