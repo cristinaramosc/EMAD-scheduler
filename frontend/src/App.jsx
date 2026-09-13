@@ -27,7 +27,6 @@ const ASSIGNMENT_SHEET_COLUMNS = [
   { ...keyColumn("subject", textColumn), title: "Assignatura" },
   { ...keyColumn("group", textColumn), title: "Grup" },
   { ...keyColumn("weekly_hours", floatColumn), title: "Hores setmanals" },
-  { ...keyColumn("allowed_session_lengths", textColumn), title: "Durades de sessió" },
   { ...keyColumn("preferred_room", textColumn), title: "Aula preferida" },
   { ...keyColumn("max_session_days", textColumn), title: "Màx. dies" },
   { ...keyColumn("fixed_day", textColumn), title: "Dia fix" },
@@ -82,7 +81,6 @@ const HOURS = [
   "20:00",
   "20:30",
   "21:00",
-  "21:30",
 ];
 
 function activityKey(activity) {
@@ -400,10 +398,6 @@ function isSubgroupGroupName(groupName) {
   return /(?:^|\s)(?:1Q|2Q)$/i.test(String(groupName || "").trim());
 }
 
-function isCombinedGroupName(groupName) {
-  return individualGroupNames(groupName).length > 1;
-}
-
 function getVisibleActivitiesForSlot(slotActivities, selectedGroup) {
   if (!selectedGroup) {
     // Sense grup seleccionat estem en vista de professor: les activitats
@@ -420,13 +414,9 @@ function getVisibleActivitiesForSlot(slotActivities, selectedGroup) {
     return [];
   }
 
-  const hasFullParentActivity = matchingActivities.some((activity) => (
-    activity?.group === selectedGroup && !isCombinedGroupName(activity?.group)
-  ));
+  const hasFullParentActivity = matchingActivities.some((activity) => activity?.group === selectedGroup);
   if (hasFullParentActivity) {
-    return matchingActivities.filter((activity) => (
-      activity?.group === selectedGroup || isCombinedGroupName(activity?.group)
-    ));
+    return matchingActivities.filter((activity) => activity?.group === selectedGroup);
   }
 
   const visibleActivities = [];
@@ -1594,25 +1584,18 @@ export default function App() {
     const parentGroups = [];
     const seenGroups = new Set();
 
-    const sourceGroups = [
-      ...groups.map((group) => group?.name),
-      ...activities.map((activity) => activity?.group),
-    ];
+    groups.forEach((group) => {
+      const parentName = getGroupParentName(group?.name);
+      if (!parentName || seenGroups.has(parentName)) {
+        return;
+      }
 
-    sourceGroups.forEach((groupName) => {
-      individualGroupNames(groupName).forEach((name) => {
-        const parentName = getGroupParentName(name);
-        if (!parentName || seenGroups.has(parentName)) {
-          return;
-        }
-
-        seenGroups.add(parentName);
-        parentGroups.push({ name: parentName });
-      });
+      seenGroups.add(parentName);
+      parentGroups.push({ name: parentName });
     });
 
     return parentGroups;
-  }, [groups, activities]);
+  }, [groups]);
 
   useEffect(() => {
     if (!timetableGroupOptions.length) {
@@ -2744,7 +2727,6 @@ export default function App() {
       subject: a.subject || "",
       group: a.group || "",
       weekly_hours: typeof a.weekly_hours === "number" ? a.weekly_hours : parseFloat(a.weekly_hours) || 0,
-      allowed_session_lengths: formatSessionLengths(a.allowed_session_lengths),
       preferred_room: a.preferred_room || "",
       max_session_days: a.max_session_days || "",
       fixed_day: a.fixed_day || "",
@@ -2799,7 +2781,6 @@ export default function App() {
           subject: row.subject,
           group: row.group,
           weekly_hours: row.weekly_hours,
-          allowed_session_lengths: parseSessionLengths(String(row.allowed_session_lengths || "")),
           preferred_room: row.preferred_room,
           notes: row.notes,
           fixed_day: row.fixed_day,
@@ -2817,7 +2798,6 @@ export default function App() {
           subject: row.subject,
           group: row.group,
           weekly_hours: row.weekly_hours,
-          allowed_session_lengths: parseSessionLengths(String(row.allowed_session_lengths || "")),
           preferred_room: row.preferred_room,
           notes: row.notes,
           fixed_day: row.fixed_day,
@@ -3135,35 +3115,37 @@ export default function App() {
             🤖 Assistent
           </button>
 
-          <button
-            type="button"
-            onClick={downloadBlankSpreadsheet}
-            disabled={isLoading || isSaving || isGenerating}
-            title="Descarrega un full de càlcul model, buit, per introduir les dades des de zero"
-            style={{ marginLeft: 8 }}
-          >
-            📥 Model buit (Excel)
-          </button>
+          <details className="toolbar-more" style={{ marginLeft: 8 }}>
+            <summary title="Model buit, dades actuals i importació d'Excel">⋯ Més</summary>
+            <div className="toolbar-more-menu">
+              <button
+                type="button"
+                onClick={downloadBlankSpreadsheet}
+                disabled={isLoading || isSaving || isGenerating}
+                title="Descarrega un full de càlcul model, buit, per introduir les dades des de zero"
+              >
+                📥 Model buit (Excel)
+              </button>
 
-          <button
-            type="button"
-            onClick={downloadCurrentSpreadsheet}
-            disabled={isLoading || isSaving || isGenerating}
-            title="Descarrega un full de càlcul amb totes les dades acadèmiques actuals"
-            style={{ marginLeft: 8 }}
-          >
-            📥 Dades actuals (Excel)
-          </button>
+              <button
+                type="button"
+                onClick={downloadCurrentSpreadsheet}
+                disabled={isLoading || isSaving || isGenerating}
+                title="Descarrega un full de càlcul amb totes les dades acadèmiques actuals"
+              >
+                📥 Dades actuals (Excel)
+              </button>
 
-          <button
-            type="button"
-            onClick={() => academicSpreadsheetInputRef.current?.click()}
-            disabled={isLoading || isSaving || isGenerating || isImportingSpreadsheet}
-            title="Puja un full de càlcul (model omplert) per substituir professors, grups, assignatures i aules"
-            style={{ marginLeft: 8 }}
-          >
-            {isImportingSpreadsheet ? "Important..." : "📤 Importa Excel"}
-          </button>
+              <button
+                type="button"
+                onClick={() => academicSpreadsheetInputRef.current?.click()}
+                disabled={isLoading || isSaving || isGenerating || isImportingSpreadsheet}
+                title="Puja un full de càlcul (model omplert) per substituir professors, grups, assignatures i aules"
+              >
+                {isImportingSpreadsheet ? "Important..." : "📤 Importa Excel"}
+              </button>
+            </div>
+          </details>
 
           {selectedGroup ? (
             <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: 8 }}>
@@ -4439,13 +4421,7 @@ export default function App() {
 
           {HOURS.map((hour, hourIndex) => (
             <React.Fragment key={hour}>
-              <div
-                className={`hour-cell${hour === "21:30" ? " hour-cell--end" : ""}`}
-                style={{ gridColumn: 1, gridRow: hourIndex + 2 }}
-              >
-                <span>{hour}</span>
-                {hour === "21:30" && <small>final</small>}
-              </div>
+              <div className="hour-cell" style={{ gridColumn: 1, gridRow: hourIndex + 2 }}>{hour}</div>
 
               {DAYS.map((day, dayIndex) => {
                 const key = `${day}-${hour}`;
@@ -4584,9 +4560,12 @@ export default function App() {
                       />
                     </label>
                   </div>
-                  <div style={{ marginTop: 12 }}>
-                    <p className="muted" style={{ marginTop: 0, marginBottom: 6 }}>
-                      Excepcions per dia (opcional): si un dia no té valor propi, s'aplica l'hora d'inici/final general d'aquí dalt.
+                  <details style={{ marginTop: 12 }}>
+                    <summary className="muted" style={{ cursor: "pointer" }}>
+                      Excepcions per dia (opcional) ▸
+                    </summary>
+                    <p className="muted" style={{ marginTop: 6, marginBottom: 6 }}>
+                      Si un dia no té valor propi, s'aplica l'hora d'inici/final general d'aquí dalt.
                     </p>
                     <table style={{ borderCollapse: "collapse" }}>
                       <thead>
@@ -4668,17 +4647,19 @@ export default function App() {
                         </tr>
                       </tbody>
                     </table>
-                  </div>
+                  </details>
                 </div>
 
                 <div className="restriction-section">
-                  <h4>Franges concretes no disponibles (forats enmig del dia)</h4>
-                  <p className="restriction-hint">
-                    Per a coses que "hora d'inici/final" no pot expressar, com un grup que té classe
-                    al matí, no té classe entre les 14:00 i les 16:00, i torna a tenir classe de 16:00
-                    a 19:00 el mateix dia. Clic simple per marcar/desmarcar una franja no disponible.
-                    Maj + clic per seleccionar un rang.
-                  </p>
+                  <h4>
+                    Franges concretes no disponibles (forats enmig del dia){" "}
+                    <span
+                      className="help-icon"
+                      title={'Per a coses que "hora d\'inici/final" no pot expressar, com un grup que té classe al matí, no té classe entre les 14:00 i les 16:00, i torna a tenir classe de 16:00 a 19:00 el mateix dia. Clic simple per marcar/desmarcar una franja no disponible. Maj + clic per seleccionar un rang.'}
+                    >
+                      ⓘ
+                    </span>
+                  </h4>
                   <div className="restriction-presets">
                     <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setGroupUnavailableSelectionAnchor)}>Entre les 10:00 i les 14:00 (tots els dies)</button>
                     <button
@@ -4784,7 +4765,7 @@ export default function App() {
             {!academicSummary ? (
               <p className="muted">Encara no hi ha dades acadèmiques importades.</p>
             ) : (
-              <div className="proposal-summary">
+              <div className="academic-metrics-grid">
                 <div className="proposal-metric">
                   <span className="metric-label">Professors</span>
                   <strong>{academicSummary.teachers ?? 0}</strong>
@@ -4802,7 +4783,7 @@ export default function App() {
                   <strong>{academicSummary.teaching_assignments ?? 0}</strong>
                 </div>
                 <div className="proposal-metric">
-                  <span className="metric-label">Hores de docència setmanals</span>
+                  <span className="metric-label">Hores/setmana</span>
                   <strong>{academicSummary.weekly_teaching_hours ?? 0}</strong>
                 </div>
                 <div className="proposal-metric">
@@ -4813,8 +4794,8 @@ export default function App() {
             )}
           </section>
 
-          <section>
-            <h2>Proposta generada</h2>
+          <details className="sidebar-section" open={Boolean(proposal)}>
+            <summary><h2>Proposta generada</h2></summary>
 
             {!proposal ? (
               <p className="muted">Encara no s'ha generat cap proposta.</p>
@@ -5019,10 +5000,10 @@ export default function App() {
                 ) : null}
               </div>
             )}
-          </section>
+          </details>
 
-          <section>
-            <h2>⚠️ Incidències {conflicts.length > 0 ? `(${conflicts.length})` : ""}</h2>
+          <details className="sidebar-section" open={conflicts.length > 0}>
+            <summary><h2>⚠️ Incidències {conflicts.length > 0 ? `(${conflicts.length})` : ""}</h2></summary>
 
             {conflicts.length === 0 ? (
               <p className="muted">Cap incidència detectada.</p>
@@ -5117,10 +5098,10 @@ export default function App() {
                 })}
               </div>
             )}
-          </section>
+          </details>
 
-          <section>
-            <h2>⚠️ Sense franja {displayedUnscheduledActivities.length > 0 ? `(${displayedUnscheduledActivities.length})` : ""}</h2>
+          <details className="sidebar-section" open={displayedUnscheduledActivities.length > 0}>
+            <summary><h2>⚠️ Sense franja {displayedUnscheduledActivities.length > 0 ? `(${displayedUnscheduledActivities.length})` : ""}</h2></summary>
 
             {displayedUnscheduledActivities.length === 0 ? (
               <p className="muted">Cap activitat pendent.</p>
@@ -5150,10 +5131,10 @@ export default function App() {
                 ))}
               </div>
             )}
-          </section>
+          </details>
 
-          <section>
-            <h2>Explicació activitat</h2>
+          <details className="sidebar-section" open={Boolean(isLoadingExplanation || explanationError || selectedExplanation)}>
+            <summary><h2>Explicació activitat</h2></summary>
 
             {isLoadingExplanation ? (
               <p className="muted">Carregant explicació…</p>
@@ -5216,7 +5197,7 @@ export default function App() {
                 <p className="muted">{selectedExplanation.human_readable_explanation}</p>
               </div>
             )}
-          </section>
+          </details>
         </aside>
       </section>
       )}
