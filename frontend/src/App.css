@@ -192,6 +192,9 @@ button.primary:hover:not(:disabled) {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
 }
 
 .timetable-toolbar {
@@ -200,6 +203,8 @@ button.primary:hover:not(:disabled) {
   flex-wrap: wrap;
   gap: 12px;
   justify-content: space-between;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .group-tabs {
@@ -257,6 +262,9 @@ button.primary:hover:not(:disabled) {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   display: grid;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
 
   --slot-height: 36px;
   grid-auto-rows: var(--slot-height);
@@ -833,7 +841,7 @@ button.primary:hover:not(:disabled) {
 
 @media (max-width: 1040px) {
   .scheduler-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .timetable {

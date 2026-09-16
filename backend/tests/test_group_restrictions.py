@@ -78,6 +78,31 @@ def test_group_restrictions_can_be_persisted() -> None:
     assert stored["break_slots"] == ["Monday 10:00"]
 
 
+def test_group_restrictions_are_resolved_with_normalized_group_names() -> None:
+    reset_dependencies()
+
+    repo = get_academic_data_repo()
+    repo.apply_snapshot(
+        {
+            "groups": [{"name": "1A"}],
+            "group_restrictions": [{"group": " 1a ", "no_gaps": True, "unavailable_slots": ["Monday-8:00"]}],
+        }
+    )
+
+    client = TestClient(app)
+
+    response = client.get("/academic-data/groups/1A/restrictions")
+
+    assert response.status_code == 200
+    assert response.json()["group"] == " 1a "
+    assert response.json()["no_gaps"] is True
+
+    groups_response = client.get("/academic-data/groups")
+
+    assert groups_response.status_code == 200
+    assert groups_response.json()[0]["no_gaps"] is True
+
+
 def test_toggle_break_endpoint_persists_group_break_days() -> None:
     reset_dependencies()
 

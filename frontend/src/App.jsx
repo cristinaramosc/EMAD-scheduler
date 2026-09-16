@@ -89,6 +89,40 @@ function activityKey(activity) {
   return `${activity.day}-${activity.start}`;
 }
 
+function mergeContiguousActivities(activities) {
+  const sorted = [...activities].sort((first, second) => {
+    const dayDifference = DAYS.indexOf(first.day) - DAYS.indexOf(second.day);
+    if (dayDifference !== 0) {
+      return dayDifference;
+    }
+    return HOURS.indexOf(first.start) - HOURS.indexOf(second.start);
+  });
+  const merged = [];
+
+  sorted.forEach((activity) => {
+    const previous = merged[merged.length - 1];
+    const sameActivity = previous
+      && !previous.isSyntheticBreak
+      && !activity.isSyntheticBreak
+      && previous.day === activity.day
+      && previous.subject === activity.subject
+      && previous.teacher === activity.teacher
+      && previous.group === activity.group
+      && previous.room === activity.room
+      && HOURS.indexOf(previous.start) + Number(previous.duration || 1) === HOURS.indexOf(activity.start);
+
+    if (!sameActivity) {
+      merged.push({ ...activity, mergedActivityIds: [activity.id] });
+      return;
+    }
+
+    previous.duration = Number(previous.duration || 1) + Number(activity.duration || 1);
+    previous.mergedActivityIds = [...(previous.mergedActivityIds || []), activity.id];
+  });
+
+  return merged;
+}
+
 function createTeacherRestrictionDraft(teacherName = "") {
   return {
     teacher: teacherName,
@@ -129,6 +163,22 @@ function parseSlotList(value) {
 
 function formatSlotList(slots) {
   return (slots || []).join("\n");
+}
+
+function normalizeAvailabilitySlot(slot) {
+  const value = String(slot || "").trim();
+  if (!value) {
+    return "";
+  }
+  if (value.includes("-")) {
+    const [day, ...hourParts] = value.split("-");
+    return `${day.trim()}-${hourParts.join("-").trim()}`;
+  }
+  const parts = value.split(/\s+/);
+  if (parts.length < 2) {
+    return value;
+  }
+  return `${parts.slice(0, -1).join(" ")}-${parts[parts.length - 1]}`;
 }
 
 function getSlotPosition(slotKey) {
@@ -521,6 +571,7 @@ export default function App() {
   const [isImportingWorkbook, setIsImportingWorkbook] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showAssistantChat, setShowAssistantChat] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [assistantMessages, setAssistantMessages] = useState([]);
   const [assistantInput, setAssistantInput] = useState("");
   const [isAssistantThinking, setIsAssistantThinking] = useState(false);
@@ -533,6 +584,7 @@ export default function App() {
   const [proposals, setProposals] = useState([]);
   const [selectedProposalId, setSelectedProposalId] = useState(null);
   const [selectedActivityId, setSelectedActivityId] = useState(null);
+  const moreMenuRef = useRef(null);
   const [activityRestrictionDraft, setActivityRestrictionDraft] = useState(null);
   const [isSavingActivityRestriction, setIsSavingActivityRestriction] = useState(false);
   const [selectedExplanation, setSelectedExplanation] = useState(null);
@@ -877,7 +929,7 @@ export default function App() {
         max_hours_per_day: data.max_hours_per_day ?? "",
         max_consecutive_hours: data.max_consecutive_hours ?? "",
         preferred_availability: Array.isArray(data.preferred_availability) ? data.preferred_availability : [],
-        unavailable_slots: Array.isArray(data.unavailable_slots) ? data.unavailable_slots : [],
+            unavailable_slots: Array.isArray(data.unavailable_slots) ? data.unavailable_slots : [],
       });
     } catch {
       setTeacherRestrictionEditor(teacherName);
@@ -1097,39 +1149,43 @@ export default function App() {
       return;
     }
 
+    const embeddedGroup = groups.find((group) => (
+      String(group?.name || "").trim().toLowerCase() === String(groupName).trim().toLowerCase()
+    ));
+    let data = embeddedGroup || {};
+
     try {
       const response = await fetch(`${API_URL}/academic-data/groups/${encodeURIComponent(groupName)}/restrictions`);
-      if (!response.ok) {
-        setGroupRestrictionDraft(createGroupRestrictionDraft(groupName));
-        return;
+      if (response.ok) {
+        data = { ...data, ...(await response.json()) };
       }
-
-      const data = await response.json();
-      const nextDraft = {
-        ...createGroupRestrictionDraft(groupName),
-        ...data,
-        group: data.group || groupName,
-        no_gaps: Boolean(data.no_gaps),
-        max_hours_per_day: data.max_hours_per_day ?? "",
-        max_consecutive_hours: data.max_consecutive_hours ?? "",
-        max_days: data.max_days ?? "",
-        preferred_availability: Array.isArray(data.preferred_availability) ? data.preferred_availability : [],
-        unavailable_slots: Array.isArray(data.unavailable_slots) ? data.unavailable_slots : [],
-        daily_start_time: data.daily_start_time || "",
-        daily_max_end_time: data.daily_max_end_time || "",
-        daily_windows: data.daily_windows && typeof data.daily_windows === "object" ? data.daily_windows : {},
-        break_days: Array.isArray(data.break_days) ? data.break_days : [],
-        break_slots: Array.isArray(data.break_slots) ? data.break_slots : [],
-        locked: Boolean(data.locked),
-      };
-      setGroupRestrictionDraft(nextDraft);
-      setGroupRestrictions((current) => {
-        const others = current.filter((item) => item.group !== groupName);
-        return [...others, { ...nextDraft, group: groupName }];
-      });
     } catch {
-      setGroupRestrictionDraft(createGroupRestrictionDraft(groupName));
     }
+
+    const nextDraft = {
+      ...createGroupRestrictionDraft(groupName),
+      ...data,
+      group: data.group || groupName,
+      no_gaps: Boolean(data.no_gaps),
+      max_hours_per_day: data.max_hours_per_day ?? "",
+      max_consecutive_hours: data.max_consecutive_hours ?? "",
+      max_days: data.max_days ?? "",
+      preferred_availability: Array.isArray(data.preferred_availability) ? data.preferred_availability : [],
+      unavailable_slots: Array.isArray(data.unavailable_slots)
+        ? data.unavailable_slots.map(normalizeAvailabilitySlot).filter(Boolean)
+        : [],
+      daily_start_time: data.daily_start_time || "",
+      daily_max_end_time: data.daily_max_end_time || "",
+      daily_windows: data.daily_windows && typeof data.daily_windows === "object" ? data.daily_windows : {},
+      break_days: Array.isArray(data.break_days) ? data.break_days : [],
+      break_slots: Array.isArray(data.break_slots) ? data.break_slots : [],
+      locked: Boolean(data.locked),
+    };
+    setGroupRestrictionDraft(nextDraft);
+    setGroupRestrictions((current) => {
+      const others = current.filter((item) => item.group !== groupName);
+      return [...others, { ...nextDraft, group: groupName }];
+    });
   }
 
   async function saveGroupRestrictions(updatedDraft = groupRestrictionDraft) {
@@ -1734,13 +1790,18 @@ export default function App() {
     [filteredActivities, syntheticBreakActivities]
   );
 
+  const mergedTimetableActivities = useMemo(
+    () => mergeContiguousActivities(visibleTimetableActivities),
+    [visibleTimetableActivities]
+  );
+
   const groupBreakDays = useMemo(() => {
     if (!selectedGroup) return new Set();
     return new Set(groupRestrictionDraft.break_days || []);
   }, [selectedGroup, groupRestrictionDraft.break_days]);
 
   const activitiesBySlot = useMemo(() => {
-    return visibleTimetableActivities.reduce((slots, activity) => {
+    return mergedTimetableActivities.reduce((slots, activity) => {
       const key = activityKey(activity);
 
       if (!slots[key]) {
@@ -1751,7 +1812,7 @@ export default function App() {
 
       return slots;
     }, {});
-  }, [visibleTimetableActivities]);
+  }, [mergedTimetableActivities]);
 
   const visibleActivitiesBySlot = useMemo(() => {
     return Object.entries(activitiesBySlot).reduce((slots, [slotKey, slotActivities]) => {
@@ -3136,12 +3197,33 @@ export default function App() {
             🤖 Assistent
           </button>
 
-          <details className="toolbar-more" style={{ marginLeft: 8 }}>
-            <summary title="Model buit, dades actuals i importació d'Excel">⋯ Més</summary>
+          <details
+            ref={moreMenuRef}
+            className="toolbar-more"
+            open={isMoreMenuOpen}
+            style={{ marginLeft: 8 }}
+            onToggle={(event) => {
+              if (event.target.open !== isMoreMenuOpen) {
+                setIsMoreMenuOpen(event.target.open);
+              }
+            }}
+          >
+            <summary
+              title="Model buit, dades actuals i importació d'Excel"
+              onClick={(event) => {
+                event.preventDefault();
+                setIsMoreMenuOpen((prev) => !prev);
+              }}
+            >
+              ⋯ Més
+            </summary>
             <div className="toolbar-more-menu">
               <button
                 type="button"
-                onClick={downloadBlankSpreadsheet}
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  downloadBlankSpreadsheet();
+                }}
                 disabled={isLoading || isSaving || isGenerating}
                 title="Descarrega un full de càlcul model, buit, per introduir les dades des de zero"
               >
@@ -3150,7 +3232,10 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={downloadCurrentSpreadsheet}
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  downloadCurrentSpreadsheet();
+                }}
                 disabled={isLoading || isSaving || isGenerating}
                 title="Descarrega un full de càlcul amb totes les dades acadèmiques actuals"
               >
@@ -3159,7 +3244,10 @@ export default function App() {
 
               <button
                 type="button"
-                onClick={() => academicSpreadsheetInputRef.current?.click()}
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  academicSpreadsheetInputRef.current?.click();
+                }}
                 disabled={isLoading || isSaving || isGenerating || isImportingSpreadsheet}
                 title="Puja un full de càlcul (model omplert) per substituir professors, grups, assignatures i aules"
               >
@@ -4000,7 +4088,14 @@ export default function App() {
                                   setAssignmentEditValues({ ...assignmentEditValues, teacher: selected.join(", ") });
                                 }}
                               >
-                                {teachers.map((t) => (
+                                {[
+                                  ...assignmentEditValues.teacher
+                                    .split(",")
+                                    .map((teacherName) => teacherName.trim())
+                                    .filter((teacherName) => teacherName && !teachers.some((t) => t.name === teacherName))
+                                    .map((name) => ({ name })),
+                                  ...teachers,
+                                ].map((t) => (
                                   <option key={t.name} value={t.name}>{t.name}</option>
                                 ))}
                               </select>
@@ -4017,7 +4112,10 @@ export default function App() {
                               onChange={(event) => setAssignmentEditValues({ ...assignmentEditValues, group: event.target.value })}
                             >
                               <option value="">Selecciona un grup</option>
-                              {groups.map((g) => (
+                                {[
+                                  ...(a.group && !groups.some((g) => g.name === a.group) ? [{ name: a.group }] : []),
+                                  ...groups,
+                                ].map((g) => (
                                 <option key={g.name} value={g.name}>{g.name}</option>
                               ))}
                             </select>
@@ -4032,7 +4130,10 @@ export default function App() {
                               onChange={(event) => setAssignmentEditValues({ ...assignmentEditValues, subject: event.target.value })}
                             >
                               <option value="">Selecciona una assignatura</option>
-                              {academicSubjects.map((s) => (
+                              {[
+                                ...(a.subject && !academicSubjects.some((s) => s.name === a.subject) ? [{ name: a.subject }] : []),
+                                ...academicSubjects,
+                              ].map((s) => (
                                 <option key={s.name} value={s.name}>{s.name}</option>
                               ))}
                             </select>
@@ -4713,7 +4814,9 @@ export default function App() {
                             <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
                             {HOURS.map((hour) => {
                               const slotKey = `${day}-${hour}`;
-                              const isUnavailable = (groupRestrictionDraft.unavailable_slots || []).includes(slotKey);
+                              const isUnavailable = (groupRestrictionDraft.unavailable_slots || [])
+                                .map(normalizeAvailabilitySlot)
+                                .includes(slotKey);
                               const cellClass = isUnavailable
                                 ? "availability-cell availability-cell--unavailable"
                                 : "availability-cell";

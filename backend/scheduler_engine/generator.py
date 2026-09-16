@@ -130,6 +130,7 @@ class SchedulerGenerator:
 
             metadata = {
                 "requirement_id": requirement.id,
+                "max_distribution_days": requirement.max_distribution_days,
                 "group_id": requirement.group_id,
                 "subject_id": requirement.subject_id,
                 "teacher_id": requirement.teacher_id,

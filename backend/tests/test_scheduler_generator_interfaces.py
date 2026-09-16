@@ -92,6 +92,45 @@ def test_greedy_placement_strategy_reproduces_current_behavior():
     assert result.start_timeslot.period == 0
 
 
+def test_assignment_max_distribution_days_blocks_a_new_day():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    existing_block = TeachingBlock(
+        id="assignment-1|s1",
+        duration=1.0,
+        order=1,
+        duration_blocks=2,
+        metadata={"requirement_id": "assignment-1", "max_distribution_days": 1, "group": "G"},
+    )
+    existing = ScheduledActivity(
+        teaching_block=existing_block,
+        day=0,
+        start_timeslot=TimeSlot(day=0, period=0),
+        duration=2,
+        room_id="",
+        teacher_id="",
+        group_id="G",
+    )
+    candidate = TeachingBlock(
+        id="assignment-1|s2",
+        duration=1.0,
+        order=2,
+        duration_blocks=2,
+        metadata={"requirement_id": "assignment-1", "max_distribution_days": 1, "group": "G"},
+    )
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=2),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    result = GreedyPlacementStrategy().place(candidate, context, [existing])
+
+    assert result is None
+
+
 def test_scheduler_generator_uses_the_strategy():
     class RecordingStrategy:
         def __init__(self):
@@ -284,6 +323,40 @@ def test_warning_penalties_reduce_score():
     breakdown = scorer.calculate(proposal, context)
     assert breakdown.warning_penalty == 2.0
     assert breakdown.total_score < 0.0
+
+
+def test_group_daily_balance_prefers_even_hours_between_days():
+    from scheduler_engine.proposal_scorer import ProposalScorer
+
+    scorer = ProposalScorer()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=6),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+    balanced = ScheduleProposal(
+        id="balanced",
+        activities=[
+            Activity(id=1, teacher="T1", subject="A", group="G1", room="", day="0", start="Period 0", duration=2),
+            Activity(id=2, teacher="T1", subject="B", group="G1", room="", day="1", start="Period 0", duration=2),
+        ],
+    )
+    unbalanced = ScheduleProposal(
+        id="unbalanced",
+        activities=[
+            Activity(id=1, teacher="T1", subject="A", group="G1", room="", day="0", start="Period 0", duration=3),
+            Activity(id=2, teacher="T1", subject="B", group="G1", room="", day="1", start="Period 0", duration=1),
+        ],
+    )
+
+    balanced_breakdown = scorer.calculate(balanced, context)
+    unbalanced_breakdown = scorer.calculate(unbalanced, context)
+
+    assert balanced_breakdown.balance_score == 0.0
+    assert unbalanced_breakdown.balance_score < balanced_breakdown.balance_score
+    assert unbalanced_breakdown.metadata["maximum_group_daily_imbalance_hours"] == 1.0
 
 
 def test_same_teacher_quarter_pairs_get_a_score_bonus():
@@ -632,6 +705,60 @@ def test_slot_preference_prefers_afternoon_start_and_compact_day():
 
     assert late_key < early_key
 
+
+def test_group_daily_gap_limit_blocks_slots_that_leave_multiple_free_windows():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=8),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    existing = (
+        ScheduledActivity(
+            teaching_block=TeachingBlock(id="existing-1", duration=2.0, order=1),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=0),
+            duration=2,
+            room_id="R1",
+            teacher_id="T1",
+            group_id="g1",
+        ),
+        ScheduledActivity(
+            teaching_block=TeachingBlock(id="existing-2", duration=1.0, order=2),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=4),
+            duration=1,
+            room_id="R1",
+            teacher_id="T1",
+            group_id="g1",
+        ),
+        ScheduledActivity(
+            teaching_block=TeachingBlock(id="existing-3", duration=1.0, order=3),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=6),
+            duration=1,
+            room_id="R1",
+            teacher_id="T1",
+            group_id="g1",
+        ),
+    )
+
+    candidate = TeachingBlock(
+        id="candidate",
+        duration=1.0,
+        order=4,
+        duration_blocks=1,
+        metadata={"group": "g1"},
+    )
+
+    assert strategy._group_daily_gap_limit_conflict_exists(candidate, TimeSlot(day=0, period=2), existing, context) is True
+    assert strategy._group_daily_gap_limit_conflict_exists(candidate, TimeSlot(day=0, period=3), existing, context) is True
+    assert strategy._group_daily_gap_limit_conflict_exists(candidate, TimeSlot(day=0, period=5), existing, context) is False
 
 
 def test_scheduler_generator_orchestrates_teaching_requirements_into_proposals():

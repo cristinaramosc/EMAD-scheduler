@@ -107,6 +107,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
 
+                if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
                     continue
 
@@ -114,6 +117,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
                     continue
 
                 if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+                if self._assignment_max_days_conflict_exists(teaching_block, slot, all_activities):
                     continue
                 if self._teacher_max_days_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
@@ -156,6 +161,13 @@ class GreedyPlacementStrategy(PlacementStrategy):
         if teaching_block.metadata:
             group_id = teaching_block.metadata.get("group_id") or teaching_block.metadata.get("group")
 
+        morning_latest = self._morning_group_latest_start_period(group_id, context)
+        if morning_latest is not None:
+            morning_rank = 0 if slot.period <= morning_latest else 1
+            morning_delta = abs(slot.period - morning_latest)
+            gap_count = self._daily_gap_count(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
+            return (morning_rank, gap_count, morning_delta, day, slot.period)
+
         preferred_start = self._preferred_group_start_period(group_id, context)
         if preferred_start is not None:
             afternoon_rank = 0 if slot.period == preferred_start else 1 if slot.period > preferred_start else 2
@@ -166,6 +178,28 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         gap_count = self._daily_gap_count(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
         return (afternoon_rank, gap_count, delta, day, slot.period)
+
+    def _morning_group_latest_start_period(
+        self,
+        group_id: Optional[str],
+        context: GenerationContext,
+    ) -> Optional[int]:
+        if not group_id:
+            return None
+
+        morning_groups = {"1r apgi", "2n apgi", "2n com", "pfi"}
+        normalized = {normalize_group_name(name) for name in group_names(group_id)}
+        if not normalized.intersection(morning_groups):
+            return None
+
+        hour_names = context.configuration.get("hour_names") or []
+        for index, hour_name in enumerate(hour_names):
+            if (hour_name or "").strip() == "10:00":
+                return index
+            if (hour_name or "").strip().startswith("10:"):
+                return index
+
+        return 4 if context.school_calendar.periods_per_day >= 5 else None
 
     def _preferred_group_start_period(self, group_id: Optional[str], context: GenerationContext) -> Optional[int]:
         if not group_id:
@@ -218,6 +252,25 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         return gap_count
 
+    def _group_daily_gap_limit_conflict_exists(
+        self,
+        teaching_block: TeachingBlock,
+        start_slot: TimeSlot,
+        activities: Sequence[ScheduledActivity],
+        context: GenerationContext,
+    ) -> bool:
+        if teaching_block.fixed and teaching_block.fixed_day and teaching_block.fixed_start:
+            return False
+
+        group_id = None
+        if teaching_block.metadata:
+            group_id = teaching_block.metadata.get("group_id") or teaching_block.metadata.get("group")
+        if not group_id:
+            return False
+
+        required_slots = teaching_block.duration_blocks or 1
+        return self._daily_gap_count(group_id, start_slot.day, start_slot, required_slots, activities) > 1
+
     def _groups_overlap(self, parent_a: str, parent_b: str) -> bool:
         names_a = set(group_names(parent_a)) or {parent_a}
         names_b = set(group_names(parent_b)) or {parent_b}
@@ -257,11 +310,15 @@ class GreedyPlacementStrategy(PlacementStrategy):
                     continue
                 if self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
+                if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
                     continue
                 if self._group_time_window_conflict_exists(teaching_block, slot, context):
                     continue
                 if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+                if self._assignment_max_days_conflict_exists(teaching_block, slot, all_activities):
                     continue
                 if self._teacher_max_days_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
@@ -341,11 +398,15 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 continue
             if self._group_conflict_exists(teaching_block, slot, all_activities, context):
                 continue
+            if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, all_activities, context):
+                continue
             if self._teacher_conflict_exists(teaching_block, slot, all_activities):
                 continue
             if self._group_time_window_conflict_exists(teaching_block, slot, context):
                 continue
             if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+                continue
+            if self._assignment_max_days_conflict_exists(teaching_block, slot, all_activities):
                 continue
             if self._teacher_max_days_conflict_exists(teaching_block, slot, all_activities, context):
                 continue
@@ -411,6 +472,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     add(f"El grup {group_label} ja té una altra activitat {day_name} en aquesta franja.")
 
+                if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, all_activities, context):
+                    add(f"El grup {group_label} no pot quedar amb més d'una franja lliure {day_name}.")
+
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
                     add(f"El professor {teacher_name_label} no està disponible {day_name}.")
 
@@ -419,6 +483,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
                 if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
                     add(f"El grup {group_label} ja ha exhaurit el màxim de dies de classe permesos.")
+
+                if self._assignment_max_days_conflict_exists(teaching_block, slot, all_activities):
+                    add("L'assignatura ja ha exhaurit el màxim de dies per repartir-la.")
 
                 if room_label and self._room_conflict_exists(teaching_block, slot, all_activities, context):
                     add(f"L'aula {room_label} està ocupada {day_name} en aquesta franja.")
@@ -458,6 +525,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
                     continue
                 if self._group_conflict_exists(teaching_block, slot, all_activities, context):
+                    continue
+                if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
                     continue
@@ -646,6 +715,32 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 return True
 
         return False
+
+    def _assignment_max_days_conflict_exists(
+        self,
+        teaching_block: TeachingBlock,
+        start_slot: TimeSlot,
+        activities: Sequence[ScheduledActivity],
+    ) -> bool:
+        metadata = teaching_block.metadata or {}
+        requirement_id = metadata.get("requirement_id")
+        max_days = metadata.get("max_distribution_days")
+        if not requirement_id or max_days in (None, ""):
+            return False
+
+        try:
+            max_days = int(max_days)
+        except (TypeError, ValueError):
+            return False
+        if max_days < 1:
+            return False
+
+        used_days = {
+            activity.day
+            for activity in activities
+            if (activity.teaching_block.metadata or {}).get("requirement_id") == requirement_id
+        }
+        return start_slot.day not in used_days and len(used_days) >= max_days
 
     def _group_time_window_conflict_exists(
         self,

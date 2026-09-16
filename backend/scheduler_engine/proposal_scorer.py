@@ -7,9 +7,11 @@ from .models import ConstraintReport, GenerationContext, ScheduleProposal, Score
 
 try:
     from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+    from backend.scheduler_engine.quarter_utils import group_names
     from backend.scheduler_engine.teacher_utils import teacher_names
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+    from scheduler_engine.quarter_utils import group_names
     from scheduler_engine.teacher_utils import teacher_names
 
 
@@ -35,6 +37,7 @@ class ProposalScorer:
         report.warnings.extend(proposal.warnings)
         compactness_score = self._compactness_score(report)
         distribution_score = self._distribution_score(proposal, context)
+        balance_score, maximum_group_imbalance = self._group_daily_balance_score(proposal, context)
         teacher_affinity_score = self._teacher_affinity_score(proposal)
         quarter_pair_teacher_score = self._quarter_pair_teacher_priority_score(proposal)
         gap_penalty = self._gap_penalty(report)
@@ -43,6 +46,7 @@ class ProposalScorer:
         total_score = (
             compactness_score
             + distribution_score
+            + balance_score
             + teacher_affinity_score
             + quarter_pair_teacher_score
             - gap_penalty
@@ -54,11 +58,13 @@ class ProposalScorer:
             "soft_violation_count": len(report.soft_violations),
             "teacher_affinity_score": round(teacher_affinity_score, 3),
             "quarter_pair_teacher_score": round(quarter_pair_teacher_score, 3),
+            "maximum_group_daily_imbalance_hours": round(maximum_group_imbalance, 3),
         }
         return ScoreBreakdown(
             total_score=round(total_score, 3),
             compactness_score=round(compactness_score, 3),
             distribution_score=round(distribution_score, 3),
+            balance_score=round(balance_score, 3),
             gap_penalty=round(gap_penalty, 3),
             warning_penalty=round(warning_penalty, 3),
             metadata=metadata,
@@ -86,6 +92,45 @@ class ProposalScorer:
             return 0.0
 
         return max(0.0, 10.0 - (max(counts) - min(counts)) * 2.0)
+
+    def _group_daily_balance_score(
+        self,
+        proposal: ScheduleProposal,
+        context: GenerationContext,
+    ) -> tuple[float, float]:
+        """Premia que les hores de cada grup quedin repartides de manera
+        semblant entre els dies en què té classe.
+
+        Les activitats de grups combinats compten per a cadascun dels grups
+        implicats. La diferència es calcula només entre dies amb hores del
+        grup: així no es penalitza una assignatura que legítimament només es
+        fa en un subconjunt de dies.
+        """
+        if not proposal.activities:
+            return 0.0, 0.0
+
+        period_hours = context.school_calendar.period_length_minutes / 60.0
+        hours_by_group: Dict[str, Dict[str, float]] = {}
+        for activity in proposal.activities:
+            groups = group_names(activity.group)
+            if not groups:
+                continue
+            day = str(activity.day)
+            hours = activity.duration * period_hours
+            for group in groups:
+                hours_by_group.setdefault(group, {})[day] = hours_by_group.setdefault(group, {}).get(day, 0.0) + hours
+
+        imbalances = []
+        for daily_hours in hours_by_group.values():
+            if len(daily_hours) < 2:
+                continue
+            imbalances.append(max(daily_hours.values()) - min(daily_hours.values()))
+
+        if not imbalances:
+            return 0.0, 0.0
+
+        total_imbalance = sum(imbalances)
+        return -total_imbalance * 3.0, max(imbalances)
 
     def _teacher_affinity_score(self, proposal: ScheduleProposal) -> float:
         if len(proposal.activities) < 2:

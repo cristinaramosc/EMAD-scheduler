@@ -222,7 +222,7 @@ class SchedulerUseCases:
         if self._academic_data_repo is None:
             return self._generate_empty_generation_result()
 
-        assignments = self._academic_data_repo.active_teaching_assignments()
+        assignments = self._academic_data_repo.active_canonical_assignments()
         if not assignments:
             return self._generate_empty_generation_result()
 
@@ -1121,7 +1121,7 @@ class SchedulerUseCases:
             max_days_value = assignment.get("max_session_days")
 
         return TeachingRequirement(
-            id=str(assignment.get("id") or f"assignment-{index}"),
+            id=str(assignment.get("canonical_key") or assignment.get("id") or f"assignment-{index}"),
             group_id=group,
             subject_id=subject,
             teacher_id=teacher_label(teacher_list or teacher),
