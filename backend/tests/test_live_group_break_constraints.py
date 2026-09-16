@@ -136,3 +136,49 @@ def test_toggle_group_break_fails_cleanly_when_no_gap_window():
         None,
     )
     assert restriction is None or "Dilluns" not in (restriction.get("break_days") or [])
+
+
+def test_toggle_group_break_never_shares_slot_with_long_activity():
+    use_cases = _build_use_cases()
+    use_cases.load(
+        [
+            {
+                "id": 1,
+                "teacher": "A",
+                "subject": "Mat",
+                "group": "1A",
+                "room": "R1",
+                "day": "Dilluns",
+                "start": "8:00",
+                "duration": 4,
+            },
+            {
+                "id": 2,
+                "teacher": "B",
+                "subject": "Hist",
+                "group": "1A",
+                "room": "R2",
+                "day": "Dilluns",
+                "start": "10:00",
+                "duration": 4,
+            },
+        ]
+    )
+
+    activated = use_cases.toggle_group_break("1A", "Dilluns")
+
+    assert activated.get("ok") is True
+    break_start = next(
+        slot.split(" ", 1)[1]
+        for slot in use_cases._academic_data_repo.list_group_restrictions()[0]["break_slots"]
+        if slot.startswith("Dilluns ")
+    )
+    hour_index = {f"{hour}:{minute:02d}": index for index, (hour, minute) in enumerate(
+        ((hour, minute) for hour in range(8, 22) for minute in (0, 30))
+    )}
+    break_index = hour_index[break_start]
+    for activity in activated["activities"]:
+        if activity["group"] != "1A":
+            continue
+        start_index = hour_index[activity["start"]]
+        assert not (start_index < break_index + 1 and start_index + activity["duration"] > break_index)

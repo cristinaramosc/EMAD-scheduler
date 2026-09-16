@@ -536,6 +536,15 @@ class SchedulerUseCases:
         ]
 
         if new_conflicts:
+            if self._reflow_activity_list(current_activities, target_activity, day, start, baseline_keys):
+                conflicts = self._scheduler_engine.validate(self._build_schedule(current_activities))
+                new_conflicts = [
+                    conflict
+                    for conflict in conflicts
+                    if self._conflict_key(conflict) not in baseline_keys
+                ]
+
+        if new_conflicts:
             exclude_pairs = {(day, start)}
             if not newly_placed:
                 exclude_pairs.add((previous_day, previous_start))
@@ -587,6 +596,70 @@ class SchedulerUseCases:
             "proposal": serialize_proposal(updated_proposal),
             "unscheduled_activities": updated_metadata.get("unscheduled_activities", []),
         }
+
+    def _reflow_activity_list(
+        self,
+        activities: List[Activity],
+        target: Activity,
+        day: str,
+        start: str,
+        baseline_keys: set,
+    ) -> bool:
+        original_positions = {item.id: (item.day, item.start) for item in activities}
+        target.day = day
+        target.start = start
+        hour_names = self._time_labels.get("hour_names", [])
+        day_names = self._time_labels.get("day_names", [])
+        hour_index = {value: index for index, value in enumerate(hour_names)}
+        visited = set()
+
+        def blockers() -> List[Activity]:
+            conflicts = [
+                conflict for conflict in self._scheduler_engine.validate(self._build_schedule(activities))
+                if self._conflict_key(conflict) not in baseline_keys
+            ]
+            ids = {
+                blocker_id
+                for conflict in conflicts
+                for blocker_id in (conflict.activities or [])
+                if blocker_id != target.id
+            }
+            return [item for item in activities if item.id in ids and not getattr(item, "fixed", False)]
+
+        target_index = hour_index.get(start, 0)
+        preferred_hours = (
+            [hour_names[index] for index in range(target_index - 1, -1, -1)]
+            + [hour_names[index] for index in range(target_index + 1, len(hour_names))]
+        )
+        candidate_positions = [(candidate_day, candidate_hour) for candidate_day in [day] + [value for value in day_names if value != day] for candidate_hour in preferred_hours]
+
+        def search(depth: int = 0) -> bool:
+            current_blockers = blockers()
+            if not current_blockers:
+                return True
+            if depth >= len(activities):
+                return False
+            blocker = current_blockers[0]
+            original = (blocker.day, blocker.start)
+            for candidate_day, candidate_hour in candidate_positions:
+                if (candidate_day, candidate_hour) == original:
+                    continue
+                state_key = (blocker.id, candidate_day, candidate_hour, depth)
+                if state_key in visited:
+                    continue
+                visited.add(state_key)
+                blocker.day = candidate_day
+                blocker.start = candidate_hour
+                if search(depth + 1):
+                    return True
+                blocker.day, blocker.start = original
+            return False
+
+        if search():
+            return True
+        for item in activities:
+            item.day, item.start = original_positions[item.id]
+        return False
 
     def swap_proposal_activities(
         self, proposal_id: str, activity_id_a: int, activity_id_b: int

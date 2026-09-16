@@ -1,6 +1,6 @@
 import pytest
 
-from backend.routes.scheduler_live import move as move_route
+from backend.routes.scheduler_live import move as move_route, move_with_reflow as reflow_route
 from backend.scheduler_engine.engine_instance import engine as shared_engine
 from scheduler_engine.engine import SchedulerEngine
 from scheduler_engine.models import Schedule, Activity
@@ -108,6 +108,45 @@ def test_invalid_move_is_rejected_and_schedule_remains_consistent():
     assert result["conflicts"]
     assert shared_engine.state.all()[0].day == "Monday"
     assert shared_engine.state.all()[0].start == "08:00"
+
+
+def test_reflow_move_displaces_occupying_activity_to_an_adjacent_slot():
+    schedule = Schedule()
+    schedule.add(
+        Activity(
+            id=1,
+            teacher="Joan",
+            subject="Dibuix",
+            group="1A",
+            room="A1",
+            day="Monday",
+            start="08:00",
+            duration=2,
+        )
+    )
+    schedule.add(
+        Activity(
+            id=2,
+            teacher="Maria",
+            subject="Música",
+            group="1A",
+            room="A2",
+            day="Monday",
+            start="10:00",
+            duration=2,
+        )
+    )
+    shared_engine.load(schedule)
+
+    result = reflow_route(
+        type("MovePayload", (), {"activity_id": 1, "day": "Monday", "start": "10:00"})()
+    )
+
+    assert result["ok"] is True
+    moved = {item.id: item for item in shared_engine.state.all()}
+    assert (moved[1].day, moved[1].start) == ("Monday", "10:00")
+    assert moved[2].day == "Monday"
+    assert moved[2].start != "10:00"
 
 
 def test_move_is_accepted_when_schedule_already_has_unrelated_conflicts():

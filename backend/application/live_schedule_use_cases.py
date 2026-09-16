@@ -177,6 +177,80 @@ class LiveScheduleUseCases:
             **self.state(),
         }
 
+    def move_with_reflow(self, activity_id: int, day: str, start: str) -> Dict[str, Any]:
+        """Mou una activitat i reubica en cascada les que bloquegen el destí."""
+        self._ensure_active_schedule_from_proposal()
+        activities = self._engine.state.all()
+        target = next((item for item in activities if item.id == activity_id), None)
+        if target is None:
+            return {"ok": False, "error": "activity_not_found", **self.state()}
+
+        baseline_keys = {self._conflict_key(conflict) for conflict in self._engine.validate()}
+        original_positions = {item.id: (item.day, item.start) for item in activities}
+        target.day = day
+        target.start = start
+        visited = set()
+
+        def conflicts_to_move() -> List[Activity]:
+            new_conflicts = [
+                conflict for conflict in self._engine.validate()
+                if self._conflict_key(conflict) not in baseline_keys
+            ]
+            ids = {
+                activity_id
+                for conflict in new_conflicts
+                for activity_id in (conflict.activities or [])
+                if activity_id != target.id
+            }
+            return [item for item in activities if item.id in ids and not getattr(item, "fixed", False)]
+
+        def candidate_starts(item: Activity) -> List[tuple[str, str]]:
+            hour_names, hour_index = self._half_hour_grid()
+            ordered_days = [day] + [value for value in self._DAY_ORDER if value != day]
+            target_index = hour_index.get(start, 0)
+            preferred_indices = list(range(target_index - 1, -1, -1)) + list(range(target_index + 1, len(hour_names)))
+            preferred = [hour_names[index] for index in preferred_indices]
+            return [(candidate_day, candidate_start) for candidate_day in ordered_days for candidate_start in preferred]
+
+        def search(depth: int = 0) -> bool:
+            blockers = conflicts_to_move()
+            if not blockers:
+                return not any(
+                    self._conflict_key(conflict) not in baseline_keys
+                    for conflict in self._engine.validate()
+                )
+            if depth >= len(activities):
+                return False
+
+            blocker = blockers[0]
+            original = (blocker.day, blocker.start)
+            for candidate_day, candidate_start in candidate_starts(blocker):
+                if (candidate_day, candidate_start) == original:
+                    continue
+                state_key = (blocker.id, candidate_day, candidate_start, depth)
+                if state_key in visited:
+                    continue
+                visited.add(state_key)
+                blocker.day = candidate_day
+                blocker.start = candidate_start
+                if search(depth + 1):
+                    return True
+                blocker.day, blocker.start = original
+            return False
+
+        if not search():
+            for item in activities:
+                item.day, item.start = original_positions[item.id]
+            return {
+                "ok": False,
+                "error": "reflow_failed",
+                "detail": "No s'ha trobat cap reordenació viable per alliberar aquesta franja.",
+                **self.state(),
+            }
+
+        self._persist_active_schedule(clear_proposal=False)
+        return {"ok": True, **self.state()}
+
     def add_manual_activity(
         self,
         subject: str,
@@ -517,12 +591,12 @@ class LiveScheduleUseCases:
         # resta i deixa un buit abans del descans), no cal desplaçar res:
         # el descans s'hi col·loca directament sense tocar la resta del dia.
         occupied_slots = set()
-        item_at_start_idx = {}
+        items_at_start_idx: Dict[int, List[Any]] = {}
         for item in day_activities:
             idx = hour_index.get(item.start, -1)
             if idx == -1:
                 continue
-            item_at_start_idx[idx] = item
+            items_at_start_idx.setdefault(idx, []).append(item)
             duration = max(int(getattr(item, "duration", 1) or 1), 1)
             for offset in range(duration):
                 occupied_slots.add(idx + offset)
@@ -530,13 +604,17 @@ class LiveScheduleUseCases:
         to_shift = []
         cursor = insertion_idx
         while cursor in occupied_slots:
-            item = item_at_start_idx.get(cursor)
-            if item is None:
+            items = items_at_start_idx.get(cursor, [])
+            if not items:
                 break  # franja ocupada per la cua d'una activitat que ja comença abans
-            to_shift.append(item)
-            cursor = hour_index.get(item.start, -1) + max(int(getattr(item, "duration", 1) or 1), 1)
+            to_shift.extend(items)
+            cursor = max(
+                hour_index.get(item.start, -1) + max(int(getattr(item, "duration", 1) or 1), 1)
+                for item in items
+            )
 
         to_shift.sort(key=lambda item: hour_index.get(item.start, -1), reverse=True)
+        original_positions = {item.id: item.start for item in to_shift}
         for item in to_shift:
             idx = hour_index.get(item.start, -1)
             new_idx = idx + 1
@@ -550,6 +628,9 @@ class LiveScheduleUseCases:
                 }
             result = self.move(item.id, item.day, hour_names[new_idx])
             if not result.get("ok"):
+                for moved_item in to_shift:
+                    if moved_item.id in original_positions:
+                        moved_item.start = original_positions[moved_item.id]
                 return {
                     "ok": False,
                     "error": "no_free_slot",
@@ -557,6 +638,27 @@ class LiveScheduleUseCases:
                     "active": False,
                     **self.state(),
                 }
+
+        chosen_end_idx = insertion_idx + 1
+        overlaps_break = any(
+            self._norm_name(item.group) == target_group
+            and self._same_day(item.day, day)
+            and (item.subject or "").strip().lower() != "descans"
+            and hour_index.get(item.start, -1) < chosen_end_idx
+            and hour_index.get(item.start, -1) + max(int(getattr(item, "duration", 1) or 1), 1) > insertion_idx
+            for item in self._engine.state.all()
+        )
+        if overlaps_break:
+            for item in to_shift:
+                if item.id in original_positions:
+                    item.start = original_positions[item.id]
+            return {
+                "ok": False,
+                "error": "no_free_slot",
+                "detail": "no es pot obrir el forat sense compartir-lo amb una assignatura",
+                "active": False,
+                **self.state(),
+            }
 
         restriction["group"] = restriction.get("group") or group
         restriction["break_days"] = sorted({*break_days, day})
