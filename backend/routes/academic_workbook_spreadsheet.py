@@ -45,7 +45,6 @@ TEACHER_COLUMNS = [
     ("no_gaps", "Sense buits (Sí/No)"),
     ("max_hours_per_day", "Màx. hores/dia"),
     ("max_consecutive_hours", "Màx. hores consecutives"),
-    ("preferred_availability", "Disponibilitat preferida (franges separades per comes, p.ex. Dilluns 8:00, Dilluns 8:30)"),
     ("unavailable_slots", "Franges no disponibles (franges separades per comes)"),
 ]
 
@@ -55,6 +54,7 @@ GROUP_COLUMNS = [
     ("no_gaps", "Sense buits (Sí/No)"),
     ("max_hours_per_day", "Màx. hores/dia"),
     ("max_consecutive_hours", "Màx. hores consecutives"),
+    ("minimum_daily_hours", "Mínim d'hores diàries"),
     ("preferred_availability", "Disponibilitat preferida (franges separades per comes)"),
     ("unavailable_slots", "Franges no disponibles (franges separades per comes)"),
 ]
@@ -172,6 +172,7 @@ def _group_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
             "no_gaps": _bool_to_text(restriction.get("no_gaps")),
             "max_hours_per_day": restriction.get("max_hours_per_day", ""),
             "max_consecutive_hours": restriction.get("max_consecutive_hours", ""),
+            "minimum_daily_hours": restriction.get("minimum_daily_hours", ""),
             "preferred_availability": _slots_to_text(restriction.get("preferred_availability")),
             "unavailable_slots": _slots_to_text(restriction.get("unavailable_slots")),
         })
@@ -324,6 +325,7 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
                 "no_gaps": _text_to_bool(row.get("no_gaps")),
                 "max_hours_per_day": row.get("max_hours_per_day") or None,
                 "max_consecutive_hours": row.get("max_consecutive_hours") or None,
+                "minimum_daily_hours": _text_to_optional_float(row.get("minimum_daily_hours")),
                 "preferred_availability": _text_to_slots(row.get("preferred_availability")),
                 "unavailable_slots": _text_to_slots(row.get("unavailable_slots")),
             })

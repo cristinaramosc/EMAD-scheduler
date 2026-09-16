@@ -14,6 +14,10 @@ except ModuleNotFoundError:  # pragma: no cover
 router = APIRouter(prefix="/academic-data", tags=["Academic Data"])
 
 
+def _normalized_name(value: str) -> str:
+    return str(value or "").strip().casefold()
+
+
 @router.get("/summary")
 def academic_data_summary():
     return get_academic_data_repo().summary()
@@ -84,6 +88,7 @@ class GroupRestrictionDTO(BaseModel):
     no_gaps: Optional[bool] = False
     max_hours_per_day: Optional[float] = None
     max_consecutive_hours: Optional[float] = None
+    minimum_daily_hours: Optional[float] = None
     max_days: Optional[int] = None
     preferred_availability: Optional[List[str]] = []
     unavailable_slots: Optional[List[str]] = []
@@ -101,6 +106,7 @@ class GroupRestrictionUpdateDTO(BaseModel):
     no_gaps: Optional[bool] = None
     max_hours_per_day: Optional[float] = None
     max_consecutive_hours: Optional[float] = None
+    minimum_daily_hours: Optional[float] = None
     max_days: Optional[int] = None
     preferred_availability: Optional[List[str]] = None
     unavailable_slots: Optional[List[str]] = None
@@ -266,9 +272,9 @@ def update_teacher_restrictions(name: str, payload: TeacherRestrictionUpdateDTO)
 def list_groups():
     repo = get_academic_data_repo()
     groups = repo.list_groups()
-    restrictions = {r["group"]: r for r in repo.list_group_restrictions()}
+    restrictions = {_normalized_name(r.get("group")): r for r in repo.list_group_restrictions()}
     for group in groups:
-        group.update(restrictions.get(group["name"], {}))
+        group.update(restrictions.get(_normalized_name(group.get("name")), {}))
     return groups
 
 
@@ -328,7 +334,10 @@ def delete_group(name: str):
 @router.get("/groups/{name}/restrictions")
 def get_group_restrictions(name: str):
     repo = get_academic_data_repo()
-    restriction = next((item for item in repo.list_group_restrictions() if item.get("group") == name), None)
+    restriction = next(
+        (item for item in repo.list_group_restrictions() if _normalized_name(item.get("group")) == _normalized_name(name)),
+        None,
+    )
 
     if restriction is None:
         raise HTTPException(status_code=404, detail="group_restrictions_not_found")
@@ -339,12 +348,15 @@ def get_group_restrictions(name: str):
 @router.patch("/groups/{name}/restrictions")
 def update_group_restrictions(name: str, payload: GroupRestrictionUpdateDTO):
     repo = get_academic_data_repo()
-    current = next((item for item in repo.list_groups() if item.get("name") == name), None)
+    current = next(
+        (item for item in repo.list_groups() if _normalized_name(item.get("name")) == _normalized_name(name)),
+        None,
+    )
     if current is None:
         raise HTTPException(status_code=404, detail="group_not_found")
 
     existing_restriction = next(
-        (item for item in repo.list_group_restrictions() if item.get("group") == name),
+        (item for item in repo.list_group_restrictions() if _normalized_name(item.get("group")) == _normalized_name(name)),
         {},
     )
 
@@ -353,6 +365,7 @@ def update_group_restrictions(name: str, payload: GroupRestrictionUpdateDTO):
         "no_gaps": payload.no_gaps if payload.no_gaps is not None else False,
         "max_hours_per_day": payload.max_hours_per_day,
         "max_consecutive_hours": payload.max_consecutive_hours,
+        "minimum_daily_hours": payload.minimum_daily_hours if payload.minimum_daily_hours is not None else existing_restriction.get("minimum_daily_hours"),
         "max_days": payload.max_days if payload.max_days is not None else existing_restriction.get("max_days"),
         "preferred_availability": payload.preferred_availability if payload.preferred_availability is not None else existing_restriction.get("preferred_availability", []),
         "unavailable_slots": payload.unavailable_slots if payload.unavailable_slots is not None else existing_restriction.get("unavailable_slots", []),
