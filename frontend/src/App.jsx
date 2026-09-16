@@ -2100,7 +2100,7 @@ export default function App() {
     try {
       const targetUrl = proposal?.id
         ? `${API_URL}/scheduler/proposal/${proposal.id}/move`
-        : `${API_URL}/scheduler/move`;
+        : `${API_URL}/scheduler/move/reflow`;
 
       const response = await fetch(targetUrl, {
         method: "POST",
@@ -2468,12 +2468,11 @@ export default function App() {
       return;
     }
 
-    // Una franja ocupada per una única activitat diferent es resol amb un
-    // swap (sempre possible), no amb una col·locació directa.
+    // Una franja ocupada es pot resoldre amb reordenació al servidor.
     const occupyingActivities = (activities || []).filter(
       (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
     );
-    if (occupyingActivities.length === 1) {
+    if (occupyingActivities.length > 0) {
       setDropPreviewValid(true);
       return;
     }
@@ -2506,27 +2505,8 @@ export default function App() {
       return;
     }
 
-    // If the target slot is already occupied by a single different activity,
-    // swap the two instead of attempting a move (which would just conflict).
-    const occupyingActivities = (activities || []).filter(
-      (a) => String(a.day) === String(day) && String(a.start) === String(start) && a.id !== activityId
-    );
-    if (occupyingActivities.length === 1) {
-      setDropTarget(null);
-      setDraggedActivityId(null);
-      swapActivity(activityId, occupyingActivities[0].id);
-      return;
-    }
-
-    // client-side validation: prevent different subjects in same slot for same parent-group
-    if (!canMoveActivityToSlot(activityId, day, start)) {
-      // clear transient highlights and keep state consistent
-      setDropTarget(null);
-      setDraggedActivityId(null);
-      return;
-    }
-
-    // passed client-side validation -> perform server move
+    // The server performs the move and reflows any activity occupying the
+    // destination, including chained displacements when needed.
     moveActivity(activityId, day, start);
   }
 

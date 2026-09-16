@@ -76,6 +76,12 @@ def move(move_data: MoveDTO):
     return use_cases.move(move_data.activity_id, move_data.day, move_data.start)
 
 
+@router.post("/move/reflow")
+def move_with_reflow(move_data: MoveDTO):
+    use_cases = get_live_schedule_use_cases()
+    return use_cases.move_with_reflow(move_data.activity_id, move_data.day, move_data.start)
+
+
 @router.post("/activities")
 def add_manual_activity(payload: ManualActivityDTO):
     use_cases = get_live_schedule_use_cases()
