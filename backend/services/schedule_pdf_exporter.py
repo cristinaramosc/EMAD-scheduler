@@ -14,8 +14,8 @@ from io import BytesIO
 from typing import Any, Dict, List, Sequence, Tuple
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT, TA_RIGHT
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import (
@@ -50,51 +50,72 @@ else:  # pragma: no cover
 _HEADER_LABELS = {"group": "Grup", "teacher": "Professor", "room": "Aula"}
 _WEEKDAYS = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
 
-_PAGE_SIZE = landscape(A4)
-_MARGIN = 12 * mm
-_LOGO_WIDTH = 34 * mm
-_ROW_HEIGHT = 5.6 * mm
-_HEADER_ROW_HEIGHT = 7 * mm
-_HOUR_COL_WIDTH = 16 * mm
+_PAGE_SIZE = A4
+_MARGIN = 14 * mm
+_LOGO_WIDTH = 28 * mm
+_ROW_HEIGHT = 14 * mm
+_HEADER_ROW_HEIGHT = 9 * mm
+_HOUR_COL_WIDTH = 18 * mm
 
-_ACTIVITY_BLUE = colors.HexColor("#0071E3")
-_HEADER_GREY = colors.HexColor("#F0F0F3")
-_GRID_LINE = colors.HexColor("#D9D9D9")
-_TEXT_BLACK = colors.HexColor("#1D1D1F")
+_NAVY = colors.HexColor("#2D3561")
+_TITLE_LILAC = colors.HexColor("#9AA0C8")
+_TEXT = colors.HexColor("#1A1A2E")
+_GRID_LINE = colors.HexColor("#D9DCE8")
+_GRID_BACKGROUND = colors.HexColor("#FCFCFE")
 
 _TITLE_STYLE = ParagraphStyle(
-    "Title", fontName="Helvetica-Bold", fontSize=16, textColor=_TEXT_BLACK, alignment=TA_RIGHT, leading=18
+    "Title", fontName="Helvetica-Bold", fontSize=28, textColor=_TITLE_LILAC, alignment=TA_LEFT, leading=30
 )
-_NOTE_STYLE = ParagraphStyle(
-    "Note", fontName="Helvetica-Oblique", fontSize=8, textColor=_TEXT_BLACK, alignment=TA_RIGHT, leading=10
+_YEAR_STYLE = ParagraphStyle(
+    "Year", fontName="Helvetica-Bold", fontSize=13, textColor=_TITLE_LILAC, alignment=TA_LEFT, leading=15
 )
 _HEADER_CELL_STYLE = ParagraphStyle(
-    "HeaderCell", fontName="Helvetica-Bold", fontSize=8, textColor=_TEXT_BLACK, alignment=TA_LEFT, leading=10
+    "HeaderCell", fontName="Helvetica-Bold", fontSize=9, textColor=_TEXT, alignment=TA_CENTER, leading=11
 )
 _HOUR_CELL_STYLE = ParagraphStyle(
-    "HourCell", fontName="Helvetica-Bold", fontSize=7, textColor=_TEXT_BLACK, alignment=TA_LEFT, leading=8
+    "HourCell", fontName="Helvetica", fontSize=8.5, textColor=_TEXT, alignment=TA_RIGHT, leading=10
 )
 _EMPTY_MESSAGE_STYLE = ParagraphStyle(
-    "Empty", fontName="Helvetica-Oblique", fontSize=10, textColor=_TEXT_BLACK, alignment=TA_LEFT
+    "Empty", fontName="Helvetica-Oblique", fontSize=10, textColor=_TEXT, alignment=TA_LEFT
 )
 _ACTIVITY_SUBJECT_STYLE = ParagraphStyle(
-    "ActivitySubject", fontName="Helvetica-Bold", fontSize=7.5, textColor=colors.white, alignment=TA_LEFT, leading=9
+    "ActivitySubject", fontName="Helvetica-Bold", fontSize=8.5, textColor=colors.white, alignment=TA_LEFT, leading=10
 )
-_ACTIVITY_EXTRA_STYLE = ParagraphStyle(
-    "ActivityExtra", fontName="Helvetica", fontSize=6.5, textColor=colors.white, alignment=TA_LEFT, leading=8
+_ACTIVITY_TEACHER_STYLE = ParagraphStyle(
+    "ActivityTeacher", fontName="Helvetica", fontSize=7.5, textColor=colors.white, alignment=TA_RIGHT, leading=9
+)
+_META_STYLE = ParagraphStyle(
+    "Meta", fontName="Helvetica", fontSize=9, textColor=_TEXT, alignment=TA_LEFT, leading=12
 )
 
 
-def _cell_text_parts(activity: Dict[str, Any], sheet_kind: str) -> Tuple[str, str]:
-    subject = (activity.get("subject") or "").strip()
-    if sheet_kind == "room":
-        extra_fields = [activity.get("group"), activity.get("teacher")]
-    elif sheet_kind == "teacher":
-        extra_fields = [activity.get("group"), activity.get("room")]
-    else:
-        extra_fields = [activity.get("teacher"), activity.get("room")]
-    extra = " · ".join(part for part in extra_fields if part)
-    return subject, extra
+def _clean_text(value: Any) -> str:
+    from xml.sax.saxutils import escape
+
+    return escape(str(value or "").strip())
+
+
+def _is_tutor_activity(activity: Dict[str, Any]) -> bool:
+    return bool(activity.get("is_tutor") or activity.get("tutor"))
+
+
+def _tutor_name(activity: Dict[str, Any]) -> str:
+    explicit = activity.get("tutor_name") or activity.get("tutor")
+    if isinstance(explicit, str) and explicit.strip() and explicit.strip().casefold() not in {"true", "false"}:
+        return explicit.strip()
+    if _is_tutor_activity(activity):
+        return (activity.get("teacher") or "").strip()
+    return ""
+
+
+def _page_metadata(sheet_kind: str, display_name: str, activities: Sequence[Dict[str, Any]], notes: List[str]) -> Tuple[str, str, str, str]:
+    group = display_name if sheet_kind == "group" else next((str(a.get("group") or "").strip() for a in activities if a.get("group")), "")
+    rooms = sorted({str(a.get("room") or "").strip() for a in activities if str(a.get("room") or "").strip()})
+    tutor = next((_tutor_name(a) for a in activities if _tutor_name(a)), "")
+    if not tutor:
+        tutor_note = next((note for note in notes if note.startswith("Tutoria:")), "")
+        tutor = tutor_note.removeprefix("Tutoria:").split(" — ", 1)[0].strip()
+    return ", ".join(rooms) or "—", group or "—", tutor or "—", "; ".join(notes)
 
 
 def _minutes(hour_label: str) -> int | None:
@@ -121,109 +142,100 @@ def _insert_logo_flowable():
         return Spacer(_LOGO_WIDTH, 1)
 
 
-def _build_page_header(sheet_kind: str, display_name: str, notes: List[str], available_width: float):
-    label = _HEADER_LABELS.get(sheet_kind, "")
-    title_text = f"{label}: {display_name}" if label else display_name
-
-    logo_flowable = _insert_logo_flowable()
-    title_paragraph = Paragraph(title_text, _TITLE_STYLE)
-
-    rows = [[logo_flowable, title_paragraph]]
-    if notes:
-        rows.append(["", Paragraph("<br/>".join(notes), _NOTE_STYLE)])
-
-    header_table = Table(rows, colWidths=[_LOGO_WIDTH + 4 * mm, available_width - _LOGO_WIDTH - 4 * mm])
+def _build_page_header(sheet_kind: str, display_name: str, activities: Sequence[Dict[str, Any]], notes: List[str], available_width: float):
+    room, group, tutor, notes_text = _page_metadata(sheet_kind, display_name, activities, notes)
+    title_table = Table(
+        [[Paragraph(_clean_text(display_name), _TITLE_STYLE)], [Paragraph("Curs acadèmic 26 / 27", _YEAR_STYLE)]],
+        colWidths=[available_width],
+    )
+    metadata = Table(
+        [[Paragraph(f"<b>Aula:</b> {_clean_text(room)}", _META_STYLE), Paragraph(f"<b>Grup:</b> {_clean_text(group)}", _META_STYLE), Paragraph(f"<b>Tutor/a del grup:</b> {_clean_text(tutor)}", _META_STYLE)]],
+        colWidths=[available_width / 3] * 3,
+    )
+    rows = [[title_table], [metadata]]
+    if notes_text:
+        rows.append([Paragraph(_clean_text(notes_text), _META_STYLE)])
+    header_table = Table(rows, colWidths=[available_width])
     style_commands = [
-        ("SPAN", (0, 0), (0, len(rows) - 1)),
-        ("VALIGN", (0, 0), (0, -1), "TOP"),
-        ("VALIGN", (1, 0), (1, -1), "MIDDLE"),
-        ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
         ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
     ]
     header_table.setStyle(TableStyle(style_commands))
     return header_table
 
 
 def _build_grid_table(activities: List[Dict[str, Any]], sheet_kind: str, available_width: float):
-    days = _WEEKDAYS
-
-    starts = [_minutes(a.get("start")) for a in activities]
-    starts = [m for m in starts if m is not None]
+    starts = [_minutes(a.get("start")) for a in activities if _minutes(a.get("start")) is not None]
     if not starts:
         return None
 
-    ends = []
+    ends: List[int] = []
     for activity in activities:
         start_minutes = _minutes(activity.get("start"))
         if start_minutes is None:
             continue
-        duration_blocks = activity.get("duration") or 1
         try:
-            duration_blocks = max(int(duration_blocks), 1)
+            duration_blocks = max(int(activity.get("duration") or 1), 1)
         except (TypeError, ValueError):
             duration_blocks = 1
         ends.append(start_minutes + duration_blocks * 30)
 
-    min_minutes = min(starts)
-    max_minutes = max(ends) if ends else min_minutes + 30
-    hour_labels = [_minutes_to_label(m) for m in range(min_minutes, max_minutes, 30)]
+    first_hour = (min(starts) // 60) * 60
+    last_hour = ((max(ends) + 59) // 60) * 60
+    hour_labels = [_minutes_to_label(m) for m in range(first_hour, max(last_hour, first_hour + 60), 60)]
     hour_row_index = {label: index for index, label in enumerate(hour_labels)}
-
-    # Agrupa les activitats per (dia, hora d'inici) per gestionar el cas
-    # (poc habitual) que hi hagi més d'una activitat simultània a la
-    # mateixa franja (p.ex. mig grup a cada banda).
     by_slot: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
     for activity in activities:
-        key = (activity.get("day"), activity.get("start"))
+        start_minutes = _minutes(activity.get("start"))
+        if start_minutes is None:
+            continue
+        key = (activity.get("day"), _minutes_to_label((start_minutes // 60) * 60))
         by_slot.setdefault(key, []).append(activity)
 
-    header_row = [Paragraph("Hora", _HEADER_CELL_STYLE)] + [
-        Paragraph(day.capitalize(), _HEADER_CELL_STYLE) for day in days
-    ]
+    header_row = [Paragraph("Hora", _HEADER_CELL_STYLE)] + [Paragraph(day, _HEADER_CELL_STYLE) for day in _WEEKDAYS]
     data: List[List[Any]] = [header_row]
     for label in hour_labels:
-        data.append([Paragraph(label, _HOUR_CELL_STYLE)] + ["" for _ in days])
+        data.append([Paragraph(label, _HOUR_CELL_STYLE)] + ["" for _ in _WEEKDAYS])
 
     hour_col_width = _HOUR_COL_WIDTH
-    day_col_width = (available_width - hour_col_width) / max(len(days), 1)
-    col_widths = [hour_col_width] + [day_col_width] * len(days)
+    day_col_width = (available_width - hour_col_width) / len(_WEEKDAYS)
+    col_widths = [hour_col_width] + [day_col_width] * len(_WEEKDAYS)
 
     style_commands = [
-        ("GRID", (0, 0), (-1, -1), 0.5, _GRID_LINE),
-        ("BACKGROUND", (0, 0), (-1, 0), _HEADER_GREY),
-        ("BACKGROUND", (0, 1), (0, -1), _HEADER_GREY),
+        ("BACKGROUND", (0, 1), (-1, -1), _GRID_BACKGROUND),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.7, _GRID_LINE),
+        ("LINEBELOW", (0, 1), (-1, -1), 0.35, _GRID_LINE),
+        ("LINEAFTER", (0, 0), (-1, -1), 0.35, _GRID_LINE),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 3),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
         ("TOPPADDING", (0, 0), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]
 
-    for day_index, day in enumerate(days):
+    for day_index, day in enumerate(_WEEKDAYS):
         col = day_index + 1
-        for start_label, slot_activities in by_slot.items():
-            if start_label[0] != day:
+        for (slot_day, start_label), slot_activities in by_slot.items():
+            if slot_day != day or start_label not in hour_row_index:
                 continue
-            start_row_key = start_label[1]
-            if start_row_key not in hour_row_index:
-                continue
-            row_start = 1 + hour_row_index[start_row_key]
-            duration_blocks = 1
+            row_start = 1 + hour_row_index[start_label]
+            duration_rows = 1
             for activity in slot_activities:
                 try:
-                    duration_blocks = max(duration_blocks, int(activity.get("duration") or 1))
+                    duration_rows = max(duration_rows, (int(activity.get("duration") or 1) + 1) // 2)
                 except (TypeError, ValueError):
                     pass
-            row_end = min(row_start + duration_blocks - 1, len(data) - 1)
+            row_end = min(row_start + duration_rows - 1, len(data) - 1)
 
             cell_content = _build_activity_cell(slot_activities, sheet_kind)
             data[row_start][col] = cell_content
             if row_end > row_start:
                 style_commands.append(("SPAN", (col, row_start), (col, row_end)))
-            style_commands.append(("BACKGROUND", (col, row_start), (col, row_end), _ACTIVITY_BLUE))
+            style_commands.append(("BACKGROUND", (col, row_start), (col, row_end), _NAVY))
+            style_commands.append(("LINEBELOW", (col, row_end), (col, row_end), 2.5, colors.white))
 
     table = Table(data, colWidths=col_widths, rowHeights=[_HEADER_ROW_HEIGHT] + [_ROW_HEIGHT] * len(hour_labels))
     table.setStyle(TableStyle(style_commands))
@@ -231,32 +243,23 @@ def _build_grid_table(activities: List[Dict[str, Any]], sheet_kind: str, availab
 
 
 def _build_activity_cell(activities: List[Dict[str, Any]], sheet_kind: str):
-    if len(activities) == 1:
-        subject, extra = _cell_text_parts(activities[0], sheet_kind)
-        paragraphs = [Paragraph(subject, _ACTIVITY_SUBJECT_STYLE)]
-        if extra:
-            paragraphs.append(Paragraph(extra, _ACTIVITY_EXTRA_STYLE))
-        return paragraphs
-
-    # Diverses activitats simultànies (p.ex. mig grup cadascuna): es mostren
-    # apilades dins la mateixa franja, separades per una línia fina blanca.
-    rows = []
+    columns = []
     for activity in activities:
-        subject, extra = _cell_text_parts(activity, sheet_kind)
-        cell_paragraphs = [Paragraph(subject, _ACTIVITY_SUBJECT_STYLE)]
-        if extra:
-            cell_paragraphs.append(Paragraph(extra, _ACTIVITY_EXTRA_STYLE))
-        rows.append([cell_paragraphs])
-    nested = Table(rows, colWidths=[None])
+        subject = _clean_text(activity.get("subject"))
+        teacher = _clean_text(activity.get("teacher"))
+        tutor_tag = "<font backColor='#FFFFFF' color='#2D3561' size='6'><b>TUTOR/A</b></font><br/>" if _is_tutor_activity(activity) else ""
+        columns.append([Paragraph(f"{tutor_tag}{subject}", _ACTIVITY_SUBJECT_STYLE), Paragraph(teacher, _ACTIVITY_TEACHER_STYLE)])
+
+    nested = Table([columns], colWidths=[None] * len(columns))
     nested.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), _ACTIVITY_BLUE),
-                ("LINEBELOW", (0, 0), (-1, -2), 0.75, colors.white),
-                ("LEFTPADDING", (0, 0), (-1, -1), 3),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 3),
-                ("TOPPADDING", (0, 0), (-1, -1), 2),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ("BACKGROUND", (0, 0), (-1, -1), _NAVY),
+                ("LINEAFTER", (0, 0), (-2, -1), 2, colors.white),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ]
         )
@@ -323,7 +326,7 @@ def build_schedule_pdf(activities: Sequence[Dict[str, Any]]) -> BytesIO:
         story.append(Spacer(1, 8 * mm))
         story.append(Paragraph("No hi ha cap activitat programada.", _EMPTY_MESSAGE_STYLE))
     for index, (sheet_kind, display_name, sheet_activities, notes) in enumerate(sections):
-        story.append(_build_page_header(sheet_kind, display_name, notes, available_width))
+        story.append(_build_page_header(sheet_kind, display_name, sheet_activities, notes, available_width))
         story.append(Spacer(1, 4 * mm))
         grid_table = _build_grid_table(sheet_activities, sheet_kind, available_width)
         if grid_table is not None:
