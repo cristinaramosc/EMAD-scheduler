@@ -182,3 +182,21 @@ def test_toggle_group_break_never_shares_slot_with_long_activity():
             continue
         start_index = hour_index[activity["start"]]
         assert not (start_index < break_index + 1 and start_index + activity["duration"] > break_index)
+
+
+def test_toggle_group_break_shifts_two_consecutive_rounds_atomically():
+    use_cases = _build_use_cases()
+    use_cases.load(
+        [
+            {"id": 1, "teacher": "A", "subject": "A", "group": "1A", "room": "R1", "day": "Dilluns", "start": "8:00", "duration": 2},
+            {"id": 2, "teacher": "B", "subject": "B", "group": "1A", "room": "R2", "day": "Dilluns", "start": "9:00", "duration": 2},
+            {"id": 3, "teacher": "C", "subject": "C", "group": "1A", "room": "R3", "day": "Dilluns", "start": "10:00", "duration": 2},
+            {"id": 4, "teacher": "D", "subject": "D", "group": "1A", "room": "R4", "day": "Dilluns", "start": "11:00", "duration": 2},
+        ]
+    )
+
+    activated = use_cases.toggle_group_break("1A", "Dilluns")
+
+    assert activated.get("ok") is True
+    starts = {activity["id"]: activity["start"] for activity in activated["activities"]}
+    assert starts == {1: "8:00", 2: "9:30", 3: "10:30", 4: "11:30"}

@@ -384,7 +384,22 @@ def update_group_restrictions(name: str, payload: GroupRestrictionUpdateDTO):
 
 @router.get("/subjects")
 def list_subjects():
-    return get_academic_data_repo().list_subjects()
+    repo = get_academic_data_repo()
+    subjects = list(repo.list_subjects())
+    known_names = {_normalized_name(subject.get("name")) for subject in subjects}
+    for assignment in repo.active_canonical_assignments():
+        name = str(assignment.get("subject") or "").strip()
+        if not name or _normalized_name(name) in known_names:
+            continue
+        subjects.append(
+            {
+                "name": name,
+                "weekly_hours": assignment.get("weekly_hours", 0),
+                "allowed_session_lengths": assignment.get("allowed_session_lengths", []),
+            }
+        )
+        known_names.add(_normalized_name(name))
+    return subjects
 
 
 @router.post("/subjects")
@@ -468,9 +483,17 @@ def list_assignments():
 @router.post("/assignments")
 def create_assignment(payload: AssignmentDTO):
     repo = get_academic_data_repo()
-    subject = next((s for s in repo.list_subjects() if s["name"] == payload.subject), None)
+    subject = next((s for s in list_subjects() if _normalized_name(s.get("name")) == _normalized_name(payload.subject)), None)
     if subject is None:
-        raise HTTPException(status_code=400, detail="subject_not_found")
+        try:
+            repo.create_subject({
+                "name": payload.subject.strip(),
+                "allowed_session_lengths": [],
+                "weekly_hours": payload.weekly_hours,
+            })
+        except KeyError as exc:
+            raise HTTPException(status_code=400, detail=str(exc))
+        subject = {"name": payload.subject.strip(), "allowed_session_lengths": []}
     try:
         record = payload.model_dump()
         record["allowed_session_lengths"] = subject.get("allowed_session_lengths", [])
@@ -487,7 +510,7 @@ def update_assignment(assignment_id: str, payload: AssignmentUpdateDTO):
     if current is None:
         raise HTTPException(status_code=404, detail="assignment_not_found")
     updated = {**current, **{k: v for k, v in payload.model_dump().items() if v is not None}}
-    subject = next((s for s in repo.list_subjects() if s["name"] == updated["subject"]), None)
+    subject = next((s for s in list_subjects() if _normalized_name(s.get("name")) == _normalized_name(updated["subject"])), None)
     if subject:
         updated["allowed_session_lengths"] = subject.get("allowed_session_lengths", [])
     try:
