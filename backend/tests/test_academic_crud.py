@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from backend.bootstrap import reset_dependencies
 from backend.dependencies import get_academic_data_repo, get_scheduler_use_cases
+from backend.main import app
+from fastapi.testclient import TestClient
 
 
 def test_create_assignment_and_sessions_and_generate():
@@ -63,3 +65,34 @@ def test_change_assignment_teacher_updates_sessions():
 
     sessions = repo.active_teaching_assignments()
     assert all(s["teacher"] == "New" for s in sessions)
+
+
+def test_subject_list_includes_names_from_existing_assignments():
+    reset_dependencies()
+    repo = get_academic_data_repo()
+    repo.apply_snapshot({"teachers": [{"name": "T1"}], "groups": [{"name": "G1"}]})
+    repo.create_or_update_canonical_assignment({
+        "teacher": "T1",
+        "subject": "Assignatura existent",
+        "group": "G1",
+        "weekly_hours": 2.0,
+    })
+
+    response = TestClient(app).get("/academic-data/subjects")
+
+    assert response.status_code == 200
+    assert any(item["name"] == "Assignatura existent" for item in response.json())
+
+
+def test_create_assignment_registers_missing_subject_catalog_entry():
+    reset_dependencies()
+    repo = get_academic_data_repo()
+    repo.apply_snapshot({"teachers": [{"name": "T1"}], "groups": [{"name": "G1"}]})
+
+    response = TestClient(app).post(
+        "/academic-data/assignments",
+        json={"teacher": "T1", "subject": "Nova assignatura", "group": "G1", "weekly_hours": 2},
+    )
+
+    assert response.status_code == 200
+    assert any(item["name"] == "Nova assignatura" for item in repo.list_subjects())

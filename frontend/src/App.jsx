@@ -660,6 +660,25 @@ export default function App() {
     return lengths.map((value) => String(value)).join("+");
   }
 
+  const availableSubjectOptions = useMemo(() => {
+    const byName = new Map();
+    academicSubjects.forEach((subject) => {
+      if (subject?.name) {
+        byName.set(subject.name, subject);
+      }
+    });
+    teachingAssignments.forEach((assignment) => {
+      if (assignment?.subject && !byName.has(assignment.subject)) {
+        byName.set(assignment.subject, {
+          name: assignment.subject,
+          weekly_hours: assignment.weekly_hours || 0,
+          allowed_session_lengths: assignment.allowed_session_lengths || [],
+        });
+      }
+    });
+    return Array.from(byName.values()).sort((first, second) => first.name.localeCompare(second.name));
+  }, [academicSubjects, teachingAssignments]);
+
   function normalizeTeachingAssignment(assignment, index = 0) {
     const source = assignment?.record || assignment || {};
     const teacher = source.teacher ?? source.teacher_name ?? source.teacherName ?? source.professor ?? "";
@@ -3290,6 +3309,7 @@ export default function App() {
             <button onClick={() => setAcademicTab("teachers")} className={academicTab === "teachers" ? "active" : ""}>Professors</button>
             <button onClick={() => setAcademicTab("groups")} className={academicTab === "groups" ? "active" : ""}>Grups d'alumnes</button>
             <button onClick={() => setAcademicTab("rooms")} className={academicTab === "rooms" ? "active" : ""}>Aules</button>
+            <button onClick={() => setAcademicTab("subjects")} className={academicTab === "subjects" ? "active" : ""}>Assignatures</button>
             <button onClick={() => setAcademicTab("assignments")} className={academicTab === "assignments" ? "active" : ""}>Assignacions docents</button>
             <button style={{ marginLeft: 16 }} onClick={() => refreshAcademicLists()}>Actualitza</button>
           </div>
@@ -3966,9 +3986,157 @@ export default function App() {
               </div>
             )}
 
+            {academicTab === "subjects" && (
+              <div>
+                <h2>Assignatures</h2>
+                <table className="academic-table">
+                  <thead>
+                    <tr>
+                      <th>Nom</th>
+                      <th>Hores setmanals</th>
+                      <th>Durades de sessió permeses</th>
+                      <th>Accions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {availableSubjectOptions.map((subject) => (
+                      <tr key={subject.name}>
+                        <td>
+                          {subjectEdit === subject.name ? (
+                            <input
+                              value={subjectEditValues.name}
+                              onChange={(event) => setSubjectEditValues({ ...subjectEditValues, name: event.target.value })}
+                            />
+                          ) : subject.name}
+                        </td>
+                        <td>
+                          {subjectEdit === subject.name ? (
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.5"
+                              value={subjectEditValues.weekly_hours}
+                              onChange={(event) => setSubjectEditValues({ ...subjectEditValues, weekly_hours: event.target.value })}
+                            />
+                          ) : subject.weekly_hours || "—"}
+                        </td>
+                        <td>
+                          {subjectEdit === subject.name ? (
+                            <input
+                              value={subjectEditValues.allowed_session_lengths}
+                              placeholder="2+3"
+                              onChange={(event) => setSubjectEditValues({ ...subjectEditValues, allowed_session_lengths: event.target.value })}
+                            />
+                          ) : formatSessionLengths(subject.allowed_session_lengths)}
+                        </td>
+                        <td>
+                          {subjectEdit === subject.name ? (
+                            <>
+                              <button type="button" onClick={async () => {
+                                const newName = subjectEditValues.name.trim();
+                                if (!newName) {
+                                  alert("El nom de l'assignatura és obligatori");
+                                  return;
+                                }
+                                const result = await updateSubject(subject.name, {
+                                  name: newName,
+                                  weekly_hours: subjectEditValues.weekly_hours === "" ? 0 : Number(subjectEditValues.weekly_hours),
+                                  allowed_session_lengths: parseSessionLengths(subjectEditValues.allowed_session_lengths),
+                                });
+                                if (!result.ok) {
+                                  alert(result.data?.detail || "No s'ha pogut actualitzar l'assignatura.");
+                                  return;
+                                }
+                                setSubjectEdit(null);
+                                await refreshAcademicLists();
+                              }}>Desa</button>
+                              <button type="button" onClick={() => setSubjectEdit(null)}>Cancel·la</button>
+                            </>
+                          ) : (
+                            <>
+                              <button type="button" onClick={() => {
+                                setSubjectEdit(subject.name);
+                                setSubjectEditValues({
+                                  name: subject.name,
+                                  weekly_hours: subject.weekly_hours ?? "",
+                                  allowed_session_lengths: formatSessionLengths(subject.allowed_session_lengths),
+                                });
+                              }}>Edita</button>
+                              <button type="button" onClick={async () => {
+                                const result = await deleteSubject(subject.name);
+                                if (!result.ok) {
+                                  alert(result.data?.detail || "No s'ha pogut eliminar l'assignatura.");
+                                  return;
+                                }
+                                await refreshAcademicLists();
+                              }}>Elimina</button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td>
+                        <input
+                          value={subjectDraft.name}
+                          placeholder="Nom"
+                          onChange={(event) => setSubjectDraft({ ...subjectDraft, name: event.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.5"
+                          value={subjectDraft.weekly_hours}
+                          placeholder="0"
+                          onChange={(event) => setSubjectDraft({ ...subjectDraft, weekly_hours: event.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          value={subjectDraft.allowed_session_lengths}
+                          placeholder="2+3"
+                          onChange={(event) => setSubjectDraft({ ...subjectDraft, allowed_session_lengths: event.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <button type="button" onClick={async () => {
+                          const name = subjectDraft.name.trim();
+                          if (!name) {
+                            alert("El nom de l'assignatura és obligatori");
+                            return;
+                          }
+                          const result = await createSubject({
+                            name,
+                            weekly_hours: subjectDraft.weekly_hours === "" ? 0 : Number(subjectDraft.weekly_hours),
+                            allowed_session_lengths: parseSessionLengths(subjectDraft.allowed_session_lengths),
+                          });
+                          if (!result.ok) {
+                            alert(result.data?.detail || "No s'ha pogut crear l'assignatura.");
+                            return;
+                          }
+                          setSubjectDraft({ name: "", weekly_hours: "", allowed_session_lengths: "" });
+                          await refreshAcademicLists();
+                        }}>Afegeix</button>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
             {academicTab === "assignments" && (
               <div>
                 <h2>Assignacions docents</h2>
+                {availableSubjectOptions.length === 0 && (
+                  <div className="notice" style={{ marginBottom: 12 }}>
+                    Encara no hi ha cap assignatura creada. Crea-la abans d'afegir una assignació.
+                    <button type="button" style={{ marginLeft: 10 }} onClick={() => setAcademicTab("subjects")}>
+                      Crea una assignatura
+                    </button>
+                  </div>
+                )}
 
                 <div style={{ marginBottom: 12 }}>
                   {!useSpreadsheetView ? (
@@ -4112,7 +4280,7 @@ export default function App() {
                               <option value="">Selecciona una assignatura</option>
                               {[
                                 ...(a.subject && !academicSubjects.some((s) => s.name === a.subject) ? [{ name: a.subject }] : []),
-                                ...academicSubjects,
+                                ...availableSubjectOptions,
                               ].map((s) => (
                                 <option key={s.name} value={s.name}>{s.name}</option>
                               ))}
@@ -4182,11 +4350,20 @@ export default function App() {
                               {teachingAssignments
                                 .filter((other) => other.group === a.group && other.id !== a.id)
                                 .map((other) => (
-                                  <option key={other.id} value={other.subject}>{other.subject}</option>
+                                  <option key={other.id} value={other.subject}>
+                                    {other.subject} · {other.teacher || "Professor no assignat"}
+                                  </option>
                                 ))}
                             </select>
                           ) : (
-                            a.consecutive_group || "—"
+                            a.consecutive_group
+                              ? `${a.consecutive_group}${(() => {
+                                const consecutiveAssignment = teachingAssignments.find(
+                                  (other) => other.group === a.group && other.subject === a.consecutive_group
+                                );
+                                return consecutiveAssignment?.teacher ? ` · ${consecutiveAssignment.teacher}` : "";
+                              })()}`
+                              : "—"
                           )}
                         </td>
                         <td>
@@ -4337,7 +4514,10 @@ export default function App() {
                           }}
                         >
                           <option value="">Assignatura</option>
-                          {academicSubjects.map((s) => (
+                          {availableSubjectOptions.length === 0 && (
+                            <option value="" disabled>No hi ha assignatures disponibles</option>
+                          )}
+                          {availableSubjectOptions.map((s) => (
                             <option key={s.name} value={s.name}>{s.name}</option>
                           ))}
                         </select>
@@ -4395,7 +4575,9 @@ export default function App() {
                           {teachingAssignments
                             .filter((other) => other.group === assignmentDraft.group)
                             .map((other) => (
-                              <option key={other.id} value={other.subject}>{other.subject}</option>
+                              <option key={other.id} value={other.subject}>
+                                {other.subject} · {other.teacher || "Professor no assignat"}
+                              </option>
                             ))}
                         </select>
                       </td>
@@ -4419,7 +4601,7 @@ export default function App() {
                             setAssignmentDraft({ teacher: "", subject: "", group: "", weekly_hours: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
                             await refreshAcademicLists();
                           } else {
-                            alert("No s'ha pogut crear l'assignació docent.");
+                            alert(res.data?.detail || "No s'ha pogut crear l'assignació docent.");
                           }
                         }}>Afegeix</button>
                       </td>

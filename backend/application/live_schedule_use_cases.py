@@ -614,7 +614,9 @@ class LiveScheduleUseCases:
             )
 
         to_shift.sort(key=lambda item: hour_index.get(item.start, -1), reverse=True)
-        original_positions = {item.id: item.start for item in to_shift}
+        original_positions = {item.id: (item.day, item.start) for item in to_shift}
+        baseline_conflicts = self._engine.validate()
+        baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
         for item in to_shift:
             idx = hour_index.get(item.start, -1)
             new_idx = idx + 1
@@ -626,18 +628,28 @@ class LiveScheduleUseCases:
                     "active": False,
                     **self.state(),
                 }
-            result = self.move(item.id, item.day, hour_names[new_idx])
-            if not result.get("ok"):
-                for moved_item in to_shift:
-                    if moved_item.id in original_positions:
-                        moved_item.start = original_positions[moved_item.id]
-                return {
-                    "ok": False,
-                    "error": "no_free_slot",
-                    "detail": "no es pot obrir el forat: no s'ha pogut desplaçar una de les classes",
-                    "active": False,
-                    **self.state(),
-                }
+
+        # Mou tota la cadena en memòria i valida el resultat final. Fer-ho com
+        # una sola operació evita que el segon desplaçament sigui rebutjat pel
+        # primer, o que un error deixi la cadena parcialment persistida.
+        for item in to_shift:
+            idx = hour_index.get(item.start, -1)
+            item.start = hour_names[idx + 1]
+
+        new_conflicts = [
+            conflict for conflict in self._engine.validate()
+            if self._conflict_key(conflict) not in baseline_keys
+        ]
+        if new_conflicts:
+            for item in to_shift:
+                item.day, item.start = original_positions[item.id]
+            return {
+                "ok": False,
+                "error": "no_free_slot",
+                "detail": "no es pot obrir el forat: no s'ha pogut desplaçar tota la cadena",
+                "active": False,
+                **self.state(conflicts=new_conflicts),
+            }
 
         chosen_end_idx = insertion_idx + 1
         overlaps_break = any(
