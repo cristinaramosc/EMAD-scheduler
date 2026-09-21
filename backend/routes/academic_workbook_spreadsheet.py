@@ -51,6 +51,8 @@ TEACHER_COLUMNS = [
 GROUP_COLUMNS = [
     ("name", "Nom del grup"),
     ("active", "Actiu (Sí/No)"),
+    ("tutor", "Tutor"),
+    ("is_split", "Desdoblat (Sí/No)"),
     ("no_gaps", "Sense buits (Sí/No)"),
     ("max_hours_per_day", "Màx. hores/dia"),
     ("max_consecutive_hours", "Màx. hores consecutives"),
@@ -64,15 +66,19 @@ SUBJECT_COLUMNS = [
     ("group", "Grup"),
     ("teacher", "Professor/s (separats per coma si són diversos)"),
     ("weekly_hours", "Durada total (hores, p.ex. 1,5 = 1h 30min)"),
+    ("allowed_session_lengths", "Durades de sessió permeses (p.ex. 2+3, opcional)"),
     ("preferred_room", "Aula preferida (opcional)"),
     ("max_session_days", "Màxim de dies en què es pot repartir (mínim 1h per sessió)"),
     ("fixed_day", "Dia fix (opcional)"),
     ("fixed_start", "Hora fixa (opcional, p.ex. 9:00)"),
+    ("consecutive_subject", "Consecutiva amb - Assignatura (opcional)"),
+    ("consecutive_teacher", "Consecutiva amb - Professor (opcional, per desdoblats)"),
 ]
 
 ROOM_COLUMNS = [
     ("name", "Nom de l'aula"),
     ("active", "Activa (Sí/No)"),
+    ("capacity", "Capacitat"),
 ]
 
 
@@ -115,6 +121,50 @@ def _format_hours(value: Any) -> Any:
     except (TypeError, ValueError):
         return value
     return int(number) if number == int(number) else number
+
+
+def _lengths_to_text(lengths: Any) -> str:
+    if not lengths:
+        return ""
+    parts = []
+    for length in lengths:
+        formatted = _format_hours(length)
+        parts.append(str(formatted) if formatted != "" else "0")
+    return "+".join(parts)
+
+
+def _text_to_lengths(value: Any) -> List[float]:
+    text = str(value or "").strip()
+    if not text:
+        return []
+    lengths = []
+    for part in text.split("+"):
+        part = part.strip().replace(",", ".")
+        if not part:
+            continue
+        try:
+            lengths.append(float(part))
+        except ValueError:
+            continue
+    return lengths
+
+
+def _consecutive_group_to_text(value: Any) -> tuple:
+    """Separa el valor intern ('Assignatura::Professor') en les dues
+    columnes llegibles del full de càlcul."""
+    text = str(value or "").strip()
+    if "::" in text:
+        subject, teacher = text.split("::", 1)
+        return subject.strip(), teacher.strip()
+    return text, ""
+
+
+def _text_to_consecutive_group(subject: Any, teacher: Any) -> str:
+    subject_text = str(subject or "").strip()
+    teacher_text = str(teacher or "").strip()
+    if not subject_text:
+        return ""
+    return f"{subject_text}::{teacher_text}" if teacher_text else subject_text
 
 
 def _write_sheet(workbook: Workbook, title: str, columns, rows: List[Dict[str, Any]], note: str = "") -> None:
@@ -169,6 +219,8 @@ def _group_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
         rows.append({
             "name": group.get("name", ""),
             "active": _bool_to_text(group.get("active", True)),
+            "tutor": group.get("tutor", ""),
+            "is_split": _bool_to_text(group.get("is_split")),
             "no_gaps": _bool_to_text(restriction.get("no_gaps")),
             "max_hours_per_day": restriction.get("max_hours_per_day", ""),
             "max_consecutive_hours": restriction.get("max_consecutive_hours", ""),
@@ -182,22 +234,30 @@ def _group_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
 def _subject_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
     rows = []
     for assignment in repo.active_canonical_assignments():
+        consecutive_subject, consecutive_teacher = _consecutive_group_to_text(assignment.get("consecutive_group"))
         rows.append({
             "subject": assignment.get("subject", ""),
             "group": assignment.get("group", ""),
             "teacher": assignment.get("teacher", ""),
             "weekly_hours": _format_hours(assignment.get("weekly_hours")),
+            "allowed_session_lengths": _lengths_to_text(assignment.get("allowed_session_lengths")),
             "preferred_room": assignment.get("preferred_room", ""),
             "max_session_days": assignment.get("max_session_days", ""),
             "fixed_day": assignment.get("fixed_day", ""),
             "fixed_start": assignment.get("fixed_start", ""),
+            "consecutive_subject": consecutive_subject,
+            "consecutive_teacher": consecutive_teacher,
         })
     return rows
 
 
 def _room_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
     return [
-        {"name": room.get("name", ""), "active": _bool_to_text(room.get("active", True))}
+        {
+            "name": room.get("name", ""),
+            "active": _bool_to_text(room.get("active", True)),
+            "capacity": room.get("capacity", ""),
+        }
         for room in repo.list_rooms()
     ]
 
@@ -317,7 +377,11 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
         name = str(row.get("name") or "").strip()
         if not name:
             continue
-        repo.create_group({"name": name})
+        repo.create_group({
+            "name": name,
+            "tutor": str(row.get("tutor") or "").strip(),
+            "is_split": _text_to_bool(row.get("is_split")),
+        })
         groups_created += 1
         if row.get("no_gaps") is not None or row.get("unavailable_slots") or row.get("preferred_availability"):
             repo.upsert_group_restriction({
@@ -335,7 +399,11 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
         name = str(row.get("name") or "").strip()
         if not name:
             continue
-        repo.create_room({"name": name})
+        try:
+            capacity = int(float(str(row.get("capacity") or "0").replace(",", ".")))
+        except ValueError:
+            capacity = 0
+        repo.create_room({"name": name, "capacity": max(capacity, 0)})
         rooms_created += 1
 
     assignments_created = 0
@@ -354,10 +422,12 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
             "subject": subject,
             "group": group,
             "weekly_hours": weekly_hours,
+            "allowed_session_lengths": _text_to_lengths(row.get("allowed_session_lengths")),
             "preferred_room": str(row.get("preferred_room") or "").strip(),
             "max_session_days": row.get("max_session_days") or "",
             "fixed_day": str(row.get("fixed_day") or "").strip(),
             "fixed_start": str(row.get("fixed_start") or "").strip(),
+            "consecutive_group": _text_to_consecutive_group(row.get("consecutive_subject"), row.get("consecutive_teacher")),
         })
         assignments_created += 1
 

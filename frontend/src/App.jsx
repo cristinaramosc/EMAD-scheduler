@@ -46,7 +46,7 @@ const TEACHER_SHEET_COLUMNS = [
 
 const GROUP_SHEET_COLUMNS = [
   { ...keyColumn("name", textColumn), title: "Nom del grup" },
-  { ...keyColumn("course", textColumn), title: "Curs" },
+  { ...keyColumn("tutor", textColumn), title: "Tutor" },
 ];
 
 const ROOM_SHEET_COLUMNS = [
@@ -627,13 +627,13 @@ export default function App() {
   const [unavailableSelectionAnchor, setUnavailableSelectionAnchor] = useState(null);
   const [groupUnavailableSelectionAnchor, setGroupUnavailableSelectionAnchor] = useState(null);
 
-  const [groupDraft, setGroupDraft] = useState({ name: "", course: "", active: true, is_split: false });
+  const [groupDraft, setGroupDraft] = useState({ name: "", tutor: "", active: true, is_split: false });
   const [groupEdit, setGroupEdit] = useState(null);
-  const [groupEditValues, setGroupEditValues] = useState({ name: "", course: "", active: true });
+  const [groupEditValues, setGroupEditValues] = useState({ name: "", tutor: "", active: true });
 
-  const [subjectDraft, setSubjectDraft] = useState({ name: "", weekly_hours: "", allowed_session_lengths: "" });
+  const [subjectDraft, setSubjectDraft] = useState({ name: "", group: "", weekly_hours: "", allowed_session_lengths: "" });
   const [subjectEdit, setSubjectEdit] = useState(null);
-  const [subjectEditValues, setSubjectEditValues] = useState({ name: "", weekly_hours: "", allowed_session_lengths: "" });
+  const [subjectEditValues, setSubjectEditValues] = useState({ name: "", group: "", weekly_hours: "", allowed_session_lengths: "" });
 
   const [roomDraft, setRoomDraft] = useState({ name: "", capacity: "" });
   const [roomEdit, setRoomEdit] = useState(null);
@@ -671,6 +671,7 @@ export default function App() {
       if (assignment?.subject && !byName.has(assignment.subject)) {
         byName.set(assignment.subject, {
           name: assignment.subject,
+          group: assignment.group || "",
           weekly_hours: assignment.weekly_hours || 0,
           allowed_session_lengths: assignment.allowed_session_lengths || [],
         });
@@ -2944,9 +2945,9 @@ export default function App() {
     groups: {
       columns: GROUP_SHEET_COLUMNS,
       source: () => groups,
-      normalize: (g) => ({ name: g.name || "", course: g.course || "" }),
-      create: (row) => apiJson("POST", "/academic-data/groups", { name: row.name, course: row.course }),
-      update: (name, row) => apiJson("PATCH", `/academic-data/groups/${encodeURIComponent(name)}`, { course: row.course }),
+      normalize: (g) => ({ name: g.name || "", tutor: g.tutor || "" }),
+      create: (row) => apiJson("POST", "/academic-data/groups", { name: row.name, tutor: row.tutor }),
+      update: (name, row) => apiJson("PATCH", `/academic-data/groups/${encodeURIComponent(name)}`, { tutor: row.tutor }),
       remove: (name) => apiJson("DELETE", `/academic-data/groups/${encodeURIComponent(name)}`),
     },
     rooms: {
@@ -3638,14 +3639,14 @@ export default function App() {
                   <thead>
                     <tr>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
-                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("course", setAcademicSort)}>Curs{sortIndicator("course", academicSort)}</th>
+                      <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("tutor", setAcademicSort)}>Tutor{sortIndicator("tutor", academicSort)}</th>
                       <th>Actiu</th>
                       <th title="Permet dues assignatures del mateix grup a la mateixa hora, amb professor i aula diferents">Desdoblat</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {applyAcademicSort(groups.filter((g) => matchesSearch(academicSearch, [g.name, g.course])), academicSort).map((g) => (
+                    {applyAcademicSort(groups.filter((g) => matchesSearch(academicSearch, [g.name, g.tutor])), academicSort).map((g) => (
                       <tr key={g.name}>
                         <td>
                           {groupEdit === g.name ? (
@@ -3659,12 +3660,17 @@ export default function App() {
                         </td>
                         <td>
                           {groupEdit === g.name ? (
-                            <input
-                              value={groupEditValues.course}
-                              onChange={(event) => setGroupEditValues({ ...groupEditValues, course: event.target.value })}
-                            />
+                            <select
+                              value={groupEditValues.tutor}
+                              onChange={(event) => setGroupEditValues({ ...groupEditValues, tutor: event.target.value })}
+                            >
+                              <option value="">— Sense tutor —</option>
+                              {teachers.map((t) => (
+                                <option key={t.name} value={t.name}>{t.name}</option>
+                              ))}
+                            </select>
                           ) : (
-                            g.course || "-"
+                            g.tutor || "-"
                           )}
                         </td>
                         <td>
@@ -3695,7 +3701,7 @@ export default function App() {
                               <button onClick={async () => {
                                 const payload = {
                                   name: groupEditValues.name,
-                                  course: groupEditValues.course,
+                                  tutor: groupEditValues.tutor,
                                   active: groupEditValues.active,
                                   is_split: groupEditValues.is_split,
                                 };
@@ -3713,7 +3719,7 @@ export default function App() {
                             <>
                               <button onClick={() => {
                                 setGroupEdit(g.name);
-                                setGroupEditValues({ name: g.name, course: g.course || "", active: g.active !== false, is_split: Boolean(g.is_split) });
+                                setGroupEditValues({ name: g.name, tutor: g.tutor || "", active: g.active !== false, is_split: Boolean(g.is_split) });
                               }}>Edita</button>
                               <button onClick={async () => {
                                 const res = await deleteGroup(g.name);
@@ -3733,11 +3739,15 @@ export default function App() {
                         />
                       </td>
                       <td>
-                        <input
-                          value={groupDraft.course}
-                          placeholder="Curs"
-                          onChange={(event) => setGroupDraft({ ...groupDraft, course: event.target.value })}
-                        />
+                        <select
+                          value={groupDraft.tutor}
+                          onChange={(event) => setGroupDraft({ ...groupDraft, tutor: event.target.value })}
+                        >
+                          <option value="">— Sense tutor —</option>
+                          {teachers.map((t) => (
+                            <option key={t.name} value={t.name}>{t.name}</option>
+                          ))}
+                        </select>
                       </td>
                       <td>
                         <input
@@ -3754,7 +3764,7 @@ export default function App() {
                           }
                           const res = await createGroup(groupDraft);
                           if (res.ok) {
-                            setGroupDraft({ name: "", course: "", active: true });
+                            setGroupDraft({ name: "", tutor: "", active: true });
                             await refreshAcademicLists();
                           } else {
                             alert("No s'ha pogut crear el grup.");
@@ -3993,6 +4003,7 @@ export default function App() {
                   <thead>
                     <tr>
                       <th>Nom</th>
+                      <th>Grup</th>
                       <th>Hores setmanals</th>
                       <th>Durades de sessió permeses</th>
                       <th>Accions</th>
@@ -4008,6 +4019,19 @@ export default function App() {
                               onChange={(event) => setSubjectEditValues({ ...subjectEditValues, name: event.target.value })}
                             />
                           ) : subject.name}
+                        </td>
+                        <td>
+                          {subjectEdit === subject.name ? (
+                            <select
+                              value={subjectEditValues.group}
+                              onChange={(event) => setSubjectEditValues({ ...subjectEditValues, group: event.target.value })}
+                            >
+                              <option value="">— Sense grup —</option>
+                              {groups.map((g) => (
+                                <option key={g.name} value={g.name}>{g.name}</option>
+                              ))}
+                            </select>
+                          ) : subject.group || "—"}
                         </td>
                         <td>
                           {subjectEdit === subject.name ? (
@@ -4040,6 +4064,7 @@ export default function App() {
                                 }
                                 const result = await updateSubject(subject.name, {
                                   name: newName,
+                                  group: subjectEditValues.group,
                                   weekly_hours: subjectEditValues.weekly_hours === "" ? 0 : Number(subjectEditValues.weekly_hours),
                                   allowed_session_lengths: parseSessionLengths(subjectEditValues.allowed_session_lengths),
                                 });
@@ -4058,6 +4083,7 @@ export default function App() {
                                 setSubjectEdit(subject.name);
                                 setSubjectEditValues({
                                   name: subject.name,
+                                  group: subject.group || "",
                                   weekly_hours: subject.weekly_hours ?? "",
                                   allowed_session_lengths: formatSessionLengths(subject.allowed_session_lengths),
                                 });
@@ -4082,6 +4108,17 @@ export default function App() {
                           placeholder="Nom"
                           onChange={(event) => setSubjectDraft({ ...subjectDraft, name: event.target.value })}
                         />
+                      </td>
+                      <td>
+                        <select
+                          value={subjectDraft.group}
+                          onChange={(event) => setSubjectDraft({ ...subjectDraft, group: event.target.value })}
+                        >
+                          <option value="">— Sense grup —</option>
+                          {groups.map((g) => (
+                            <option key={g.name} value={g.name}>{g.name}</option>
+                          ))}
+                        </select>
                       </td>
                       <td>
                         <input
@@ -4109,6 +4146,7 @@ export default function App() {
                           }
                           const result = await createSubject({
                             name,
+                            group: subjectDraft.group,
                             weekly_hours: subjectDraft.weekly_hours === "" ? 0 : Number(subjectDraft.weekly_hours),
                             allowed_session_lengths: parseSessionLengths(subjectDraft.allowed_session_lengths),
                           });
@@ -4116,7 +4154,7 @@ export default function App() {
                             alert(result.data?.detail || "No s'ha pogut crear l'assignatura.");
                             return;
                           }
-                          setSubjectDraft({ name: "", weekly_hours: "", allowed_session_lengths: "" });
+                          setSubjectDraft({ name: "", group: "", weekly_hours: "", allowed_session_lengths: "" });
                           await refreshAcademicLists();
                         }}>Afegeix</button>
                       </td>
