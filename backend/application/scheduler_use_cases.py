@@ -300,10 +300,10 @@ class SchedulerUseCases:
             for proposal in proposals
         ]
         proposals = [self._apply_quarter_pair_alignment(proposal) for proposal in proposals]
-        proposals = [self._apply_simultaneous_group_alignment(proposal, assignments, hour_names) for proposal in proposals]
         for proposal in proposals:
             compacted_activities, _ = self._compact_activities(list(proposal.activities))
             proposal.activities = self._insert_default_group_breaks(compacted_activities)
+        proposals = [self._apply_simultaneous_group_alignment(proposal, assignments, hour_names) for proposal in proposals]
         proposals.sort(key=lambda proposal: proposal.score, reverse=True)
 
         for proposal in proposals:
