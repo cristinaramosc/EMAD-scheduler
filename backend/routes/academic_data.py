@@ -142,6 +142,7 @@ class AssignmentDTO(BaseModel):
     fixed_start: Optional[str] = ""
     max_session_days: Optional[str] = ""
     consecutive_group: Optional[str] = ""
+    simultaneous_group: Optional[str] = ""
 
 
 class AssignmentUpdateDTO(BaseModel):
@@ -155,6 +156,7 @@ class AssignmentUpdateDTO(BaseModel):
     fixed_start: Optional[str] = None
     max_session_days: Optional[str] = None
     consecutive_group: Optional[str] = None
+    simultaneous_group: Optional[str] = None
 
 
 @router.get("/teachers")
