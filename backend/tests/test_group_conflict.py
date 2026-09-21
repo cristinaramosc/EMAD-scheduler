@@ -366,3 +366,18 @@ def test_group_conflict_detects_overlap_despite_group_name_spacing_and_case_vari
     conflicts = engine.get_conflicts()
 
     assert any(c.type == "group_conflict" for c in conflicts)
+
+def test_group_conflict_allows_explicit_simultaneous_co_teaching():
+    schedule = Schedule()
+    schedule.add(Activity(
+        id=1, teacher="Joan", subject="TALLER", group="COM", room="A1",
+        day="Monday", start="08:00", duration=2, simultaneous_group="TALLER|COM|Joan|Marc"
+    ))
+    schedule.add(Activity(
+        id=2, teacher="Marc", subject="TALLER", group="COM", room="A1",
+        day="Monday", start="08:00", duration=2, simultaneous_group="TALLER|COM|Joan|Marc"
+    ))
+    engine = SchedulerEngine()
+    engine.load(schedule)
+    conflicts = engine.get_conflicts()
+    assert not any(c.type == "group_conflict" for c in conflicts)
