@@ -19,6 +19,7 @@ def serialize_activity(activity: Activity) -> Dict[str, Any]:
         "start": activity.start,
         "duration": activity.duration,
         "fixed": bool(getattr(activity, "fixed", False)),
+        "simultaneous_group": getattr(activity, "simultaneous_group", ""),
     }
 
 
