@@ -921,6 +921,9 @@ class SchedulerUseCases:
 
         has_teacher_restrictions = bool(set(teacher_list).intersection(restricted_teacher_names))
         has_group_restrictions = group in restricted_group_names
+        simultaneous_group = str(assignment.get("simultaneous_group") or "").strip()
+        if not simultaneous_group and len(teacher_list) > 1:
+            simultaneous_group = f"{subject}|{group}|{"|".join(sorted(teacher_list))}"
 
         return TeachingRequirement(
             id=str(assignment.get("id") or f"assignment-{index}"),
