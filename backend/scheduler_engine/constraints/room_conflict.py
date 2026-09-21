@@ -32,7 +32,7 @@ class RoomConflictConstraint(Constraint):
                     occupied[key] = activity
                     continue
 
-                activities = [previous.id, activity.id]
+                # Dos docents de la mateixa docència compartida poden ocupar\n                # la mateixa aula perquè representen una única classe.\n                previous_simultaneous = str(getattr(previous, "simultaneous_group", "") or "").strip()\n                current_simultaneous = str(getattr(activity, "simultaneous_group", "") or "").strip()\n                if previous_simultaneous and previous_simultaneous == current_simultaneous:\n                    continue\n\n                activities = [previous.id, activity.id]
                 conflicts.append(
                     Conflict(
                         type="room_conflict",
