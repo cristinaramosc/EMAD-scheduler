@@ -37,6 +37,12 @@ def get_group_max_days(group_name: Optional[str], constraints: Optional[Dict[str
     return value if value > 0 else None
 
 
+def _is_tutoria(activity) -> bool:
+    """Vegeu la nota a group_conflict.py: la Tutoria no compta com a dia
+    lectiu per al grup tutoritzat."""
+    return str(getattr(activity, "subject", "") or "").strip().casefold() == "tutoria"
+
+
 class GroupMaxDaysConstraint(Constraint):
     """Ensure a group (its parent group) isn't scheduled on more distinct
     days per week than configured."""
@@ -54,6 +60,8 @@ class GroupMaxDaysConstraint(Constraint):
         activities_by_individual_group: Dict[str, List[Any]] = {}
         for activity in schedule.all():
             if not activity.group or not activity.day:
+                continue
+            if _is_tutoria(activity):
                 continue
             parent_group, _ = _parent_and_quarter(activity.group, getattr(activity, "subject", None))
             for individual_name in group_names(parent_group) or (parent_group,):

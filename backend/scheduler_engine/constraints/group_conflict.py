@@ -29,6 +29,15 @@ except ModuleNotFoundError:  # pragma: no cover
 # seu comportament.
 
 
+def _is_tutoria(activity) -> bool:
+    """La Tutoria és un cas especial: no ocupa cap franja a l'horari del
+    grup tutoritzat (només informa, com ja fan l'exportació i el
+    calendari en viu), encara que sí que ocupa la franja normal del
+    professor. Per això queda exclosa d'aquest control, que és
+    exclusivament del punt de vista del grup."""
+    return str(getattr(activity, "subject", "") or "").strip().casefold() == "tutoria"
+
+
 class GroupConflictConstraint(Constraint):
     """Detecta si un grup (o el seu grup pare) té més d'una activitat que se
     superposa en el temps.
@@ -51,6 +60,8 @@ class GroupConflictConstraint(Constraint):
 
         for activity in schedule.all():
             if not activity.group or not activity.day or not activity.start:
+                continue
+            if _is_tutoria(activity):
                 continue
 
             parent_group, _ = _parent_and_quarter(activity.group, activity.subject)

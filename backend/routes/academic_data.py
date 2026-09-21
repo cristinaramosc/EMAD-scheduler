@@ -67,7 +67,7 @@ class TeacherRestrictionUpdateDTO(BaseModel):
 
 class GroupDTO(BaseModel):
     name: str
-    course: Optional[str] = ""
+    tutor: Optional[str] = ""
     active: Optional[bool] = True
     unavailable_slots: Optional[List[str]] = []
     fixed_slots: Optional[List[str]] = []
@@ -76,7 +76,7 @@ class GroupDTO(BaseModel):
 
 class GroupUpdateDTO(BaseModel):
     name: Optional[str] = None
-    course: Optional[str] = None
+    tutor: Optional[str] = None
     active: Optional[bool] = None
     unavailable_slots: Optional[List[str]] = None
     fixed_slots: Optional[List[str]] = None
@@ -121,6 +121,7 @@ class GroupRestrictionUpdateDTO(BaseModel):
 
 class SubjectDTO(BaseModel):
     name: str
+    group: Optional[str] = ""
     color: Optional[str] = ""
     allowed_session_lengths: Optional[List[float]] = []
     weekly_hours: Optional[float] = 0
@@ -128,6 +129,7 @@ class SubjectDTO(BaseModel):
 
 class SubjectUpdateDTO(BaseModel):
     name: Optional[str] = None
+    group: Optional[str] = None
     color: Optional[str] = None
     allowed_session_lengths: Optional[List[float]] = None
     weekly_hours: Optional[float] = None
@@ -394,6 +396,7 @@ def list_subjects():
         subjects.append(
             {
                 "name": name,
+                "group": assignment.get("group", ""),
                 "weekly_hours": assignment.get("weekly_hours", 0),
                 "allowed_session_lengths": assignment.get("allowed_session_lengths", []),
             }
