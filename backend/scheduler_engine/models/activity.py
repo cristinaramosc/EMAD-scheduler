@@ -11,3 +11,4 @@ class Activity:
     start: str
     duration: int
     fixed: bool = False
+    simultaneous_group: str = ""
