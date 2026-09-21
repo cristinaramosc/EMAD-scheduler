@@ -18,6 +18,7 @@ class TeachingRequirement:
     group_id: str
     subject_id: str
     teacher_id: str
+    simultaneous_group: str = ""
 
     weekly_hours: float
     min_days: int
