@@ -136,6 +136,7 @@ class SchedulerGenerator:
                 "group": str(requirement.group_id),
                 "subject": str(requirement.subject_id),
                 "teacher": teacher_label(requirement.teacher_id),
+                "simultaneous_group": str(getattr(requirement, "simultaneous_group", "") or ""),
             }
 
             chosen_teaching_blocks: Optional[List[TeachingBlock]] = None
@@ -373,6 +374,7 @@ class SchedulerGenerator:
                 start=f"Period {activity.start_timeslot.period}",
                 duration=activity.duration,
                 fixed=bool(getattr(activity.teaching_block, "fixed", False)),
+                simultaneous_group=str((activity.teaching_block.metadata or {}).get("simultaneous_group") or ""),
             )
             for index, activity in enumerate(scheduled_activities, start=1)
         ]
