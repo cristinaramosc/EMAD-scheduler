@@ -741,6 +741,7 @@ class SchedulerUseCases:
             else f"Period {scheduled_activity.start_timeslot.period}",
             duration=scheduled_activity.duration,
             fixed=bool(getattr(scheduled_activity.teaching_block, "fixed", False)),
+            simultaneous_group=str((metadata.get("simultaneous_group") or "")).strip(),
         )
 
     def _merge_fixed_activities_into_proposal(
