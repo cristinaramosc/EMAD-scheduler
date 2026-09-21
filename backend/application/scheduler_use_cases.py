@@ -303,6 +303,7 @@ class SchedulerUseCases:
         for proposal in proposals:
             compacted_activities, _ = self._compact_activities(list(proposal.activities))
             proposal.activities = self._insert_default_group_breaks(compacted_activities)
+        proposals = [self._apply_simultaneous_group_alignment(proposal, assignments, hour_names) for proposal in proposals]
         proposals.sort(key=lambda proposal: proposal.score, reverse=True)
 
         for proposal in proposals:
@@ -740,6 +741,7 @@ class SchedulerUseCases:
             else f"Period {scheduled_activity.start_timeslot.period}",
             duration=scheduled_activity.duration,
             fixed=bool(getattr(scheduled_activity.teaching_block, "fixed", False)),
+            simultaneous_group=str((metadata.get("simultaneous_group") or "")).strip(),
         )
 
     def _merge_fixed_activities_into_proposal(
@@ -919,6 +921,9 @@ class SchedulerUseCases:
 
         has_teacher_restrictions = bool(set(teacher_list).intersection(restricted_teacher_names))
         has_group_restrictions = group in restricted_group_names
+        simultaneous_group = str(assignment.get("simultaneous_group") or "").strip()
+        if not simultaneous_group and len(teacher_list) > 1:
+            simultaneous_group = f"{subject}|{group}|" + "|".join(sorted(teacher_list))
 
         return TeachingRequirement(
             id=str(assignment.get("id") or f"assignment-{index}"),
@@ -931,6 +936,7 @@ class SchedulerUseCases:
             min_block_duration=float(assignment.get("min_block_duration") or 0.5),
             max_consecutive_hours=float(assignment.get("max_consecutive_hours") or weekly_hours or 0.5),
             allow_half_hour_blocks=allow_half_hour_blocks,
+            simultaneous_group=str(assignment.get("simultaneous_group") or ""),
             min_distribution_days=assignment.get("min_distribution_days"),
             max_distribution_days=assignment.get("max_distribution_days"),
             preferred_rooms=[preferred_room] if preferred_room else [],
@@ -1041,6 +1047,83 @@ class SchedulerUseCases:
                 add_blocked_activity(group_id=group, slot_label=slot_label, constraint="group_not_available")
 
         return blocked
+
+    def _apply_simultaneous_group_alignment(
+        self, proposal: ScheduleProposal, assignments: List[Dict[str, Any]], hour_names: List[str]
+    ) -> ScheduleProposal:
+        """Alinea les dues assignacions d'una docència compartida.
+
+        Una etiqueta simultaneous_group identifica dues assignacions que tenen
+        el mateix grup d'alumnes i, per tant, han d'ocupar exactament les
+        mateixes franges. Els professors continuen sent independents i la
+        validació de professor comprova tots els noms separats per comes.
+        """
+        tags: Dict[str, List[Dict[str, Any]]] = {}
+        for assignment in assignments:
+            tag = str(assignment.get("simultaneous_group") or "").strip()
+            if tag:
+                tags.setdefault(tag, []).append(assignment)
+        if not tags:
+            return proposal
+
+        activities = list(proposal.activities)
+        day_names = self._time_labels.get("day_names", [])
+        hour_index = {name: index for index, name in enumerate(hour_names)}
+
+        def assignment_key(assignment):
+            return (
+                str(assignment.get("subject", "")),
+                str(assignment.get("group", "")),
+                teacher_label(assignment.get("teacher", "")),
+            )
+
+        by_key: Dict[tuple, List[Activity]] = {}
+        for activity in activities:
+            by_key.setdefault((str(activity.subject or ""), str(activity.group or ""), teacher_label(activity.teacher)), []).append(activity)
+
+        def sort_key(activity):
+            return (
+                day_names.index(activity.day) if activity.day in day_names else 999,
+                hour_index.get(activity.start, 999),
+            )
+
+        for members in tags.values():
+            if len(members) != 2:
+                continue
+            first = sorted(by_key.get(assignment_key(members[0]), []), key=sort_key)
+            second = sorted(by_key.get(assignment_key(members[1]), []), key=sort_key)
+            if len(first) != len(second):
+                continue
+
+            for first_activity, second_activity in zip(first, second):
+                if first_activity.duration != second_activity.duration:
+                    continue
+                if first_activity.day == second_activity.day and first_activity.start == second_activity.start:
+                    continue
+
+                baseline = self._build_schedule(activities)
+                baseline_keys = {self._conflict_key(c) for c in self._scheduler_engine.validate(baseline)}
+                original = (second_activity.day, second_activity.start)
+                second_activity.day = first_activity.day
+                second_activity.start = first_activity.start
+                candidate = self._build_schedule(activities)
+                new_conflicts = [
+                    c for c in self._scheduler_engine.validate(candidate)
+                    if self._conflict_key(c) not in baseline_keys
+                ]
+                if new_conflicts:
+                    second_activity.day, second_activity.start = original
+
+        final_schedule = self._build_schedule(activities)
+        return ScheduleProposal(
+            id=proposal.id,
+            activities=activities,
+            score=proposal.score,
+            conflicts=self._scheduler_engine.validate(final_schedule),
+            warnings=proposal.warnings,
+            score_breakdown=getattr(proposal, "score_breakdown", None),
+            metadata=dict(proposal.metadata or {}),
+        )
 
     def _apply_consecutive_group_preferences(
         self, proposal: ScheduleProposal, assignments: List[Dict[str, Any]], hour_names: List[str]
