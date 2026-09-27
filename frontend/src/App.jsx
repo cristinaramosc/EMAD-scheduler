@@ -528,6 +528,51 @@ function isTutoriaSubject(subject) {
   return tokens.some((token) => token === "tutoria" || token === "tutories");
 }
 
+/**
+ * Missatges per als errors coneguts de l'assistent de resolució. El backend
+ * respon amb un codi (`missing_api_key`, `api_call_failed`, ...) i sovint una
+ * explicació a `detail`; per una proposta que ja no existeix, el codi arriba a
+ * `detail` (HTTP 404). Mai s'ha de mostrar el codi cru a la persona usuària.
+ */
+const ASSISTANT_ERROR_MESSAGES = {
+  proposal_not_found:
+    "La proposta que tenies oberta ja no és al servidor (probablement s'ha reiniciat el backend). Torna-la a generar o accepta l'horari actual.",
+  missing_api_key:
+    "L'assistent no està configurat: cal definir la variable ANTHROPIC_API_KEY al backend.",
+  missing_dependency:
+    "L'assistent no està instal·lat al backend (cal el paquet 'anthropic').",
+};
+
+const ASSISTANT_GENERIC_ERROR = "No s'ha pogut contactar l'assistent.";
+
+function assistantErrorMessage(data) {
+  const payload = data || {};
+  const code = payload.error || payload.detail;
+  if (ASSISTANT_ERROR_MESSAGES[code]) {
+    return ASSISTANT_ERROR_MESSAGES[code];
+  }
+  // Error de l'API d'Anthropic: el detall és el que permet diagnosticar-ho
+  // (clau invàlida, model inexistent, sense crèdit...).
+  if (payload.error === "api_call_failed" && payload.detail) {
+    return `L'assistent ha respost amb un error de l'API d'Anthropic: ${payload.detail}`;
+  }
+  if (typeof payload.detail === "string" && payload.detail && payload.detail !== "proposal_not_found") {
+    return payload.detail;
+  }
+  return ASSISTANT_GENERIC_ERROR;
+}
+
+async function requestAssistantReply(proposalId, text, history) {
+  const response = await fetch(`${API_URL}/assistant/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ proposal_id: proposalId, message: text, history }),
+  });
+  const data = await response.json().catch(() => ({}));
+  return { ok: response.ok && data.ok === true, data };
+}
+
+
 function canShareSlotWithQuarter(existingActivity, candidateActivity) {
   if (!existingActivity || !candidateActivity) {
     return false;
@@ -2285,24 +2330,40 @@ export default function App() {
     setIsAssistantThinking(true);
 
     try {
-      const response = await fetch(`${API_URL}/assistant/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proposal_id: proposal.id, message: text, history: historyForRequest }),
-      });
-      const data = await response.json();
+      let result = await requestAssistantReply(proposal.id, text, historyForRequest);
 
-      if (!response.ok || data.ok !== true) {
-        const detail = data.detail || "No s'ha pogut contactar l'assistent.";
-        setAssistantMessages((prev) => [...prev, { role: "assistant", text: detail, isError: true }]);
+      const isStaleProposal =
+        result.data.detail === "proposal_not_found" || result.data.error === "proposal_not_found";
+      if (!result.ok && isStaleProposal) {
+        // El proposal_store viu en memòria: si el backend s'ha reiniciat, l'id
+        // que teníem pot haver deixat d'existir. Refresquem l'estat i tornem a
+        // provar una vegada amb la proposta que hi ha ara mateix.
+        const stateResponse = await fetch(`${API_URL}/scheduler/state`);
+        const state = stateResponse.ok ? await stateResponse.json() : {};
+        const currentProposal = state.proposal || null;
+        if (currentProposal?.id && currentProposal.id !== proposal.id) {
+          setProposal(currentProposal);
+          result = await requestAssistantReply(currentProposal.id, text, historyForRequest);
+        }
+      }
+
+      if (!result.ok) {
+        setAssistantMessages((prev) => [
+          ...prev,
+          { role: "assistant", text: assistantErrorMessage(result.data), isError: true },
+        ]);
         return;
       }
 
-      setAssistantMessages((prev) => [...prev, { role: "assistant", text: data.reply }]);
+      setAssistantMessages((prev) => [...prev, { role: "assistant", text: result.data.reply }]);
     } catch (err) {
       setAssistantMessages((prev) => [
         ...prev,
-        { role: "assistant", text: "No s'ha pogut contactar l'assistent.", isError: true },
+        {
+          role: "assistant",
+          text: "No s'ha pogut contactar amb el backend (potser el servidor s'ha aturat o s'està reiniciant). Torna-ho a provar d'aquí uns segons.",
+          isError: true,
+        },
       ]);
     } finally {
       setIsAssistantThinking(false);

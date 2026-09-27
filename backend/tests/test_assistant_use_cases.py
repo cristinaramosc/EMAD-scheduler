@@ -4,6 +4,8 @@ import types
 import pytest
 
 from backend.application.assistant_use_cases import AssistantUseCases, build_context_summary
+from backend.application.proposal_store import ProposalStore, proposal_from_snapshot_payload
+from backend.repositories.working_timetable_repository import WorkingTimetableSnapshot
 from backend.scheduler_engine.models import Conflict, ScheduleProposal
 
 
@@ -107,3 +109,70 @@ def test_ask_unknown_proposal_raises_lookup_error(fake_anthropic):
     use_cases = AssistantUseCases(proposal_store={})
     with pytest.raises(LookupError):
         use_cases.ask("missing", "Hola")
+
+
+# ---------------------------------------------------------------------------
+# El store de propostes viu en memòria: després de reiniciar el backend (o
+# d'un `uvicorn --reload`) només se'n pot recuperar la proposta pendent
+# desada. `ProposalStore` l'ha de tornar a carregar en comptes de respondre
+# 'proposal_not_found' (que és el que veia la interfície).
+# ---------------------------------------------------------------------------
+
+
+class _FakeWorkingTimetableRepo:
+    def __init__(self, snapshot):
+        self._snapshot = snapshot
+
+    def load_snapshot(self):
+        return self._snapshot
+
+
+def _snapshot_with_pending_proposal():
+    return WorkingTimetableSnapshot(
+        current_proposal={
+            "id": "proposal-restored",
+            "activities": [
+                {
+                    "id": 1,
+                    "teacher": "Jordi",
+                    "subject": "Taller",
+                    "group": "1r COM",
+                    "room": "Taller",
+                    "day": "Divendres",
+                    "start": "8:00",
+                    "duration": 8,
+                    "fixed": False,
+                }
+            ],
+            "score": 10.0,
+            "warnings": [],
+            "conflicts": [],
+            "metadata": {},
+        }
+    )
+
+
+def test_proposal_store_recovers_the_pending_proposal_after_a_restart(fake_anthropic):
+    store = ProposalStore(_FakeWorkingTimetableRepo(_snapshot_with_pending_proposal()))
+    assert store == {}  # en memòria encara no hi ha res (backend reiniciat)
+
+    use_cases = AssistantUseCases(proposal_store=store)
+    result = use_cases.ask("proposal-restored", "Què puc millorar?")
+
+    assert result["ok"] is True
+    assert "proposal-restored" in store
+
+
+def test_proposal_store_still_fails_for_unknown_proposals(fake_anthropic):
+    store = ProposalStore(_FakeWorkingTimetableRepo(_snapshot_with_pending_proposal()))
+    use_cases = AssistantUseCases(proposal_store=store)
+
+    with pytest.raises(LookupError):
+        use_cases.ask("un-altre-id", "Hola")
+
+
+def test_proposal_from_snapshot_payload_ignores_unusable_payloads():
+    assert proposal_from_snapshot_payload(None) is None
+    assert proposal_from_snapshot_payload({}) is None
+    assert proposal_from_snapshot_payload({"id": "p1", "activities": [{"id": 1}]}) is None
+
