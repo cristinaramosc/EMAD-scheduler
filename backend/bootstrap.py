@@ -9,6 +9,7 @@ if __package__ and __package__.startswith("backend"):
     from backend.application.assistant_use_cases import AssistantUseCases
     from backend.application.explanation_use_cases import ExplanationUseCases
     from backend.application.live_schedule_use_cases import LiveScheduleUseCases
+    from backend.application.proposal_store import ProposalStore, proposal_from_snapshot_payload
     from backend.application.scheduler_use_cases import SchedulerUseCases
     from backend.repositories.academic_data_repository import AcademicDataRepository
     from backend.repositories.requirement_repository import RequirementRepository
@@ -25,6 +26,7 @@ else:  # pragma: no cover
     from application.assistant_use_cases import AssistantUseCases
     from application.explanation_use_cases import ExplanationUseCases
     from application.live_schedule_use_cases import LiveScheduleUseCases
+    from application.proposal_store import ProposalStore, proposal_from_snapshot_payload
     from application.scheduler_use_cases import SchedulerUseCases
     from repositories.academic_data_repository import AcademicDataRepository
     from repositories.requirement_repository import RequirementRepository
@@ -122,7 +124,10 @@ def build_dependencies() -> AppDependencies:
         ),
     )
     working_timetable_repo = JsonWorkingTimetableRepository(working_timetable_file)
-    proposal_store: Dict[str, ScheduleProposal] = {}
+    # El store s'auto-recupera del snapshot: si el backend es reinicia mentre
+    # la interfície té una proposta oberta, aquella proposta pendent encara
+    # s'ha de poder consultar (p.ex. des de l'assistent de resolució).
+    proposal_store: Dict[str, ScheduleProposal] = ProposalStore(working_timetable_repo)
 
     snapshot = working_timetable_repo.load_snapshot()
     snapshot, snapshot_changed = _sanitize_snapshot_legacy_breaks(snapshot)
@@ -181,17 +186,11 @@ def _restore_working_timetable_state(
     scheduler_engine.load(schedule)
 
     proposal_store.clear()
-    if snapshot.current_proposal is None:
+    proposal = proposal_from_snapshot_payload(snapshot.current_proposal)
+    if proposal is None:
         return
 
-    proposal_store[snapshot.current_proposal["id"]] = ScheduleProposal(
-        id=snapshot.current_proposal["id"],
-        activities=[Activity(**activity) for activity in snapshot.current_proposal.get("activities", [])],
-        score=snapshot.current_proposal.get("score", 0.0),
-        conflicts=[Conflict(**conflict) for conflict in snapshot.current_proposal.get("conflicts", [])],
-        warnings=list(snapshot.current_proposal.get("warnings", [])),
-        metadata=dict(snapshot.current_proposal.get("metadata", {})),
-    )
+    proposal_store[proposal.id] = proposal
 
 
 def get_dependencies() -> AppDependencies:
