@@ -11,6 +11,7 @@ try:
         normalize_group_name,
         parent_and_quarter as _parent_and_quarter,
     )
+    from backend.scheduler_engine.subject_utils import is_tutoria_subject
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.models import Conflict
@@ -20,6 +21,7 @@ except ModuleNotFoundError:  # pragma: no cover
         normalize_group_name,
         parent_and_quarter as _parent_and_quarter,
     )
+    from scheduler_engine.subject_utils import is_tutoria_subject
 
 # Nota: `normalize_group_name`, `_parent_and_quarter` (alias de
 # `parent_and_quarter`) i `is_valid_quarter_pair` vivien abans com a còpies
@@ -34,8 +36,12 @@ def _is_tutoria(activity) -> bool:
     grup tutoritzat (només informa, com ja fan l'exportació i el
     calendari en viu), encara que sí que ocupa la franja normal del
     professor. Per això queda exclosa d'aquest control, que és
-    exclusivament del punt de vista del grup."""
-    return str(getattr(activity, "subject", "") or "").strip().casefold() == "tutoria"
+    exclusivament del punt de vista del grup.
+
+    La detecció del nom viu a `scheduler_engine/subject_utils.py` perquè
+    també la necessiten `group_max_days.py` i els exportadors: així
+    'Tutoria', 'PFI Tutoria' o 'Tutoria famílies' es tracten igual."""
+    return is_tutoria_subject(getattr(activity, "subject", None))
 
 
 class GroupConflictConstraint(Constraint):

@@ -24,6 +24,11 @@ try:
 except ImportError:  # pragma: no cover - Pillow no instal·lat
     XLImage = None
 
+try:
+    from backend.scheduler_engine.subject_utils import is_tutoria_subject
+except ModuleNotFoundError:  # pragma: no cover
+    from scheduler_engine.subject_utils import is_tutoria_subject
+
 _LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "logo-emad.png"
 _LOGO_HEADER_ROWS = 4
 _LOGO_TARGET_WIDTH_PX = 150
@@ -131,7 +136,12 @@ def _cell_text(activity: Dict[str, Any], sheet_kind: str = "group") -> str:
 
 
 def _is_tutoria(activity: Dict[str, Any]) -> bool:
-    return (activity.get("subject") or "").strip().casefold() == "tutoria"
+    """L'hora de Tutoria no és lectiva per als alumnes (nota informativa al
+    full del grup i bloc real al full del professor). La detecció del nom viu
+    a `scheduler_engine/subject_utils.py`, compartida amb el motor de
+    validació, perquè 'Tutoria', 'PFI Tutoria' i 'Tutoria famílies' es
+    tractin totes igual."""
+    return is_tutoria_subject(activity.get("subject"))
 
 
 def _tutoria_note(activity: Dict[str, Any]) -> str:

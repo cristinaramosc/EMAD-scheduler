@@ -7,11 +7,13 @@ try:
     from backend.scheduler_engine.constraints.group_conflict import _parent_and_quarter
     from backend.scheduler_engine.models import Conflict
     from backend.scheduler_engine.quarter_utils import group_names
+    from backend.scheduler_engine.subject_utils import is_tutoria_subject
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.constraints.group_conflict import _parent_and_quarter
     from scheduler_engine.models import Conflict
     from scheduler_engine.quarter_utils import group_names
+    from scheduler_engine.subject_utils import is_tutoria_subject
 
 
 def _normalize_constraint_key(group_name: Optional[str]) -> Optional[str]:
@@ -39,8 +41,9 @@ def get_group_max_days(group_name: Optional[str], constraints: Optional[Dict[str
 
 def _is_tutoria(activity) -> bool:
     """Vegeu la nota a group_conflict.py: la Tutoria no compta com a dia
-    lectiu per al grup tutoritzat."""
-    return str(getattr(activity, "subject", "") or "").strip().casefold() == "tutoria"
+    lectiu per al grup tutoritzat. La detecció del nom viu a
+    `scheduler_engine/subject_utils.py` (regla compartida)."""
+    return is_tutoria_subject(getattr(activity, "subject", None))
 
 
 class GroupMaxDaysConstraint(Constraint):
