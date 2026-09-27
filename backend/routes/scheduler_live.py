@@ -34,7 +34,7 @@ def export_schedule():
     """Descarrega un .xlsx amb una pestanya per a cada grup, professor i
     aula de l'horari actiu."""
     use_cases = get_live_schedule_use_cases()
-    activities = use_cases.state().get("activities", [])
+    activities = use_cases.export_activities()
     buffer = build_schedule_export(activities)
     return StreamingResponse(
         buffer,
@@ -49,7 +49,7 @@ def export_schedule_pdf():
     aula de l'horari actiu, amb un aspecte de calendari (graella per
     mitges hores i blocs blaus per a les activitats)."""
     use_cases = get_live_schedule_use_cases()
-    activities = use_cases.state().get("activities", [])
+    activities = use_cases.export_activities()
     buffer = build_schedule_pdf(activities)
     return StreamingResponse(
         buffer,

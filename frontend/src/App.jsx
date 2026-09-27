@@ -511,6 +511,23 @@ function getSubjectBaseName(value) {
   return text.replace(/(?:\s|^)(1Q|2Q)$/i, "").replace(/\s+/g, " ").trim().toLowerCase();
 }
 
+/**
+ * L'hora de Tutoria (del tutor/a, també la dedicada a les famílies) no és
+ * lectiva per als alumnes: no ha d'ocupar la graella del grup, però sí que
+ * ha de sortir a l'horari del professor i com a informació a l'exportació.
+ * Es compara per paraules senceres perquè també comptin 'PFI Tutoria' o
+ * 'Tutoria famílies' (mateixa regla que al backend, a
+ * backend/scheduler_engine/subject_utils.py).
+ */
+function isTutoriaSubject(subject) {
+  const tokens = String(subject || "")
+    .trim()
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+  return tokens.some((token) => token === "tutoria" || token === "tutories");
+}
+
 function canShareSlotWithQuarter(existingActivity, candidateActivity) {
   if (!existingActivity || !candidateActivity) {
     return false;
@@ -1741,9 +1758,7 @@ export default function App() {
         // La Tutoria no ocupa cap franja del grup: només és informativa
         // (surt com a nota sota el nom del grup a la descàrrega). Al seu
         // horari sí que ha d'aparèixer com a bloc normal.
-        nextActivities = nextActivities.filter(
-          (activity) => (activity?.subject || "").trim().toLowerCase() !== "tutoria"
-        );
+        nextActivities = nextActivities.filter((activity) => !isTutoriaSubject(activity?.subject));
       }
     }
 
@@ -1985,7 +2000,14 @@ export default function App() {
     if (!subject || !subject.trim()) {
       return;
     }
-    const teacher = window.prompt("Professor/a responsable:", "") || "";
+    // L'hora de tutoria és la del tutor/a del grup: si es deixa el professor
+    // en blanc, el bloc no apareixeria a l'horari de cap professor (la vista
+    // del grup no el mostra, perquè la tutoria no és lectiva per als
+    // alumnes), i a l'exportació sortiria sense nom.
+    const groupTutor = isTutoriaSubject(subject)
+      ? (groups.find((group) => group.name === selectedGroup)?.tutor || "")
+      : "";
+    const teacher = window.prompt("Professor/a responsable:", groupTutor) || "";
     const durationInput = window.prompt("Durada en blocs de 30 min (2 = 1 hora):", "2");
     const duration = parseInt(durationInput, 10);
     addManualActivity({
@@ -2583,7 +2605,7 @@ export default function App() {
     const isSelected = selectedActivityId === activity.id;
     const normalizedSubject = (activity.subject || "").trim().toLowerCase();
     const isSyntheticBreak = Boolean(activity.isSyntheticBreak);
-    const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio" || normalizedSubject === "tutoria";
+    const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio" || isTutoriaSubject(activity.subject);
     const groupColor = !hasConflict && !isBreakOrCoordination ? getGroupColor(activity.group) : null;
 
     return (

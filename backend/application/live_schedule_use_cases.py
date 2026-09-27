@@ -98,6 +98,51 @@ class LiveScheduleUseCases:
             "activities": activities,
         }
 
+    def export_activities(self) -> List[Dict[str, Any]]:
+        """Activitats per a l'exportació (Excel/PDF), amb el nom del tutor/a
+        de cada grup afegit com a `tutor_name`.
+
+        El nom del tutor no viu a l'activitat, sinó a la fitxa del grup de
+        les dades acadèmiques; per això la capçalera "Tutor/a del grup" de
+        l'exportació sortia sempre buida. S'afegeix com a `tutor_name` (i no
+        com a `tutor`) perquè `is_tutor`/`tutor` són els camps que marquen una
+        activitat com a "TUTOR/A" a la graella del PDF.
+        """
+        activities = self.state().get("activities", [])
+        tutor_by_group = self._group_tutors_by_individual_name()
+        if not tutor_by_group:
+            return activities
+
+        enriched: List[Dict[str, Any]] = []
+        for activity in activities:
+            tutor = self._resolve_group_tutor(activity.get("group"), tutor_by_group)
+            enriched.append({**activity, "tutor_name": tutor} if tutor else activity)
+        return enriched
+
+    def _group_tutors_by_individual_name(self) -> Dict[str, str]:
+        """Mapa {nom de grup individual normalitzat: tutor/a} a partir de les
+        dades acadèmiques. Els grups combinats ('GI, GP') compten per a cada
+        nom individual."""
+        if self._academic_data_repo is None:
+            return {}
+
+        tutor_by_group: Dict[str, str] = {}
+        for group in self._academic_data_repo.list_groups():
+            tutor = str(group.get("tutor") or "").strip()
+            if not tutor:
+                continue
+            for name in group_names(group.get("name")):
+                tutor_by_group.setdefault(name, tutor)
+        return tutor_by_group
+
+    @staticmethod
+    def _resolve_group_tutor(group_field: Any, tutor_by_group: Dict[str, str]) -> str:
+        for name in group_names(group_field):
+            tutor = tutor_by_group.get(name)
+            if tutor:
+                return tutor
+        return ""
+
     @staticmethod
     def _conflict_key(conflict: Any) -> tuple:
         return (

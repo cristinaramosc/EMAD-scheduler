@@ -9,6 +9,7 @@ relacionat, aquests tests han de fallar per avisar-ho de seguida.
 
 from io import BytesIO
 
+from application.live_schedule_use_cases import LiveScheduleUseCases
 from application.scheduler_use_cases import SchedulerUseCases
 from repositories.academic_data_repository import AcademicDataRepository
 from scheduler_engine.models import Activity
@@ -408,3 +409,169 @@ def test_compaction_merges_transitive_combined_group_components():
     compacted, _ = uc._compact_activities(activities)
 
     assert [activity.start for activity in compacted] == ["8:00", "8:30", "9:00"]
+
+# ---------------------------------------------------------------------------
+# Hora de Tutoria del tutor/a (també la dedicada a les famílies) amb les
+# variants reals del nom de l'assignatura
+# ---------------------------------------------------------------------------
+
+_TUTORIA_FAMILY_ACTIVITIES = [
+    {
+        "id": 1,
+        "teacher": "Maria",
+        "subject": "Projectes",
+        "group": "PFI",
+        "room": "A1",
+        "day": "Dimarts",
+        "start": "9:00",
+        "duration": 2,
+    },
+    {
+        "id": 2,
+        "teacher": "Judit",
+        "subject": "PFI Tutoria",
+        "group": "PFI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "11:00",
+        "duration": 2,
+    },
+]
+
+
+def test_program_prefixed_tutoria_is_not_a_block_in_the_group_sheet():
+    """'PFI Tutoria' ha de comportar-se com 'Tutoria': no ocupa la graella
+    del grup perquè no és lectiva per als alumnes."""
+    from openpyxl import load_workbook
+
+    buffer = build_schedule_export(_TUTORIA_FAMILY_ACTIVITIES)
+    workbook = load_workbook(BytesIO(buffer.read()))
+    sheet = workbook["G-PFI"]
+
+    cell_texts = [str(cell.value) for row in sheet.iter_rows() for cell in row if cell.value]
+    assert not any("PFI Tutoria" in text and "—" not in text for text in cell_texts)
+
+
+def test_program_prefixed_tutoria_appears_as_a_note_under_the_group_title():
+    from openpyxl import load_workbook
+
+    buffer = build_schedule_export(_TUTORIA_FAMILY_ACTIVITIES)
+    workbook = load_workbook(BytesIO(buffer.read()))
+    sheet = workbook["G-PFI"]
+
+    note_texts = [str(cell.value) for row in sheet.iter_rows() for cell in row if cell.value]
+    assert any("Tutoria: Judit" in text and "Dimarts 11:00" in text for text in note_texts)
+
+
+def test_program_prefixed_tutoria_is_a_real_block_on_the_teacher_sheet():
+    """Al full del professor, l'hora de tutoria sí que és un bloc de ple dret:
+    és la seva franja, i ha de poder veure-la al seu horari."""
+    from openpyxl import load_workbook
+
+    buffer = build_schedule_export(_TUTORIA_FAMILY_ACTIVITIES)
+    workbook = load_workbook(BytesIO(buffer.read()))
+    sheet = workbook["P-Judit"]
+
+    cell_texts = [str(cell.value) for row in sheet.iter_rows() for cell in row if cell.value]
+    assert any("PFI Tutoria" in text and "PFI" in text for text in cell_texts)
+
+
+class _FakeAcademicRepoForTutorNames:
+    """Només exposa el que `export_activities` necessita."""
+
+    def __init__(self, groups):
+        self._groups = groups
+
+    def list_groups(self):
+        return self._groups
+
+
+def _make_live_use_cases_for_export(activities, groups):
+    uc = LiveScheduleUseCases.__new__(LiveScheduleUseCases)
+    uc._academic_data_repo = _FakeAcademicRepoForTutorNames(groups)
+    uc.state = lambda: {"activities": activities}
+    return uc
+
+
+def test_export_activities_adds_the_group_tutor_name():
+    uc = _make_live_use_cases_for_export(
+        [
+            {"id": 1, "teacher": "Bet", "subject": "Dx Tècnic", "group": "1r COM", "room": "", "day": "Dilluns", "start": "8:00", "duration": 2},
+            {"id": 2, "teacher": "Judit", "subject": "PFI Tutoria", "group": "PFI", "room": "", "day": "Dimarts", "start": "11:00", "duration": 2},
+        ],
+        [{"name": "1r COM", "tutor": "Jordi"}, {"name": "PFI", "tutor": "Judit"}],
+    )
+
+    activities = uc.export_activities()
+
+    assert activities[0]["tutor_name"] == "Jordi"
+    assert activities[1]["tutor_name"] == "Judit"
+
+
+def test_export_activities_resolves_the_tutor_of_combined_groups():
+    uc = _make_live_use_cases_for_export(
+        [
+            {"id": 1, "teacher": "Bego", "subject": "Ll. Tec. Audio", "group": "GI, GP", "room": "", "day": "Dilluns", "start": "8:00", "duration": 2},
+        ],
+        [{"name": "GI", "tutor": "Bego"}],
+    )
+
+    assert uc.export_activities()[0]["tutor_name"] == "Bego"
+
+
+def test_export_activities_leaves_activities_without_group_tutor_untouched():
+    uc = _make_live_use_cases_for_export(
+        [
+            {"id": 1, "teacher": "Bet", "subject": "Dx Tècnic", "group": "1r COM", "room": "", "day": "Dilluns", "start": "8:00", "duration": 2},
+        ],
+        [{"name": "1r COM", "tutor": ""}],
+    )
+
+    assert "tutor_name" not in uc.export_activities()[0]
+
+
+def test_export_activities_without_academic_data_returns_the_state_untouched():
+    uc = LiveScheduleUseCases.__new__(LiveScheduleUseCases)
+    uc._academic_data_repo = None
+    uc.state = lambda: {"activities": [{"id": 1, "subject": "Taller", "group": "1r COM"}]}
+
+    assert uc.export_activities() == [{"id": 1, "subject": "Taller", "group": "1r COM"}]
+
+
+def test_pdf_header_metadata_includes_the_tutor_name():
+    """La capçalera del grup ha de dir qui és el tutor/a. Abans sortia sempre
+    buida perquè el nom només s'agafava d'una activitat de Tutoria."""
+    from services.schedule_pdf_exporter import _page_metadata
+
+    _room, group, tutor, _notes = _page_metadata(
+        "group", "PFI", [{"group": "PFI", "tutor_name": "Judit"}], []
+    )
+    assert group == "PFI"
+    assert tutor == "Judit"
+
+    # Quan no hi ha el camp del tutor, la nota de Tutoria ja dona el nom.
+    _room, _group, tutor_from_note, _notes = _page_metadata(
+        "group", "PFI", [], ["Tutoria: Judit — Dimarts 11:00"]
+    )
+    assert tutor_from_note == "Judit"
+
+
+def test_pdf_export_handles_activities_with_tutor_name_without_crashing():
+    buffer = build_schedule_pdf(
+        [
+            {
+                "id": 1,
+                "teacher": "Judit",
+                "subject": "PFI Tutoria",
+                "group": "PFI",
+                "room": "",
+                "day": "Dimarts",
+                "start": "11:00",
+                "duration": 2,
+                "tutor_name": "Judit",
+            }
+        ]
+    )
+
+    assert buffer.read()[:5] == b"%PDF-"
+
