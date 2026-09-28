@@ -575,3 +575,177 @@ def test_pdf_export_handles_activities_with_tutor_name_without_crashing():
 
     assert buffer.read()[:5] == b"%PDF-"
 
+
+# ---------------------------------------------------------------------------
+# "Màxim de dies en què es pot repartir" (Taller de 2n COM: 10h, màx. 3 dies)
+# ---------------------------------------------------------------------------
+
+
+def _taller_2n_com_requirement(max_days):
+    from models.teaching_requirement import TeachingRequirement
+
+    return TeachingRequirement(
+        id="assignment-taller-2n-com",
+        group_id="2n COM",
+        subject_id="Taller",
+        teacher_id="Jordi",
+        weekly_hours=10.0,
+        min_days=1,
+        max_days=max_days,
+        min_block_duration=0.5,
+        max_consecutive_hours=10.0,
+        allow_half_hour_blocks=False,
+    )
+
+
+def _tiny_calendar_context():
+    """Context on cap distribució de blocs es pot col·locar sencera (només
+    hi cap 1 hora al calendari), per forçar el camí de reserva del generador."""
+    from scheduler_engine.models import GenerationContext, SchoolCalendar
+
+    return GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=2),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+
+def test_taller_with_max_days_3_keeps_its_sessions_when_nothing_fits_entirely():
+    """El Taller de 2n COM són 10h amb "Màxim de dies per repartir" = 3: si
+    cap distribució no es pot col·locar sencera, el generador NO ha de caure
+    al bloc únic de 10h (que és impossible de col·locar en un horari real),
+    sinó mantenir el repartiment en 3 sessions de 3h/3,5h/3,5h."""
+    from scheduler_engine.generator import SchedulerGenerator
+
+    blocks = SchedulerGenerator()._build_blocks_from_requirements(
+        [_taller_2n_com_requirement(max_days=3)], _tiny_calendar_context()
+    )
+
+    assert len(blocks) == 3
+    assert sum(block.duration_blocks for block in blocks) == 20
+    assert sorted(block.duration_blocks for block in blocks) == [6, 7, 7]
+
+
+def test_taller_with_max_days_1_still_falls_back_to_a_single_block():
+    """Sense repartiment permès (Màx. dies = 1) es manté el comportament
+    anterior: tota la càrrega en un sol bloc."""
+    from scheduler_engine.generator import SchedulerGenerator
+
+    blocks = SchedulerGenerator()._build_blocks_from_requirements(
+        [_taller_2n_com_requirement(max_days=1)], _tiny_calendar_context()
+    )
+
+    assert [block.duration_blocks for block in blocks] == [20]
+
+
+def test_taller_that_does_not_fit_whole_is_still_spread_over_its_days():
+    """Si el Taller de 2n COM (10h amb "Màx. dies" = 3) no cap sencer enlloc,
+    ha d'arribar a l'horari com a sessions repartides en els dies on sí que
+    hi cap, no com un bloc únic de 10h impossible de col·locar (és el que
+    passava abans: el generador queia sempre a la distribució més
+    concentrada i el Taller quedava sense planificar)."""
+    from repositories.requirement_repository import RequirementRepository
+    from scheduler_engine.engine import SchedulerEngine
+    from scheduler_engine.models import SchoolCalendar
+
+    day_names = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+    hour_names = [f"{8 + (index // 2)}:{'00' if index % 2 == 0 else '30'}" for index in range(28)]
+    # Finestres lliures del grup: 3,5h el dilluns, 3h el dimarts i 2,5h la
+    # resta de dies. Cap repartiment sencer del Taller hi cap, però sí que
+    # hi caben sessions soltes.
+    first_blocked_period = {"Dilluns": 7, "Dimarts": 6, "Dimecres": 5, "Dijous": 5, "Divendres": 5}
+
+    repo = AcademicDataRepository()
+    repo.create_group({"name": "2n COM"})
+    repo.create_teacher({"name": "Jordi"})
+    repo.create_canonical_assignment(
+        {
+            "teacher": "Jordi",
+            "subject": "Taller",
+            "group": "2n COM",
+            "weekly_hours": 10.0,
+            "max_session_days": "3",
+        }
+    )
+    repo.upsert_group_restriction(
+        {
+            "group": "2n COM",
+            "unavailable_slots": [
+                f"{day} {hour}"
+                for day in day_names
+                for hour in hour_names[first_blocked_period[day] :]
+            ],
+        }
+    )
+
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=list(range(5)), periods_per_day=len(hour_names)),
+        time_labels={"day_names": day_names, "hour_names": hour_names},
+        academic_data_repo=repo,
+    )
+
+    result = use_cases.generate_proposals_from_academic_data()
+    activities = (result.get("best_proposal") or {}).get("activities") or []
+    taller = [activity for activity in activities if activity["subject"] == "Taller"]
+    unscheduled = [item for item in result.get("unscheduled_activities") or [] if item.get("subject") == "Taller"]
+
+    # El Taller mai no es planteja com un sol bloc de 10h (20 blocs).
+    assert all(activity["duration"] < 20 for activity in taller + unscheduled)
+    # Les sessions que s'hi col·loquen van repartides en dies diferents (màx. 3).
+    assert taller
+    assert len(taller) <= 3
+    assert len({activity["day"] for activity in taller}) == len(taller)
+    # I no es perd càrrega pel camí: el que està col·locat més el que queda
+    # pendent suma les 10h de l'assignació.
+    assert sum(activity["duration"] for activity in taller) + sum(
+        item.get("duration") or 0 for item in unscheduled
+    ) == 20
+
+def test_taller_2n_com_10h_with_max_session_days_3_is_spread_across_days():
+
+    """De punta a punta: una assignació de 10h amb `max_session_days` = 3 a
+    les dades acadèmiques ha de generar un Taller repartit en 2-3 dies, no un
+    únic bloc de 10h en un sol dia."""
+    from repositories.requirement_repository import RequirementRepository
+    from scheduler_engine.engine import SchedulerEngine
+    from scheduler_engine.models import SchoolCalendar
+
+    day_names = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+    hour_names = [f"{8 + (index // 2)}:{'00' if index % 2 == 0 else '30'}" for index in range(28)]
+
+    repo = AcademicDataRepository()
+    repo.create_group({"name": "2n COM"})
+    repo.create_teacher({"name": "Jordi"})
+    repo.create_canonical_assignment(
+        {
+            "teacher": "Jordi",
+            "subject": "Taller",
+            "group": "2n COM",
+            "weekly_hours": 10.0,
+            "max_session_days": "3",
+        }
+    )
+
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=list(range(5)), periods_per_day=len(hour_names)),
+        time_labels={"day_names": day_names, "hour_names": hour_names},
+        academic_data_repo=repo,
+    )
+
+    result = use_cases.generate_proposals_from_academic_data()
+    activities = (result.get("best_proposal") or {}).get("activities") or []
+    taller = [activity for activity in activities if activity["subject"] == "Taller"]
+
+    assert taller
+    assert len(taller) >= 2
+    assert len({activity["day"] for activity in taller}) <= 3
+    assert sum(activity["duration"] for activity in taller) == 20
+

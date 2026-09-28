@@ -113,6 +113,23 @@ class SchedulerGenerator:
 
         return sorted(distributions, key=sort_key)
 
+    def _widest_balanced_distribution(self, distributions: Sequence[List]) -> List:
+        """Tria la distribució que fa servir MÉS dies (el màxim permès per la
+        restricció "Màx. dies per repartir") i, entre aquestes, la més
+        equilibrada — per tant, amb les sessions més curtes.
+
+        S'usa només com a últim recurs, quan cap distribució no s'ha pogut
+        col·locar sencera: amb sessions petites hi ha moltes més
+        possibilitats de col·locar-les que amb un bloc únic gegant.
+        """
+
+        def sizes(distribution):
+            return [block.duration_blocks for block in distribution]
+
+        widest = max(len(distribution) for distribution in distributions)
+        candidates = [distribution for distribution in distributions if len(distribution) == widest]
+        return min(candidates, key=lambda distribution: (max(sizes(distribution)) - min(sizes(distribution)), sizes(distribution)))
+
     def _build_blocks_from_requirements(
         self, requirements: Sequence[TeachingRequirement], context: Optional[GenerationContext] = None
     ) -> List[TeachingBlock]:
@@ -199,11 +216,21 @@ class SchedulerGenerator:
 
             if chosen_teaching_blocks is None:
                 # Cap distribució s'ha pogut col·locar sencera (o no hi ha
-                # context per provar-ho): manté el comportament anterior,
-                # la distribució més concentrada, perquè el generador
-                # principal ho intenti igualment i, si cal, expliqui per
-                # què no s'ha pogut col·locar.
-                fallback_distribution = distributions[0]
+                # context per provar-ho). Si l'assignació admet repartir-se
+                # en més d'un dia ("Màx. dies per repartir" > 1), NO es cau
+                # al bloc únic: es manté la distribució més repartida
+                # permesa, perquè el generador principal pugui col·locar
+                # cada sessió pel seu compte. Exemple real: el Taller de
+                # 2n COM són 10h amb màxim 3 dies; amb la distribució
+                # concentrada (un sol bloc de 10h) era impossible de
+                # col·locar, i amb 3 sessions de 3,5h/3,5h/3h sí que s'hi
+                # reparteix. Si només admet un dia, el bloc únic és l'única
+                # opció i es manté el comportament anterior.
+                fallback_distribution = (
+                    self._widest_balanced_distribution(distributions)
+                    if int(requirement.max_distribution_days or 1) > 1
+                    else distributions[0]
+                )
                 chosen_teaching_blocks = [
                     TeachingBlock(
                         id=block.id,
