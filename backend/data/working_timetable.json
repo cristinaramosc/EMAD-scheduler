@@ -788,7 +788,7 @@
       "group": "2n COM",
       "room": "",
       "day": "Dilluns",
-      "start": "10:30",
+      "start": "10:00",
       "duration": 4,
       "fixed": false
     },
@@ -799,7 +799,7 @@
       "group": "2n COM",
       "room": "",
       "day": "Dilluns",
-      "start": "12:30",
+      "start": "12:00",
       "duration": 2,
       "fixed": false
     },
@@ -1041,7 +1041,7 @@
       "group": "2n COM",
       "room": "Taller",
       "day": "Dimecres",
-      "start": "10:30",
+      "start": "10:00",
       "duration": 7,
       "fixed": false
     },
@@ -6084,6 +6084,6 @@
   "generation_stats": null,
   "unscheduled_activities": [],
   "metadata": {
-    "last_source": "proposal"
+    "last_source": "active_schedule"
   }
 }
