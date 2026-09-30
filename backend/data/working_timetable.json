@@ -1,557 +1,7 @@
 {
   "active_schedule": [
     {
-      "id": 2381968470,
-      "teacher": "Joan Carles",
-      "subject": "PFI Taller",
-      "group": "PFI",
-      "room": "Taller",
-      "day": "Dilluns",
-      "start": "8:30",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 3336280410,
-      "teacher": "Sònia",
-      "subject": "Projecte Integrat",
-      "group": "GI",
-      "room": "",
-      "day": "Dilluns",
-      "start": "15:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 3413165204,
-      "teacher": "Bet",
-      "subject": "Fonaments DG",
-      "group": "GP",
-      "room": "",
-      "day": "Dilluns",
-      "start": "15:00",
-      "duration": 8,
-      "fixed": false
-    },
-    {
-      "id": 1070043255,
-      "teacher": "Bego",
-      "subject": "Ll. Tec. Audio UF3 1Q",
-      "group": "GI",
-      "room": "",
-      "day": "Dilluns",
-      "start": "18:00",
-      "duration": 8,
-      "fixed": false
-    },
-    {
-      "id": 1883115941,
-      "teacher": "Cristina",
-      "subject": "Projectes UF4 1Q",
-      "group": "GP",
-      "room": "",
-      "day": "Dilluns",
-      "start": "19:30",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 3892973426,
-      "teacher": "Bego",
-      "subject": "Ll. Tec. Audio UF3 2Q",
-      "group": "GI, GP",
-      "room": "",
-      "day": "Dilluns",
-      "start": "19:00",
-      "duration": 6,
-      "fixed": false
-    },
-    {
-      "id": 4063594897,
-      "teacher": "Bego",
-      "subject": "FOL GPP",
-      "group": "GI",
-      "room": "",
-      "day": "Dilluns",
-      "start": "17:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 1574931186,
-      "teacher": "Inno",
-      "subject": "Edició web",
-      "group": "2n APGI",
-      "room": "",
-      "day": "Dilluns",
-      "start": "8:30",
-      "duration": 6,
-      "fixed": false
-    },
-    {
-      "id": 2593370446,
-      "teacher": "Alfred",
-      "subject": "Tipografia",
-      "group": "2n APGI",
-      "room": "",
-      "day": "Dilluns",
-      "start": "11:30",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 2482437764,
-      "teacher": "Carme",
-      "subject": "FOL UF1",
-      "group": "1r APGI",
-      "room": "",
-      "day": "Dilluns",
-      "start": "8:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 4153489938,
-      "teacher": "Bego",
-      "subject": "Multimèdia UF2",
-      "group": "1r APGI",
-      "room": "",
-      "day": "Dilluns",
-      "start": "10:30",
-      "duration": 5,
-      "fixed": false
-    },
-    {
-      "id": 2000372396,
-      "teacher": "Alfred",
-      "subject": "Mitjans informàtics",
-      "group": "1r APGI",
-      "room": "",
-      "day": "Dilluns",
-      "start": "13:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 541254860,
-      "teacher": "Inno",
-      "subject": "Projectes UF2",
-      "group": "Comú",
-      "room": "",
-      "day": "Dilluns",
-      "start": "15:00",
-      "duration": 5,
-      "fixed": false
-    },
-    {
-      "id": 1392639070,
-      "teacher": "Carme",
-      "subject": "FOL UF1",
-      "group": "Comú",
-      "room": "",
-      "day": "Dilluns",
-      "start": "18:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 2396758507,
-      "teacher": "Noëlle",
-      "subject": "Hª de la imatge UF1",
-      "group": "Comú",
-      "room": "",
-      "day": "Dilluns",
-      "start": "20:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 3570716107,
-      "teacher": "Eulàlia",
-      "subject": "Dx artístic",
-      "group": "1r COM",
-      "room": "",
-      "day": "Dilluns",
-      "start": "8:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 4000660956,
-      "teacher": "Bet",
-      "subject": "Dx Tècnic",
-      "group": "1r COM",
-      "room": "",
-      "day": "Dilluns",
-      "start": "10:30",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 3621478837,
-      "teacher": "Carme",
-      "subject": "FOL UF1",
-      "group": "1r COM",
-      "room": "",
-      "day": "Dilluns",
-      "start": "12:30",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 1534017887,
-      "teacher": "Cristina",
-      "subject": "Espais 1Q",
-      "group": "2n COM",
-      "room": "",
-      "day": "Dilluns",
-      "start": "8:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 3907507055,
-      "teacher": "Cristina",
-      "subject": "Impressió 3D 2Q",
-      "group": "2n COM",
-      "room": "",
-      "day": "Dilluns",
-      "start": "8:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 136079296,
-      "teacher": "Eli",
-      "subject": "GPP",
-      "group": "2n COM",
-      "room": "",
-      "day": "Dilluns",
-      "start": "10:30",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 920713893,
-      "teacher": "Eli",
-      "subject": "Obra Final",
-      "group": "2n COM",
-      "room": "",
-      "day": "Dilluns",
-      "start": "12:30",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339411,
-      "teacher": "Núria",
-      "subject": "Render de producte",
-      "group": "2n COM",
-      "room": "",
-      "day": "Dilluns",
-      "start": "13:30",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 2248575433,
-      "teacher": "Bet",
-      "subject": "Hª de l'art UF1",
-      "group": "1r COM",
-      "room": "",
-      "day": "Dimarts",
-      "start": "8:30",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 2980814965,
-      "teacher": "Marc F.",
-      "subject": "Taller",
-      "group": "1r COM",
-      "room": "Taller",
-      "day": "Dimarts",
-      "start": "11:00",
-      "duration": 8,
-      "fixed": false
-    },
-    {
-      "id": 1072570002,
-      "teacher": "Marc F.",
-      "subject": "PFI Taller",
-      "group": "PFI",
-      "room": "Taller",
-      "day": "Dimarts",
-      "start": "8:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 4214354803,
-      "teacher": "Imma",
-      "subject": "MFG1 Comunicació",
-      "group": "PFI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "10:30",
-      "duration": 7,
-      "fixed": false
-    },
-    {
-      "id": 3553141098,
-      "teacher": "Sara",
-      "subject": "MFG4 Mon Professional",
-      "group": "PFI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 3072540326,
-      "teacher": "Alfred",
-      "subject": "GPP",
-      "group": "2n APGI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "8:30",
-      "duration": 6,
-      "fixed": false
-    },
-    {
-      "id": 733791965,
-      "teacher": "Borja",
-      "subject": "ANG UF1 Behance my friend 1Q",
-      "group": "2n APGI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "12:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 3590666134,
-      "teacher": "Bet",
-      "subject": "Dx artístic",
-      "group": "2n APGI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 562044063,
-      "teacher": "Cristina",
-      "subject": "GPP",
-      "group": "GP",
-      "room": "",
-      "day": "Dimarts",
-      "start": "15:00",
-      "duration": 6,
-      "fixed": false
-    },
-    {
-      "id": 614787156,
-      "teacher": "Marc",
-      "subject": "GPP",
-      "group": "GI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "15:00",
-      "duration": 5,
-      "fixed": false
-    },
-    {
-      "id": 2032407270,
-      "teacher": "Sònia",
-      "subject": "Projectes UF4 1Q",
-      "group": "GI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "20:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 3855531289,
-      "teacher": "Sònia",
-      "subject": "Ll. disp. comunicació projecte 2Q",
-      "group": "GI, GP",
-      "room": "",
-      "day": "Dimarts",
-      "start": "20:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 2227616962,
-      "teacher": "Noëlle",
-      "subject": "Tipografia",
-      "group": "GP",
-      "room": "",
-      "day": "Dimarts",
-      "start": "18:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 313153170,
-      "teacher": "Roger",
-      "subject": "Hª del DG",
-      "group": "1r APGI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "8:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 3906559749,
-      "teacher": "Borja",
-      "subject": "Anglès UF1 Influences 2Q",
-      "group": "1r APGI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "10:30",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 553488230,
-      "teacher": "Noëlle",
-      "subject": "Foto 1Q",
-      "group": "1r APGI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "10:30",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 1355460675,
-      "teacher": "Noëlle",
-      "subject": "Fonaments DG",
-      "group": "1r APGI",
-      "room": "",
-      "day": "Dimarts",
-      "start": "12:30",
-      "duration": 3,
-      "fixed": false
-    },
-    {
-      "id": 1246160145,
-      "teacher": "Noëlle",
-      "subject": "Foto UF1 i 2",
-      "group": "Comú",
-      "room": "",
-      "day": "Dimarts",
-      "start": "15:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 185378788,
-      "teacher": "Bet",
-      "subject": "Fonaments expressió",
-      "group": "Comú",
-      "room": "",
-      "day": "Dimarts",
-      "start": "17:00",
-      "duration": 3,
-      "fixed": false
-    },
-    {
-      "id": 3101094679,
-      "teacher": "Sònia",
-      "subject": "Mitjans informàtics",
-      "group": "Comú",
-      "room": "",
-      "day": "Dimarts",
-      "start": "18:30",
-      "duration": 3,
-      "fixed": false
-    },
-    {
-      "id": 695699888,
-      "teacher": "Bego",
-      "subject": "Ll. Tec. Audio UF1",
-      "group": "Comú",
-      "room": "",
-      "day": "Dimarts",
-      "start": "20:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 465446859,
-      "teacher": "Eulàlia",
-      "subject": "Volum UF1 1Q",
-      "group": "2n COM",
-      "room": "",
-      "day": "Dijous",
-      "start": "8:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 2062381024,
-      "teacher": "Jordi",
-      "subject": "Taller",
-      "group": "2n COM",
-      "room": "Taller",
-      "day": "Dijous",
-      "start": "10:30",
-      "duration": 7,
-      "fixed": false
-    },
-    {
-      "id": 707786959,
-      "teacher": "Borja",
-      "subject": "ANG UF2 Behance my friend 1Q",
-      "group": "2n COM",
-      "room": "",
-      "day": "Dijous",
-      "start": "14:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 2812946037,
-      "teacher": "Joan Carles",
-      "subject": "PFI Taller",
-      "group": "PFI",
-      "room": "Taller",
-      "day": "Dijous",
-      "start": "8:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 1522376670,
-      "teacher": "Judit",
-      "subject": "PFI M3 Mates",
-      "group": "PFI",
-      "room": "",
-      "day": "Dijous",
-      "start": "10:30",
-      "duration": 7,
-      "fixed": false
-    },
-    {
-      "id": 1347666352,
-      "teacher": "Judit",
-      "subject": "PFI Tutoria",
-      "group": "PFI",
-      "room": "",
-      "day": "Dijous",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 2519648385,
+      "id": 4243454826,
       "teacher": "Noëlle",
       "subject": "Projectes UF3",
       "group": "GP",
@@ -562,29 +12,29 @@
       "fixed": false
     },
     {
-      "id": 3574757709,
+      "id": 1825869911,
       "teacher": "Cristina",
       "subject": "Projecte Integrat",
       "group": "GP",
       "room": "",
       "day": "Dijous",
-      "start": "18:00",
+      "start": "17:30",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 3527285980,
+      "id": 4128666038,
       "teacher": "Eli",
       "subject": "Projecte Integrat",
       "group": "GP",
       "room": "",
       "day": "Dijous",
-      "start": "20:00",
+      "start": "19:30",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 2488727541,
+      "id": 2790399736,
       "teacher": "Noëlle",
       "subject": "Fonaments DG",
       "group": "1r APGI",
@@ -595,18 +45,18 @@
       "fixed": false
     },
     {
-      "id": 1194871530,
+      "id": 1178439529,
       "teacher": "Inno",
       "subject": "Edició web",
       "group": "1r APGI",
       "room": "",
       "day": "Dijous",
-      "start": "10:30",
+      "start": "10:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 1554395300,
+      "id": 916191474,
       "teacher": "Eli",
       "subject": "Projectes",
       "group": "1r COM",
@@ -617,7 +67,7 @@
       "fixed": false
     },
     {
-      "id": 2881541040,
+      "id": 502073441,
       "teacher": "Núria",
       "subject": "Mitjans informàtics",
       "group": "1r COM",
@@ -628,7 +78,7 @@
       "fixed": false
     },
     {
-      "id": 1671508750,
+      "id": 1393528537,
       "teacher": "Borja",
       "subject": "Anglès UF2 Influences 1Q",
       "group": "1r COM",
@@ -639,7 +89,40 @@
       "fixed": false
     },
     {
-      "id": 1183670658,
+      "id": 136525817,
+      "teacher": "Eulàlia",
+      "subject": "Dx artístic",
+      "group": "2n COM",
+      "room": "",
+      "day": "Dijous",
+      "start": "8:30",
+      "duration": 3,
+      "fixed": false
+    },
+    {
+      "id": 3114221075,
+      "teacher": "Borja",
+      "subject": "ANG UF2 Behance my friend 1Q",
+      "group": "2n COM",
+      "room": "",
+      "day": "Dijous",
+      "start": "10:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2517242048,
+      "teacher": "Jordi",
+      "subject": "Taller",
+      "group": "2n COM",
+      "room": "Taller",
+      "day": "Dijous",
+      "start": "12:00",
+      "duration": 7,
+      "fixed": false
+    },
+    {
+      "id": 1883794529,
       "teacher": "Eulàlia",
       "subject": "Ll. disp. Taller producció",
       "group": "Comú",
@@ -650,29 +133,29 @@
       "fixed": false
     },
     {
-      "id": 3791873213,
+      "id": 294127683,
       "teacher": "Inno",
       "subject": "Ll. programació",
       "group": "Comú",
       "room": "",
       "day": "Dijous",
-      "start": "17:30",
+      "start": "17:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 1962422234,
+      "id": 3483683841,
       "teacher": "Noëlle",
       "subject": "Tipografia",
       "group": "Comú",
       "room": "",
       "day": "Dijous",
-      "start": "19:30",
+      "start": "19:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 1289696427,
+      "id": 263904838,
       "teacher": "Roger",
       "subject": "Hª del DG",
       "group": "GI",
@@ -683,40 +166,62 @@
       "fixed": false
     },
     {
-      "id": 2609725367,
+      "id": 534550253,
       "teacher": "Bego",
       "subject": "GPP",
       "group": "GI",
       "room": "",
       "day": "Dijous",
-      "start": "17:30",
+      "start": "17:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 3577561586,
+      "id": 3832192159,
       "teacher": "Marc",
       "subject": "Projectes UF3",
       "group": "GI",
       "room": "",
       "day": "Dijous",
-      "start": "19:00",
+      "start": "18:30",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 1279024412,
+      "id": 601151222,
       "teacher": "Cristina",
       "subject": "Projecte Integrat",
       "group": "GI",
       "room": "",
       "day": "Dijous",
-      "start": "20:30",
+      "start": "20:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 2176696465,
+      "id": 2710518494,
+      "teacher": "Imma",
+      "subject": "MFG2 Social",
+      "group": "PFI",
+      "room": "",
+      "day": "Dijous",
+      "start": "8:30",
+      "duration": 3,
+      "fixed": false
+    },
+    {
+      "id": 39611709,
+      "teacher": "Sara",
+      "subject": "MPRL",
+      "group": "PFI",
+      "room": "",
+      "day": "Dijous",
+      "start": "10:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 1081748129,
       "teacher": "Bego",
       "subject": "Multimèdia UF3 i UF4",
       "group": "2n APGI",
@@ -727,7 +232,7 @@
       "fixed": false
     },
     {
-      "id": 313332897,
+      "id": 1639830102,
       "teacher": "Bego",
       "subject": "Obra Final",
       "group": "2n APGI",
@@ -738,7 +243,7 @@
       "fixed": false
     },
     {
-      "id": 3423263902,
+      "id": 3810899530,
       "teacher": "Eli",
       "subject": "Obra Final",
       "group": "2n COM",
@@ -749,29 +254,84 @@
       "fixed": false
     },
     {
-      "id": 3585175222,
+      "id": 918326343,
       "teacher": "Bet",
       "subject": "FOL UF3",
       "group": "2n COM",
       "room": "",
       "day": "Divendres",
-      "start": "9:30",
+      "start": "9:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 3278038614,
+      "id": 3454584996,
+      "teacher": "Jordi",
+      "subject": "GPP",
+      "group": "2n COM",
+      "room": "",
+      "day": "Divendres",
+      "start": "10:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 3776824137,
+      "teacher": "Núria",
+      "subject": "Render de producte",
+      "group": "2n COM",
+      "room": "",
+      "day": "Divendres",
+      "start": "11:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 2873413455,
       "teacher": "Jordi",
       "subject": "Taller",
       "group": "2n COM",
       "room": "Taller",
       "day": "Divendres",
-      "start": "10:30",
-      "duration": 7,
+      "start": "12:00",
+      "duration": 6,
       "fixed": false
     },
     {
-      "id": 2046292012,
+      "id": 4171613414,
+      "teacher": "Judit",
+      "subject": "PFI Tutoria",
+      "group": "PFI",
+      "room": "",
+      "day": "Divendres",
+      "start": "8:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 210490157,
+      "teacher": "Sara",
+      "subject": "MFG4 Mon Professional",
+      "group": "PFI",
+      "room": "",
+      "day": "Divendres",
+      "start": "9:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 2339720308,
+      "teacher": "Marc F.",
+      "subject": "PFI Taller",
+      "group": "PFI",
+      "room": "Taller",
+      "day": "Divendres",
+      "start": "15:00",
+      "duration": 6,
+      "fixed": false
+    },
+    {
+      "id": 691112235,
       "teacher": "Sònia",
       "subject": "Metodologia 2Q",
       "group": "1r APGI",
@@ -782,7 +342,7 @@
       "fixed": false
     },
     {
-      "id": 3642247800,
+      "id": 2958421442,
       "teacher": "Sònia",
       "subject": "Multimèdia UF1 1Q",
       "group": "1r APGI",
@@ -793,31 +353,42 @@
       "fixed": false
     },
     {
-      "id": 1911617000,
+      "id": 395432011,
       "teacher": "Bet",
       "subject": "Dx Tècnic",
       "group": "1r APGI",
       "room": "",
       "day": "Divendres",
-      "start": "10:30",
+      "start": "10:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 3875867243,
+      "id": 3482700401,
       "teacher": "Inno",
       "subject": "Edició web",
       "group": "1r APGI",
       "room": "",
       "day": "Divendres",
-      "start": "12:30",
+      "start": "12:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 2988532433,
+      "id": 2488009389,
       "teacher": "Joan Carles",
       "subject": "Materials UF1",
+      "group": "1r COM",
+      "room": "",
+      "day": "Divendres",
+      "start": "10:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 2711667549,
+      "teacher": "Jordi",
+      "subject": "Materials UF2",
       "group": "1r COM",
       "room": "",
       "day": "Divendres",
@@ -826,18 +397,18 @@
       "fixed": false
     },
     {
-      "id": 3022987837,
+      "id": 3585921580,
       "teacher": "Eulàlia",
       "subject": "Volum UF2",
       "group": "1r COM",
       "room": "",
       "day": "Divendres",
-      "start": "12:30",
+      "start": "12:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 2469569160,
+      "id": 2712134246,
       "teacher": "Alfred",
       "subject": "Mitjans informàtics 1Q",
       "group": "2n APGI",
@@ -848,7 +419,7 @@
       "fixed": false
     },
     {
-      "id": 2862192773,
+      "id": 2700906215,
       "teacher": "Alfred",
       "subject": "Packaging 2Q",
       "group": "2n APGI",
@@ -859,7 +430,7 @@
       "fixed": false
     },
     {
-      "id": 1846533177,
+      "id": 1520452430,
       "teacher": "Inno",
       "subject": "FOL UF3",
       "group": "2n APGI",
@@ -870,7 +441,7 @@
       "fixed": false
     },
     {
-      "id": 925653758,
+      "id": 3702721886,
       "teacher": "Alfred",
       "subject": "Art Experience 2Q",
       "group": "Comú",
@@ -881,7 +452,7 @@
       "fixed": false
     },
     {
-      "id": 1088234279,
+      "id": 910535831,
       "teacher": "Alfred",
       "subject": "Proj UF1 1Q",
       "group": "Comú",
@@ -892,7 +463,7 @@
       "fixed": false
     },
     {
-      "id": 959088067,
+      "id": 594867688,
       "teacher": "Bego",
       "subject": "Ll. Tec. Audio UF1",
       "group": "Comú",
@@ -903,7 +474,7 @@
       "fixed": false
     },
     {
-      "id": 3061848614,
+      "id": 308681712,
       "teacher": "Noëlle",
       "subject": "Tipografia",
       "group": "Comú",
@@ -914,7 +485,7 @@
       "fixed": false
     },
     {
-      "id": 2854475407,
+      "id": 2422928279,
       "teacher": "Inno",
       "subject": "Ll. programació",
       "group": "GI",
@@ -925,40 +496,40 @@
       "fixed": false
     },
     {
-      "id": 1525866875,
+      "id": 2650323429,
       "teacher": "Sònia",
       "subject": "Interfícies gràfiques",
       "group": "GI",
       "room": "",
       "day": "Divendres",
-      "start": "17:30",
+      "start": "17:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 3605361090,
+      "id": 2091333996,
       "teacher": "Bego",
       "subject": "GPP",
       "group": "GI",
       "room": "",
       "day": "Divendres",
-      "start": "19:00",
+      "start": "18:30",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 4138337754,
+      "id": 4166230153,
       "teacher": "Marc",
       "subject": "Projectes UF3",
       "group": "GI",
       "room": "",
       "day": "Divendres",
-      "start": "20:00",
+      "start": "19:30",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 2013941761,
+      "id": 2588682234,
       "teacher": "Noëlle",
       "subject": "GPP",
       "group": "GP",
@@ -969,95 +540,535 @@
       "fixed": false
     },
     {
-      "id": 3518698523,
+      "id": 1265281033,
       "teacher": "Marc",
       "subject": "Teoria publ i mkt",
       "group": "GP",
       "room": "",
       "day": "Divendres",
-      "start": "17:30",
+      "start": "17:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 2734954121,
+      "id": 3892645888,
       "teacher": "Inno",
       "subject": "FOL UF3",
       "group": "GP",
       "room": "",
       "day": "Divendres",
+      "start": "19:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 674161133,
+      "teacher": "Joan Carles",
+      "subject": "PFI Taller",
+      "group": "PFI",
+      "room": "Taller",
+      "day": "Dilluns",
+      "start": "8:30",
+      "duration": 12,
+      "fixed": false
+    },
+    {
+      "id": 2534830709,
+      "teacher": "Sònia",
+      "subject": "Projecte Integrat",
+      "group": "GI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "15:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2805265108,
+      "teacher": "Bet",
+      "subject": "Fonaments DG",
+      "group": "GP",
+      "room": "",
+      "day": "Dilluns",
+      "start": "15:00",
+      "duration": 8,
+      "fixed": false
+    },
+    {
+      "id": 2161966960,
+      "teacher": "Bego",
+      "subject": "Ll. Tec. Audio UF3 1Q",
+      "group": "GI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "18:00",
+      "duration": 8,
+      "fixed": false
+    },
+    {
+      "id": 304776269,
+      "teacher": "Cristina",
+      "subject": "Projectes UF4 1Q",
+      "group": "GP",
+      "room": "",
+      "day": "Dilluns",
+      "start": "19:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 1447308708,
+      "teacher": "Bego",
+      "subject": "Ll. Tec. Audio UF3 2Q",
+      "group": "GI, GP",
+      "room": "",
+      "day": "Dilluns",
+      "start": "19:00",
+      "duration": 6,
+      "fixed": false
+    },
+    {
+      "id": 3262976405,
+      "teacher": "Bego",
+      "subject": "FOL GPP",
+      "group": "GI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "17:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 2817723317,
+      "teacher": "Inno",
+      "subject": "Edició web",
+      "group": "2n APGI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "8:30",
+      "duration": 6,
+      "fixed": false
+    },
+    {
+      "id": 3639799906,
+      "teacher": "Alfred",
+      "subject": "Tipografia",
+      "group": "2n APGI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "11:30",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4219947325,
+      "teacher": "Carme",
+      "subject": "FOL UF1",
+      "group": "1r APGI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "8:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2589070396,
+      "teacher": "Bego",
+      "subject": "Multimèdia UF2",
+      "group": "1r APGI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "10:00",
+      "duration": 5,
+      "fixed": false
+    },
+    {
+      "id": 86160896,
+      "teacher": "Alfred",
+      "subject": "Mitjans informàtics",
+      "group": "1r APGI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "12:30",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2272565604,
+      "teacher": "Inno",
+      "subject": "Projectes UF2",
+      "group": "Comú",
+      "room": "",
+      "day": "Dilluns",
+      "start": "15:00",
+      "duration": 5,
+      "fixed": false
+    },
+    {
+      "id": 15486478,
+      "teacher": "Carme",
+      "subject": "FOL UF1",
+      "group": "Comú",
+      "room": "",
+      "day": "Dilluns",
+      "start": "17:30",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2105997476,
+      "teacher": "Noëlle",
+      "subject": "Hª de la imatge UF1",
+      "group": "Comú",
+      "room": "",
+      "day": "Dilluns",
       "start": "19:30",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 146800847,
-      "teacher": "Imma",
-      "subject": "MFG2 Social",
-      "group": "PFI",
+      "id": 1949804629,
+      "teacher": "Eulàlia",
+      "subject": "Dx artístic",
+      "group": "1r COM",
       "room": "",
-      "day": "Divendres",
-      "start": "8:30",
-      "duration": 3,
+      "day": "Dilluns",
+      "start": "8:00",
+      "duration": 4,
       "fixed": false
     },
     {
-      "id": 1139868725,
-      "teacher": "Sara",
-      "subject": "MPRL",
-      "group": "PFI",
+      "id": 1832914333,
+      "teacher": "Bet",
+      "subject": "Dx Tècnic",
+      "group": "1r COM",
       "room": "",
-      "day": "Divendres",
+      "day": "Dilluns",
+      "start": "10:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2378958429,
+      "teacher": "Carme",
+      "subject": "FOL UF1",
+      "group": "1r COM",
+      "room": "",
+      "day": "Dilluns",
+      "start": "12:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 1739967875,
+      "teacher": "Cristina",
+      "subject": "Espais 1Q",
+      "group": "2n COM",
+      "room": "",
+      "day": "Dilluns",
+      "start": "8:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 3350801593,
+      "teacher": "Cristina",
+      "subject": "Impressió 3D 2Q",
+      "group": "2n COM",
+      "room": "",
+      "day": "Dilluns",
+      "start": "8:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 3490409558,
+      "teacher": "Eli",
+      "subject": "GPP",
+      "group": "2n COM",
+      "room": "",
+      "day": "Dilluns",
       "start": "10:30",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 2458612071,
-      "teacher": "Jordi",
-      "subject": "GPP",
+      "id": 3606546571,
+      "teacher": "Eli",
+      "subject": "Obra Final",
       "group": "2n COM",
       "room": "",
-      "day": "Dimecres",
-      "start": "8:30",
+      "day": "Dilluns",
+      "start": "12:30",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 1689568782,
-      "teacher": "Eulàlia",
-      "subject": "Dx artístic",
-      "group": "2n COM",
+      "id": 847149271,
+      "teacher": "Bet",
+      "subject": "Hª de l'art UF1",
+      "group": "1r COM",
       "room": "",
-      "day": "Dimecres",
+      "day": "Dimarts",
+      "start": "8:30",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2193495822,
+      "teacher": "Marc F.",
+      "subject": "Taller",
+      "group": "1r COM",
+      "room": "Taller",
+      "day": "Dimarts",
+      "start": "10:30",
+      "duration": 8,
+      "fixed": false
+    },
+    {
+      "id": 2947188812,
+      "teacher": "Marc F.",
+      "subject": "PFI Taller",
+      "group": "PFI",
+      "room": "Taller",
+      "day": "Dimarts",
+      "start": "8:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2866024437,
+      "teacher": "Imma",
+      "subject": "MFG1 Comunicació",
+      "group": "PFI",
+      "room": "",
+      "day": "Dimarts",
       "start": "10:00",
+      "duration": 7,
+      "fixed": false
+    },
+    {
+      "id": 329214318,
+      "teacher": "Alfred",
+      "subject": "GPP",
+      "group": "2n APGI",
+      "room": "",
+      "day": "Dimarts",
+      "start": "8:30",
+      "duration": 6,
+      "fixed": false
+    },
+    {
+      "id": 1934552808,
+      "teacher": "Borja",
+      "subject": "ANG UF1 Behance my friend 1Q",
+      "group": "2n APGI",
+      "room": "",
+      "day": "Dimarts",
+      "start": "11:30",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2269858355,
+      "teacher": "Bet",
+      "subject": "Dx artístic",
+      "group": "2n APGI",
+      "room": "",
+      "day": "Dimarts",
+      "start": "13:30",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 3376780559,
+      "teacher": "Cristina",
+      "subject": "GPP",
+      "group": "GP",
+      "room": "",
+      "day": "Dimarts",
+      "start": "15:00",
+      "duration": 6,
+      "fixed": false
+    },
+    {
+      "id": 3250695054,
+      "teacher": "Marc",
+      "subject": "GPP",
+      "group": "GI",
+      "room": "",
+      "day": "Dimarts",
+      "start": "15:00",
+      "duration": 5,
+      "fixed": false
+    },
+    {
+      "id": 4131591584,
+      "teacher": "Sònia",
+      "subject": "Projectes UF4 1Q",
+      "group": "GI",
+      "room": "",
+      "day": "Dimarts",
+      "start": "20:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 1786162306,
+      "teacher": "Sònia",
+      "subject": "Ll. disp. comunicació projecte 2Q",
+      "group": "GI, GP",
+      "room": "",
+      "day": "Dimarts",
+      "start": "20:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2171930213,
+      "teacher": "Noëlle",
+      "subject": "Tipografia",
+      "group": "GP",
+      "room": "",
+      "day": "Dimarts",
+      "start": "18:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 656680906,
+      "teacher": "Roger",
+      "subject": "Hª del DG",
+      "group": "1r APGI",
+      "room": "",
+      "day": "Dimarts",
+      "start": "8:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2381433784,
+      "teacher": "Borja",
+      "subject": "Anglès UF1 Influences 2Q",
+      "group": "1r APGI",
+      "room": "",
+      "day": "Dimarts",
+      "start": "10:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 1351108877,
+      "teacher": "Noëlle",
+      "subject": "Foto 1Q",
+      "group": "1r APGI",
+      "room": "",
+      "day": "Dimarts",
+      "start": "10:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2254950546,
+      "teacher": "Noëlle",
+      "subject": "Fonaments DG",
+      "group": "1r APGI",
+      "room": "",
+      "day": "Dimarts",
+      "start": "12:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 1801035766,
+      "id": 2282640927,
+      "teacher": "Noëlle",
+      "subject": "Foto UF1 i 2",
+      "group": "Comú",
+      "room": "",
+      "day": "Dimarts",
+      "start": "15:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2110824876,
+      "teacher": "Bet",
+      "subject": "Fonaments expressió",
+      "group": "Comú",
+      "room": "",
+      "day": "Dimarts",
+      "start": "17:00",
+      "duration": 3,
+      "fixed": false
+    },
+    {
+      "id": 1744646031,
+      "teacher": "Sònia",
+      "subject": "Mitjans informàtics",
+      "group": "Comú",
+      "room": "",
+      "day": "Dimarts",
+      "start": "18:30",
+      "duration": 3,
+      "fixed": false
+    },
+    {
+      "id": 348107119,
+      "teacher": "Bego",
+      "subject": "Ll. Tec. Audio UF1",
+      "group": "Comú",
+      "room": "",
+      "day": "Dimarts",
+      "start": "20:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 682683857,
+      "teacher": "Eulàlia",
+      "subject": "Volum UF1 1Q",
+      "group": "2n COM",
+      "room": "",
+      "day": "Dimecres",
+      "start": "8:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 1160888648,
       "teacher": "Jordi",
       "subject": "Taller",
       "group": "2n COM",
       "room": "Taller",
       "day": "Dimecres",
-      "start": "11:30",
-      "duration": 6,
+      "start": "10:30",
+      "duration": 7,
       "fixed": false
     },
     {
-      "id": 2212533521,
-      "teacher": "Marc F.",
+      "id": 1792816733,
+      "teacher": "Joan Carles",
       "subject": "PFI Taller",
       "group": "PFI",
       "room": "Taller",
       "day": "Dimecres",
       "start": "8:00",
-      "duration": 6,
+      "duration": 4,
       "fixed": false
     },
     {
-      "id": 3552299843,
+      "id": 2549751632,
+      "teacher": "Judit",
+      "subject": "PFI M3 Mates",
+      "group": "PFI",
+      "room": "",
+      "day": "Dimecres",
+      "start": "10:00",
+      "duration": 7,
+      "fixed": false
+    },
+    {
+      "id": 3969828139,
       "teacher": "Noëlle",
       "subject": "Tipografia",
       "group": "1r APGI",
@@ -1068,18 +1079,18 @@
       "fixed": false
     },
     {
-      "id": 2949316653,
+      "id": 3099244522,
       "teacher": "Bet",
       "subject": "Dx artístic",
       "group": "1r APGI",
       "room": "",
       "day": "Dimecres",
-      "start": "10:30",
+      "start": "10:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 278984382,
+      "id": 2761337623,
       "teacher": "Jordi",
       "subject": "Taller",
       "group": "1r COM",
@@ -1090,18 +1101,7 @@
       "fixed": false
     },
     {
-      "id": 1298839879,
-      "teacher": "Jordi",
-      "subject": "Materials UF2",
-      "group": "1r COM",
-      "room": "",
-      "day": "Dimecres",
-      "start": "18:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 1632487778,
+      "id": 2849523953,
       "teacher": "Sònia",
       "subject": "Foto 1Q",
       "group": "2n APGI",
@@ -1112,29 +1112,29 @@
       "fixed": false
     },
     {
-      "id": 1776925788,
+      "id": 3442380525,
       "teacher": "Inno",
       "subject": "Obra Final",
       "group": "2n APGI",
       "room": "",
       "day": "Dimecres",
-      "start": "11:00",
+      "start": "10:30",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 3767092772,
+      "id": 255323026,
       "teacher": "Bego",
       "subject": "Multimèdia UF3 i UF4",
       "group": "2n APGI",
       "room": "",
       "day": "Dimecres",
-      "start": "13:00",
+      "start": "12:30",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 2545897996,
+      "id": 2154099170,
       "teacher": "Bego",
       "subject": "Teoria de la  imatge",
       "group": "Comú",
@@ -1145,40 +1145,40 @@
       "fixed": false
     },
     {
-      "id": 1392592525,
+      "id": 1327986620,
       "teacher": "Bet",
       "subject": "Fonaments expressió",
       "group": "Comú",
       "room": "",
       "day": "Dimecres",
-      "start": "17:30",
+      "start": "17:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 3404625875,
+      "id": 106332091,
       "teacher": "Sònia",
       "subject": "Mitjans informàtics",
       "group": "Comú",
       "room": "",
       "day": "Dimecres",
-      "start": "19:00",
+      "start": "18:30",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 1711501990,
+      "id": 3240755533,
       "teacher": "Marc",
       "subject": "Màrqueting",
       "group": "Comú",
       "room": "",
       "day": "Dimecres",
-      "start": "20:30",
+      "start": "20:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 3016378719,
+      "id": 1260111757,
       "teacher": "Roger",
       "subject": "Hª del DG",
       "group": "GP",
@@ -1189,7 +1189,7 @@
       "fixed": false
     },
     {
-      "id": 1799123871,
+      "id": 1632730124,
       "teacher": "Sònia",
       "subject": "Interfícies gràfiques",
       "group": "GI",
@@ -1200,7 +1200,7 @@
       "fixed": false
     },
     {
-      "id": 3209423485,
+      "id": 1790372265,
       "teacher": "Noëlle",
       "subject": "Foto UF3",
       "group": "GI, GP",
@@ -1209,1443 +1209,13 @@
       "start": "18:00",
       "duration": 4,
       "fixed": false
-    },
-    {
-      "id": 4217339412,
-      "teacher": "Cristina",
-      "subject": "Dinar",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "12:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339413,
-      "teacher": "Bet",
-      "subject": "Dinar",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "12:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339414,
-      "teacher": "Noëlle",
-      "subject": "Dinar",
-      "group": "",
-      "room": "",
-      "day": "Dijous",
-      "start": "12:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339415,
-      "teacher": "Eli",
-      "subject": "Dinar",
-      "group": "",
-      "room": "",
-      "day": "Dijous",
-      "start": "12:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339416,
-      "teacher": "Bego",
-      "subject": "Dinar",
-      "group": "",
-      "room": "",
-      "day": "Dijous",
-      "start": "12:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339417,
-      "teacher": "Sònia",
-      "subject": "Dinar",
-      "group": "",
-      "room": "",
-      "day": "Divendres",
-      "start": "12:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339418,
-      "teacher": "Noëlle",
-      "subject": "Dinar",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "12:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339419,
-      "teacher": "Sònia",
-      "subject": "Dinar",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "12:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339420,
-      "teacher": "Alfred",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339421,
-      "teacher": "Alfred",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339422,
-      "teacher": "Alfred",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "15:00",
-      "duration": 6,
-      "fixed": false
-    },
-    {
-      "id": 4217339423,
-      "teacher": "Bego",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "9:00",
-      "duration": 3,
-      "fixed": false
-    },
-    {
-      "id": 4217339424,
-      "teacher": "Bego",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "14:30",
-      "duration": 11,
-      "fixed": false
-    },
-    {
-      "id": 4217339425,
-      "teacher": "Bet",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339426,
-      "teacher": "Bet",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339427,
-      "teacher": "Bet",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "8:00",
-      "duration": 5,
-      "fixed": false
-    },
-    {
-      "id": 4217339428,
-      "teacher": "Bet",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "8:00",
-      "duration": 1,
-      "fixed": false
-    },
-    {
-      "id": 4217339429,
-      "teacher": "Bet",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "8:00",
-      "duration": 5,
-      "fixed": false
-    },
-    {
-      "id": 4217339430,
-      "teacher": "Bet",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Divendres",
-      "start": "12:30",
-      "duration": 1,
-      "fixed": false
-    },
-    {
-      "id": 4217339431,
-      "teacher": "Borja",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339432,
-      "teacher": "Borja",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339433,
-      "teacher": "Carme",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339434,
-      "teacher": "Carme",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339435,
-      "teacher": "Carme",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "20:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339436,
-      "teacher": "Cristina",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339437,
-      "teacher": "Cristina",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339438,
-      "teacher": "Cristina",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "9:00",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 4217339439,
-      "teacher": "Cristina",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "18:00",
-      "duration": 6,
-      "fixed": false
-    },
-    {
-      "id": 4217339440,
-      "teacher": "Cristina",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "8:00",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 4217339441,
-      "teacher": "Eli",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339442,
-      "teacher": "Eli",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339443,
-      "teacher": "Eli",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "13:30",
-      "duration": 8,
-      "fixed": false
-    },
-    {
-      "id": 4217339444,
-      "teacher": "Eli",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "8:00",
-      "duration": 5,
-      "fixed": false
-    },
-    {
-      "id": 4217339445,
-      "teacher": "Eli",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "8:00",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 4217339446,
-      "teacher": "Eli",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Divendres",
-      "start": "9:00",
-      "duration": 11,
-      "fixed": false
-    },
-    {
-      "id": 4217339447,
-      "teacher": "Eulàlia",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339448,
-      "teacher": "Eulàlia",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339449,
-      "teacher": "Eulàlia",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "10:00",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 4217339450,
-      "teacher": "Eulàlia",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "16:00",
-      "duration": 6,
-      "fixed": false
-    },
-    {
-      "id": 4217339451,
-      "teacher": "Glòria",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339452,
-      "teacher": "Glòria",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339453,
-      "teacher": "Glòria",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "16:00",
-      "duration": 10,
-      "fixed": false
-    },
-    {
-      "id": 4217339454,
-      "teacher": "Imma",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339455,
-      "teacher": "Imma",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339456,
-      "teacher": "Imma",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "14:00",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 4217339457,
-      "teacher": "Inno",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339458,
-      "teacher": "Inno",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339459,
-      "teacher": "Inno",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "17:30",
-      "duration": 8,
-      "fixed": false
-    },
-    {
-      "id": 4217339460,
-      "teacher": "Inno",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "8:00",
-      "duration": 1,
-      "fixed": false
-    },
-    {
-      "id": 4217339461,
-      "teacher": "Inno",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "16:00",
-      "duration": 1,
-      "fixed": false
-    },
-    {
-      "id": 4217339462,
-      "teacher": "Joan Carles",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339463,
-      "teacher": "Joan Carles",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339464,
-      "teacher": "Joan Carles",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "14:30",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 4217339465,
-      "teacher": "Jordi",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339466,
-      "teacher": "Jordi",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "8:00",
-      "duration": 1,
-      "fixed": false
-    },
-    {
-      "id": 4217339467,
-      "teacher": "Jordi",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dijous",
-      "start": "14:00",
-      "duration": 9,
-      "fixed": false
-    },
-    {
-      "id": 4217339468,
-      "teacher": "Jordi",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "19:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339469,
-      "teacher": "Josep",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339470,
-      "teacher": "Josep",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339471,
-      "teacher": "Judit",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339472,
-      "teacher": "Judit",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339473,
-      "teacher": "Judit",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "8:00",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 4217339474,
-      "teacher": "Marc",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339475,
-      "teacher": "Marc",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339476,
-      "teacher": "Marc F.",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339477,
-      "teacher": "Marc F.",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339478,
-      "teacher": "Marc F.",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "15:00",
-      "duration": 8,
-      "fixed": false
-    },
-    {
-      "id": 4217339479,
-      "teacher": "Núria",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339480,
-      "teacher": "Núria",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339481,
-      "teacher": "Núria",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "14:30",
-      "duration": 10,
-      "fixed": false
-    },
-    {
-      "id": 4217339482,
-      "teacher": "Núria",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "8:00",
-      "duration": 11,
-      "fixed": false
-    },
-    {
-      "id": 4217339483,
-      "teacher": "Núria",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "16:00",
-      "duration": 5,
-      "fixed": false
-    },
-    {
-      "id": 4217339484,
-      "teacher": "Sara",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339485,
-      "teacher": "Sara",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339486,
-      "teacher": "Sara",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339487,
-      "teacher": "Sònia",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339488,
-      "teacher": "Sònia",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339489,
-      "teacher": "Sònia",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "9:00",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 4217339490,
-      "teacher": "Sònia",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "17:00",
-      "duration": 8,
-      "fixed": false
-    },
-    {
-      "id": 4217339491,
-      "teacher": "Sònia",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "16:30",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 4217339492,
-      "teacher": "Noëlle",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339493,
-      "teacher": "Noëlle",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339494,
-      "teacher": "Noëlle",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dilluns",
-      "start": "14:00",
-      "duration": 12,
-      "fixed": false
-    },
-    {
-      "id": 4217339495,
-      "teacher": "Roger",
-      "subject": "Reunió",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "14:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339496,
-      "teacher": "Roger",
-      "subject": "Coordinació",
-      "group": "",
-      "room": "",
-      "day": "Dimecres",
-      "start": "15:00",
-      "duration": 2,
-      "fixed": false
-    },
-    {
-      "id": 4217339497,
-      "teacher": "Roger",
-      "subject": "Hores de centre",
-      "group": "",
-      "room": "",
-      "day": "Dimarts",
-      "start": "10:00",
-      "duration": 3,
-      "fixed": false
     }
   ],
   "current_proposal": {
-    "id": "proposal-c91d6c7b5630",
+    "id": "proposal-02ebecf6715a",
     "activities": [
       {
-        "id": 450744725,
-        "teacher": "Joan Carles",
-        "subject": "PFI Taller",
-        "group": "PFI",
-        "room": "Taller",
-        "day": "Dilluns",
-        "start": "8:30",
-        "duration": 12,
-        "fixed": false
-      },
-      {
-        "id": 2226012270,
-        "teacher": "Sònia",
-        "subject": "Projecte Integrat",
-        "group": "GI",
-        "room": "",
-        "day": "Dilluns",
-        "start": "15:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 4166460451,
-        "teacher": "Bet",
-        "subject": "Fonaments DG",
-        "group": "GP",
-        "room": "",
-        "day": "Dilluns",
-        "start": "15:00",
-        "duration": 8,
-        "fixed": false
-      },
-      {
-        "id": 1290073824,
-        "teacher": "Bego",
-        "subject": "Ll. Tec. Audio UF3 1Q",
-        "group": "GI",
-        "room": "",
-        "day": "Dilluns",
-        "start": "18:00",
-        "duration": 8,
-        "fixed": false
-      },
-      {
-        "id": 3119784412,
-        "teacher": "Cristina",
-        "subject": "Projectes UF4 1Q",
-        "group": "GP",
-        "room": "",
-        "day": "Dilluns",
-        "start": "19:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 3727297763,
-        "teacher": "Bego",
-        "subject": "Ll. Tec. Audio UF3 2Q",
-        "group": "GI, GP",
-        "room": "",
-        "day": "Dilluns",
-        "start": "19:00",
-        "duration": 6,
-        "fixed": false
-      },
-      {
-        "id": 3579361567,
-        "teacher": "Bego",
-        "subject": "FOL GPP",
-        "group": "GI",
-        "room": "",
-        "day": "Dilluns",
-        "start": "17:00",
-        "duration": 2,
-        "fixed": false
-      },
-      {
-        "id": 2488873278,
-        "teacher": "Inno",
-        "subject": "Edició web",
-        "group": "2n APGI",
-        "room": "",
-        "day": "Dilluns",
-        "start": "8:30",
-        "duration": 6,
-        "fixed": false
-      },
-      {
-        "id": 3115089830,
-        "teacher": "Alfred",
-        "subject": "Tipografia",
-        "group": "2n APGI",
-        "room": "",
-        "day": "Dilluns",
-        "start": "11:30",
-        "duration": 2,
-        "fixed": false
-      },
-      {
-        "id": 1548374546,
-        "teacher": "Carme",
-        "subject": "FOL UF1",
-        "group": "1r APGI",
-        "room": "",
-        "day": "Dilluns",
-        "start": "8:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 4242398698,
-        "teacher": "Bego",
-        "subject": "Multimèdia UF2",
-        "group": "1r APGI",
-        "room": "",
-        "day": "Dilluns",
-        "start": "10:00",
-        "duration": 5,
-        "fixed": false
-      },
-      {
-        "id": 2378992007,
-        "teacher": "Alfred",
-        "subject": "Mitjans informàtics",
-        "group": "1r APGI",
-        "room": "",
-        "day": "Dilluns",
-        "start": "12:30",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 3192674708,
-        "teacher": "Inno",
-        "subject": "Projectes UF2",
-        "group": "Comú",
-        "room": "",
-        "day": "Dilluns",
-        "start": "15:00",
-        "duration": 5,
-        "fixed": false
-      },
-      {
-        "id": 1905212026,
-        "teacher": "Carme",
-        "subject": "FOL UF1",
-        "group": "Comú",
-        "room": "",
-        "day": "Dilluns",
-        "start": "17:30",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 3722245359,
-        "teacher": "Noëlle",
-        "subject": "Hª de la imatge UF1",
-        "group": "Comú",
-        "room": "",
-        "day": "Dilluns",
-        "start": "19:30",
-        "duration": 2,
-        "fixed": false
-      },
-      {
-        "id": 2436573230,
-        "teacher": "Eulàlia",
-        "subject": "Dx artístic",
-        "group": "1r COM",
-        "room": "",
-        "day": "Dilluns",
-        "start": "8:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 3891828106,
-        "teacher": "Bet",
-        "subject": "Dx Tècnic",
-        "group": "1r COM",
-        "room": "",
-        "day": "Dilluns",
-        "start": "10:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 1972966880,
-        "teacher": "Carme",
-        "subject": "FOL UF1",
-        "group": "1r COM",
-        "room": "",
-        "day": "Dilluns",
-        "start": "12:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 3172426960,
-        "teacher": "Cristina",
-        "subject": "Espais 1Q",
-        "group": "2n COM",
-        "room": "",
-        "day": "Dilluns",
-        "start": "8:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 414066966,
-        "teacher": "Cristina",
-        "subject": "Impressió 3D 2Q",
-        "group": "2n COM",
-        "room": "",
-        "day": "Dilluns",
-        "start": "8:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 1988704883,
-        "teacher": "Eli",
-        "subject": "GPP",
-        "group": "2n COM",
-        "room": "",
-        "day": "Dilluns",
-        "start": "10:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 2891150931,
-        "teacher": "Núria",
-        "subject": "Render de producte",
-        "group": "2n COM",
-        "room": "",
-        "day": "Dilluns",
-        "start": "12:00",
-        "duration": 2,
-        "fixed": false
-      },
-      {
-        "id": 1528396114,
-        "teacher": "Bet",
-        "subject": "Hª de l'art UF1",
-        "group": "1r COM",
-        "room": "",
-        "day": "Dimarts",
-        "start": "8:30",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 1193771292,
-        "teacher": "Marc F.",
-        "subject": "Taller",
-        "group": "1r COM",
-        "room": "Taller",
-        "day": "Dimarts",
-        "start": "10:30",
-        "duration": 8,
-        "fixed": false
-      },
-      {
-        "id": 2093850675,
-        "teacher": "Marc F.",
-        "subject": "PFI Taller",
-        "group": "PFI",
-        "room": "Taller",
-        "day": "Dimarts",
-        "start": "8:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 1085718384,
-        "teacher": "Imma",
-        "subject": "MFG1 Comunicació",
-        "group": "PFI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "10:00",
-        "duration": 7,
-        "fixed": false
-      },
-      {
-        "id": 3175133423,
-        "teacher": "Alfred",
-        "subject": "GPP",
-        "group": "2n APGI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "8:30",
-        "duration": 6,
-        "fixed": false
-      },
-      {
-        "id": 1433968108,
-        "teacher": "Borja",
-        "subject": "ANG UF1 Behance my friend 1Q",
-        "group": "2n APGI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "11:30",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 2713209674,
-        "teacher": "Bet",
-        "subject": "Dx artístic",
-        "group": "2n APGI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "13:30",
-        "duration": 2,
-        "fixed": false
-      },
-      {
-        "id": 4048398032,
-        "teacher": "Cristina",
-        "subject": "GPP",
-        "group": "GP",
-        "room": "",
-        "day": "Dimarts",
-        "start": "15:00",
-        "duration": 6,
-        "fixed": false
-      },
-      {
-        "id": 3663062102,
-        "teacher": "Marc",
-        "subject": "GPP",
-        "group": "GI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "15:00",
-        "duration": 5,
-        "fixed": false
-      },
-      {
-        "id": 601283964,
-        "teacher": "Sònia",
-        "subject": "Projectes UF4 1Q",
-        "group": "GI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "20:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 358961758,
-        "teacher": "Sònia",
-        "subject": "Ll. disp. comunicació projecte 2Q",
-        "group": "GI, GP",
-        "room": "",
-        "day": "Dimarts",
-        "start": "20:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 1844491366,
-        "teacher": "Noëlle",
-        "subject": "Tipografia",
-        "group": "GP",
-        "room": "",
-        "day": "Dimarts",
-        "start": "18:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 776898771,
-        "teacher": "Roger",
-        "subject": "Hª del DG",
-        "group": "1r APGI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "8:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 2264071858,
-        "teacher": "Borja",
-        "subject": "Anglès UF1 Influences 2Q",
-        "group": "1r APGI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "10:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 1090309778,
-        "teacher": "Noëlle",
-        "subject": "Foto 1Q",
-        "group": "1r APGI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "10:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 3336150315,
-        "teacher": "Noëlle",
-        "subject": "Fonaments DG",
-        "group": "1r APGI",
-        "room": "",
-        "day": "Dimarts",
-        "start": "12:00",
-        "duration": 3,
-        "fixed": false
-      },
-      {
-        "id": 1673971757,
-        "teacher": "Noëlle",
-        "subject": "Foto UF1 i 2",
-        "group": "Comú",
-        "room": "",
-        "day": "Dimarts",
-        "start": "15:00",
-        "duration": 4,
-        "fixed": false
-      },
-      {
-        "id": 1397575627,
-        "teacher": "Bet",
-        "subject": "Fonaments expressió",
-        "group": "Comú",
-        "room": "",
-        "day": "Dimarts",
-        "start": "17:00",
-        "duration": 3,
-        "fixed": false
-      },
-      {
-        "id": 1375404251,
-        "teacher": "Sònia",
-        "subject": "Mitjans informàtics",
-        "group": "Comú",
-        "room": "",
-        "day": "Dimarts",
-        "start": "18:30",
-        "duration": 3,
-        "fixed": false
-      },
-      {
-        "id": 1000723648,
-        "teacher": "Bego",
-        "subject": "Ll. Tec. Audio UF1",
-        "group": "Comú",
-        "room": "",
-        "day": "Dimarts",
-        "start": "20:00",
-        "duration": 2,
-        "fixed": false
-      },
-      {
-        "id": 1675201494,
-        "teacher": "Eli",
-        "subject": "Obra Final",
-        "group": "2n COM",
-        "room": "",
-        "day": "Dijous",
-        "start": "9:00",
-        "duration": 2,
-        "fixed": false
-      },
-      {
-        "id": 3447426971,
-        "teacher": "Jordi",
-        "subject": "Taller",
-        "group": "2n COM",
-        "room": "Taller",
-        "day": "Dijous",
-        "start": "10:00",
-        "duration": 7,
-        "fixed": false
-      },
-      {
-        "id": 1986004081,
+        "id": 4243454826,
         "teacher": "Noëlle",
         "subject": "Projectes UF3",
         "group": "GP",
@@ -2656,7 +1226,7 @@
         "fixed": false
       },
       {
-        "id": 1810447485,
+        "id": 1825869911,
         "teacher": "Cristina",
         "subject": "Projecte Integrat",
         "group": "GP",
@@ -2667,7 +1237,7 @@
         "fixed": false
       },
       {
-        "id": 1987662238,
+        "id": 4128666038,
         "teacher": "Eli",
         "subject": "Projecte Integrat",
         "group": "GP",
@@ -2678,7 +1248,7 @@
         "fixed": false
       },
       {
-        "id": 4072735761,
+        "id": 2790399736,
         "teacher": "Noëlle",
         "subject": "Fonaments DG",
         "group": "1r APGI",
@@ -2689,7 +1259,7 @@
         "fixed": false
       },
       {
-        "id": 471635270,
+        "id": 1178439529,
         "teacher": "Inno",
         "subject": "Edició web",
         "group": "1r APGI",
@@ -2700,20 +1270,20 @@
         "fixed": false
       },
       {
-        "id": 4088484196,
-        "teacher": "Jordi",
-        "subject": "Taller",
+        "id": 916191474,
+        "teacher": "Eli",
+        "subject": "Projectes",
         "group": "1r COM",
-        "room": "Taller",
+        "room": "",
         "day": "Dijous",
         "start": "8:00",
         "duration": 4,
         "fixed": false
       },
       {
-        "id": 1630371160,
-        "teacher": "Eli",
-        "subject": "Projectes",
+        "id": 502073441,
+        "teacher": "Núria",
+        "subject": "Mitjans informàtics",
         "group": "1r COM",
         "room": "",
         "day": "Dijous",
@@ -2722,9 +1292,9 @@
         "fixed": false
       },
       {
-        "id": 415459537,
-        "teacher": "Núria",
-        "subject": "Mitjans informàtics",
+        "id": 1393528537,
+        "teacher": "Borja",
+        "subject": "Anglès UF2 Influences 1Q",
         "group": "1r COM",
         "room": "",
         "day": "Dijous",
@@ -2733,7 +1303,40 @@
         "fixed": false
       },
       {
-        "id": 3921018237,
+        "id": 136525817,
+        "teacher": "Eulàlia",
+        "subject": "Dx artístic",
+        "group": "2n COM",
+        "room": "",
+        "day": "Dijous",
+        "start": "8:30",
+        "duration": 3,
+        "fixed": false
+      },
+      {
+        "id": 3114221075,
+        "teacher": "Borja",
+        "subject": "ANG UF2 Behance my friend 1Q",
+        "group": "2n COM",
+        "room": "",
+        "day": "Dijous",
+        "start": "10:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2517242048,
+        "teacher": "Jordi",
+        "subject": "Taller",
+        "group": "2n COM",
+        "room": "Taller",
+        "day": "Dijous",
+        "start": "12:00",
+        "duration": 7,
+        "fixed": false
+      },
+      {
+        "id": 1883794529,
         "teacher": "Eulàlia",
         "subject": "Ll. disp. Taller producció",
         "group": "Comú",
@@ -2744,7 +1347,7 @@
         "fixed": false
       },
       {
-        "id": 883047375,
+        "id": 294127683,
         "teacher": "Inno",
         "subject": "Ll. programació",
         "group": "Comú",
@@ -2755,7 +1358,7 @@
         "fixed": false
       },
       {
-        "id": 3020543193,
+        "id": 3483683841,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "Comú",
@@ -2766,7 +1369,7 @@
         "fixed": false
       },
       {
-        "id": 2794261861,
+        "id": 263904838,
         "teacher": "Roger",
         "subject": "Hª del DG",
         "group": "GI",
@@ -2777,7 +1380,7 @@
         "fixed": false
       },
       {
-        "id": 1840712862,
+        "id": 534550253,
         "teacher": "Bego",
         "subject": "GPP",
         "group": "GI",
@@ -2788,7 +1391,7 @@
         "fixed": false
       },
       {
-        "id": 3561649761,
+        "id": 3832192159,
         "teacher": "Marc",
         "subject": "Projectes UF3",
         "group": "GI",
@@ -2799,7 +1402,7 @@
         "fixed": false
       },
       {
-        "id": 1587482587,
+        "id": 601151222,
         "teacher": "Cristina",
         "subject": "Projecte Integrat",
         "group": "GI",
@@ -2810,7 +1413,7 @@
         "fixed": false
       },
       {
-        "id": 2204793366,
+        "id": 2710518494,
         "teacher": "Imma",
         "subject": "MFG2 Social",
         "group": "PFI",
@@ -2821,7 +1424,7 @@
         "fixed": false
       },
       {
-        "id": 1268470389,
+        "id": 39611709,
         "teacher": "Sara",
         "subject": "MPRL",
         "group": "PFI",
@@ -2832,7 +1435,7 @@
         "fixed": false
       },
       {
-        "id": 1098081949,
+        "id": 1081748129,
         "teacher": "Bego",
         "subject": "Multimèdia UF3 i UF4",
         "group": "2n APGI",
@@ -2843,7 +1446,7 @@
         "fixed": false
       },
       {
-        "id": 1240515281,
+        "id": 1639830102,
         "teacher": "Bego",
         "subject": "Obra Final",
         "group": "2n APGI",
@@ -2854,7 +1457,7 @@
         "fixed": false
       },
       {
-        "id": 3535728825,
+        "id": 3810899530,
         "teacher": "Eli",
         "subject": "Obra Final",
         "group": "2n COM",
@@ -2865,7 +1468,7 @@
         "fixed": false
       },
       {
-        "id": 3579438010,
+        "id": 918326343,
         "teacher": "Bet",
         "subject": "FOL UF3",
         "group": "2n COM",
@@ -2876,40 +1479,40 @@
         "fixed": false
       },
       {
-        "id": 2243659054,
-        "teacher": "Eulàlia",
-        "subject": "Dx artístic",
-        "group": "2n COM",
-        "room": "",
-        "day": "Divendres",
-        "start": "10:00",
-        "duration": 3,
-        "fixed": false
-      },
-      {
-        "id": 3988498826,
+        "id": 3454584996,
         "teacher": "Jordi",
         "subject": "GPP",
         "group": "2n COM",
         "room": "",
         "day": "Divendres",
-        "start": "12:00",
+        "start": "10:30",
         "duration": 2,
         "fixed": false
       },
       {
-        "id": 3493304621,
+        "id": 3776824137,
+        "teacher": "Núria",
+        "subject": "Render de producte",
+        "group": "2n COM",
+        "room": "",
+        "day": "Divendres",
+        "start": "11:30",
+        "duration": 2,
+        "fixed": false
+      },
+      {
+        "id": 2873413455,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "2n COM",
         "room": "Taller",
         "day": "Divendres",
-        "start": "13:00",
+        "start": "12:30",
         "duration": 6,
         "fixed": false
       },
       {
-        "id": 4074214607,
+        "id": 4171613414,
         "teacher": "Judit",
         "subject": "PFI Tutoria",
         "group": "PFI",
@@ -2920,7 +1523,7 @@
         "fixed": false
       },
       {
-        "id": 228980461,
+        "id": 210490157,
         "teacher": "Sara",
         "subject": "MFG4 Mon Professional",
         "group": "PFI",
@@ -2931,18 +1534,18 @@
         "fixed": false
       },
       {
-        "id": 1757206324,
+        "id": 2339720308,
         "teacher": "Marc F.",
         "subject": "PFI Taller",
         "group": "PFI",
         "room": "Taller",
         "day": "Divendres",
-        "start": "10:00",
+        "start": "15:30",
         "duration": 6,
         "fixed": false
       },
       {
-        "id": 1795286158,
+        "id": 691112235,
         "teacher": "Sònia",
         "subject": "Metodologia 2Q",
         "group": "1r APGI",
@@ -2953,7 +1556,7 @@
         "fixed": false
       },
       {
-        "id": 2413338680,
+        "id": 2958421442,
         "teacher": "Sònia",
         "subject": "Multimèdia UF1 1Q",
         "group": "1r APGI",
@@ -2964,7 +1567,7 @@
         "fixed": false
       },
       {
-        "id": 2037994157,
+        "id": 395432011,
         "teacher": "Bet",
         "subject": "Dx Tècnic",
         "group": "1r APGI",
@@ -2975,7 +1578,7 @@
         "fixed": false
       },
       {
-        "id": 3739026267,
+        "id": 3482700401,
         "teacher": "Inno",
         "subject": "Edició web",
         "group": "1r APGI",
@@ -2986,29 +1589,29 @@
         "fixed": false
       },
       {
-        "id": 3090261457,
+        "id": 2488009389,
         "teacher": "Joan Carles",
         "subject": "Materials UF1",
         "group": "1r COM",
         "room": "",
         "day": "Divendres",
-        "start": "10:00",
+        "start": "9:00",
         "duration": 2,
         "fixed": false
       },
       {
-        "id": 2768151081,
+        "id": 2711667549,
         "teacher": "Jordi",
         "subject": "Materials UF2",
         "group": "1r COM",
         "room": "",
         "day": "Divendres",
-        "start": "11:00",
+        "start": "8:00",
         "duration": 2,
         "fixed": false
       },
       {
-        "id": 737998814,
+        "id": 3585921580,
         "teacher": "Eulàlia",
         "subject": "Volum UF2",
         "group": "1r COM",
@@ -3019,7 +1622,7 @@
         "fixed": false
       },
       {
-        "id": 1263659867,
+        "id": 2712134246,
         "teacher": "Alfred",
         "subject": "Mitjans informàtics 1Q",
         "group": "2n APGI",
@@ -3030,7 +1633,7 @@
         "fixed": false
       },
       {
-        "id": 2520925388,
+        "id": 2700906215,
         "teacher": "Alfred",
         "subject": "Packaging 2Q",
         "group": "2n APGI",
@@ -3041,7 +1644,7 @@
         "fixed": false
       },
       {
-        "id": 1455423483,
+        "id": 1520452430,
         "teacher": "Inno",
         "subject": "FOL UF3",
         "group": "2n APGI",
@@ -3052,7 +1655,7 @@
         "fixed": false
       },
       {
-        "id": 750550904,
+        "id": 3702721886,
         "teacher": "Alfred",
         "subject": "Art Experience 2Q",
         "group": "Comú",
@@ -3063,7 +1666,7 @@
         "fixed": false
       },
       {
-        "id": 1899477281,
+        "id": 910535831,
         "teacher": "Alfred",
         "subject": "Proj UF1 1Q",
         "group": "Comú",
@@ -3074,7 +1677,7 @@
         "fixed": false
       },
       {
-        "id": 2936262479,
+        "id": 594867688,
         "teacher": "Bego",
         "subject": "Ll. Tec. Audio UF1",
         "group": "Comú",
@@ -3085,7 +1688,7 @@
         "fixed": false
       },
       {
-        "id": 2094142458,
+        "id": 308681712,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "Comú",
@@ -3096,7 +1699,7 @@
         "fixed": false
       },
       {
-        "id": 3270092607,
+        "id": 2422928279,
         "teacher": "Inno",
         "subject": "Ll. programació",
         "group": "GI",
@@ -3107,7 +1710,7 @@
         "fixed": false
       },
       {
-        "id": 256426247,
+        "id": 2650323429,
         "teacher": "Sònia",
         "subject": "Interfícies gràfiques",
         "group": "GI",
@@ -3118,7 +1721,7 @@
         "fixed": false
       },
       {
-        "id": 1387656916,
+        "id": 2091333996,
         "teacher": "Bego",
         "subject": "GPP",
         "group": "GI",
@@ -3129,7 +1732,7 @@
         "fixed": false
       },
       {
-        "id": 3828205440,
+        "id": 4166230153,
         "teacher": "Marc",
         "subject": "Projectes UF3",
         "group": "GI",
@@ -3140,7 +1743,7 @@
         "fixed": false
       },
       {
-        "id": 3305825535,
+        "id": 2588682234,
         "teacher": "Noëlle",
         "subject": "GPP",
         "group": "GP",
@@ -3151,7 +1754,7 @@
         "fixed": false
       },
       {
-        "id": 2500357127,
+        "id": 1265281033,
         "teacher": "Marc",
         "subject": "Teoria publ i mkt",
         "group": "GP",
@@ -3162,7 +1765,7 @@
         "fixed": false
       },
       {
-        "id": 1896166674,
+        "id": 3892645888,
         "teacher": "Inno",
         "subject": "FOL UF3",
         "group": "GP",
@@ -3173,7 +1776,469 @@
         "fixed": false
       },
       {
-        "id": 3363202523,
+        "id": 674161133,
+        "teacher": "Joan Carles",
+        "subject": "PFI Taller",
+        "group": "PFI",
+        "room": "Taller",
+        "day": "Dilluns",
+        "start": "8:30",
+        "duration": 12,
+        "fixed": false
+      },
+      {
+        "id": 2534830709,
+        "teacher": "Sònia",
+        "subject": "Projecte Integrat",
+        "group": "GI",
+        "room": "",
+        "day": "Dilluns",
+        "start": "15:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2805265108,
+        "teacher": "Bet",
+        "subject": "Fonaments DG",
+        "group": "GP",
+        "room": "",
+        "day": "Dilluns",
+        "start": "15:00",
+        "duration": 8,
+        "fixed": false
+      },
+      {
+        "id": 2161966960,
+        "teacher": "Bego",
+        "subject": "Ll. Tec. Audio UF3 1Q",
+        "group": "GI",
+        "room": "",
+        "day": "Dilluns",
+        "start": "18:00",
+        "duration": 8,
+        "fixed": false
+      },
+      {
+        "id": 304776269,
+        "teacher": "Cristina",
+        "subject": "Projectes UF4 1Q",
+        "group": "GP",
+        "room": "",
+        "day": "Dilluns",
+        "start": "19:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 1447308708,
+        "teacher": "Bego",
+        "subject": "Ll. Tec. Audio UF3 2Q",
+        "group": "GI, GP",
+        "room": "",
+        "day": "Dilluns",
+        "start": "19:00",
+        "duration": 6,
+        "fixed": false
+      },
+      {
+        "id": 3262976405,
+        "teacher": "Bego",
+        "subject": "FOL GPP",
+        "group": "GI",
+        "room": "",
+        "day": "Dilluns",
+        "start": "17:00",
+        "duration": 2,
+        "fixed": false
+      },
+      {
+        "id": 2817723317,
+        "teacher": "Inno",
+        "subject": "Edició web",
+        "group": "2n APGI",
+        "room": "",
+        "day": "Dilluns",
+        "start": "8:30",
+        "duration": 6,
+        "fixed": false
+      },
+      {
+        "id": 3639799906,
+        "teacher": "Alfred",
+        "subject": "Tipografia",
+        "group": "2n APGI",
+        "room": "",
+        "day": "Dilluns",
+        "start": "11:30",
+        "duration": 2,
+        "fixed": false
+      },
+      {
+        "id": 4219947325,
+        "teacher": "Carme",
+        "subject": "FOL UF1",
+        "group": "1r APGI",
+        "room": "",
+        "day": "Dilluns",
+        "start": "8:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2589070396,
+        "teacher": "Bego",
+        "subject": "Multimèdia UF2",
+        "group": "1r APGI",
+        "room": "",
+        "day": "Dilluns",
+        "start": "10:00",
+        "duration": 5,
+        "fixed": false
+      },
+      {
+        "id": 86160896,
+        "teacher": "Alfred",
+        "subject": "Mitjans informàtics",
+        "group": "1r APGI",
+        "room": "",
+        "day": "Dilluns",
+        "start": "12:30",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2272565604,
+        "teacher": "Inno",
+        "subject": "Projectes UF2",
+        "group": "Comú",
+        "room": "",
+        "day": "Dilluns",
+        "start": "15:00",
+        "duration": 5,
+        "fixed": false
+      },
+      {
+        "id": 15486478,
+        "teacher": "Carme",
+        "subject": "FOL UF1",
+        "group": "Comú",
+        "room": "",
+        "day": "Dilluns",
+        "start": "17:30",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2105997476,
+        "teacher": "Noëlle",
+        "subject": "Hª de la imatge UF1",
+        "group": "Comú",
+        "room": "",
+        "day": "Dilluns",
+        "start": "19:30",
+        "duration": 2,
+        "fixed": false
+      },
+      {
+        "id": 1949804629,
+        "teacher": "Eulàlia",
+        "subject": "Dx artístic",
+        "group": "1r COM",
+        "room": "",
+        "day": "Dilluns",
+        "start": "8:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 1832914333,
+        "teacher": "Bet",
+        "subject": "Dx Tècnic",
+        "group": "1r COM",
+        "room": "",
+        "day": "Dilluns",
+        "start": "10:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2378958429,
+        "teacher": "Carme",
+        "subject": "FOL UF1",
+        "group": "1r COM",
+        "room": "",
+        "day": "Dilluns",
+        "start": "12:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 1739967875,
+        "teacher": "Cristina",
+        "subject": "Espais 1Q",
+        "group": "2n COM",
+        "room": "",
+        "day": "Dilluns",
+        "start": "8:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 3350801593,
+        "teacher": "Cristina",
+        "subject": "Impressió 3D 2Q",
+        "group": "2n COM",
+        "room": "",
+        "day": "Dilluns",
+        "start": "8:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 3490409558,
+        "teacher": "Eli",
+        "subject": "GPP",
+        "group": "2n COM",
+        "room": "",
+        "day": "Dilluns",
+        "start": "10:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 3606546571,
+        "teacher": "Eli",
+        "subject": "Obra Final",
+        "group": "2n COM",
+        "room": "",
+        "day": "Dilluns",
+        "start": "12:00",
+        "duration": 2,
+        "fixed": false
+      },
+      {
+        "id": 847149271,
+        "teacher": "Bet",
+        "subject": "Hª de l'art UF1",
+        "group": "1r COM",
+        "room": "",
+        "day": "Dimarts",
+        "start": "8:30",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2193495822,
+        "teacher": "Marc F.",
+        "subject": "Taller",
+        "group": "1r COM",
+        "room": "Taller",
+        "day": "Dimarts",
+        "start": "10:30",
+        "duration": 8,
+        "fixed": false
+      },
+      {
+        "id": 2947188812,
+        "teacher": "Marc F.",
+        "subject": "PFI Taller",
+        "group": "PFI",
+        "room": "Taller",
+        "day": "Dimarts",
+        "start": "8:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2866024437,
+        "teacher": "Imma",
+        "subject": "MFG1 Comunicació",
+        "group": "PFI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "10:00",
+        "duration": 7,
+        "fixed": false
+      },
+      {
+        "id": 329214318,
+        "teacher": "Alfred",
+        "subject": "GPP",
+        "group": "2n APGI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "8:30",
+        "duration": 6,
+        "fixed": false
+      },
+      {
+        "id": 1934552808,
+        "teacher": "Borja",
+        "subject": "ANG UF1 Behance my friend 1Q",
+        "group": "2n APGI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "11:30",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2269858355,
+        "teacher": "Bet",
+        "subject": "Dx artístic",
+        "group": "2n APGI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "13:30",
+        "duration": 2,
+        "fixed": false
+      },
+      {
+        "id": 3376780559,
+        "teacher": "Cristina",
+        "subject": "GPP",
+        "group": "GP",
+        "room": "",
+        "day": "Dimarts",
+        "start": "15:00",
+        "duration": 6,
+        "fixed": false
+      },
+      {
+        "id": 3250695054,
+        "teacher": "Marc",
+        "subject": "GPP",
+        "group": "GI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "15:00",
+        "duration": 5,
+        "fixed": false
+      },
+      {
+        "id": 4131591584,
+        "teacher": "Sònia",
+        "subject": "Projectes UF4 1Q",
+        "group": "GI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "20:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 1786162306,
+        "teacher": "Sònia",
+        "subject": "Ll. disp. comunicació projecte 2Q",
+        "group": "GI, GP",
+        "room": "",
+        "day": "Dimarts",
+        "start": "20:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2171930213,
+        "teacher": "Noëlle",
+        "subject": "Tipografia",
+        "group": "GP",
+        "room": "",
+        "day": "Dimarts",
+        "start": "18:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 656680906,
+        "teacher": "Roger",
+        "subject": "Hª del DG",
+        "group": "1r APGI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "8:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2381433784,
+        "teacher": "Borja",
+        "subject": "Anglès UF1 Influences 2Q",
+        "group": "1r APGI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "10:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 1351108877,
+        "teacher": "Noëlle",
+        "subject": "Foto 1Q",
+        "group": "1r APGI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "10:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2254950546,
+        "teacher": "Noëlle",
+        "subject": "Fonaments DG",
+        "group": "1r APGI",
+        "room": "",
+        "day": "Dimarts",
+        "start": "12:00",
+        "duration": 3,
+        "fixed": false
+      },
+      {
+        "id": 2282640927,
+        "teacher": "Noëlle",
+        "subject": "Foto UF1 i 2",
+        "group": "Comú",
+        "room": "",
+        "day": "Dimarts",
+        "start": "15:00",
+        "duration": 4,
+        "fixed": false
+      },
+      {
+        "id": 2110824876,
+        "teacher": "Bet",
+        "subject": "Fonaments expressió",
+        "group": "Comú",
+        "room": "",
+        "day": "Dimarts",
+        "start": "17:00",
+        "duration": 3,
+        "fixed": false
+      },
+      {
+        "id": 1744646031,
+        "teacher": "Sònia",
+        "subject": "Mitjans informàtics",
+        "group": "Comú",
+        "room": "",
+        "day": "Dimarts",
+        "start": "18:30",
+        "duration": 3,
+        "fixed": false
+      },
+      {
+        "id": 348107119,
+        "teacher": "Bego",
+        "subject": "Ll. Tec. Audio UF1",
+        "group": "Comú",
+        "room": "",
+        "day": "Dimarts",
+        "start": "20:00",
+        "duration": 2,
+        "fixed": false
+      },
+      {
+        "id": 682683857,
         "teacher": "Eulàlia",
         "subject": "Volum UF1 1Q",
         "group": "2n COM",
@@ -3184,7 +2249,7 @@
         "fixed": false
       },
       {
-        "id": 1297198649,
+        "id": 1160888648,
         "teacher": "Jordi",
         "subject": "Taller",
         "group": "2n COM",
@@ -3195,7 +2260,7 @@
         "fixed": false
       },
       {
-        "id": 632381977,
+        "id": 1792816733,
         "teacher": "Joan Carles",
         "subject": "PFI Taller",
         "group": "PFI",
@@ -3206,7 +2271,7 @@
         "fixed": false
       },
       {
-        "id": 2827495610,
+        "id": 2549751632,
         "teacher": "Judit",
         "subject": "PFI M3 Mates",
         "group": "PFI",
@@ -3217,7 +2282,7 @@
         "fixed": false
       },
       {
-        "id": 1304998802,
+        "id": 3969828139,
         "teacher": "Noëlle",
         "subject": "Tipografia",
         "group": "1r APGI",
@@ -3228,7 +2293,7 @@
         "fixed": false
       },
       {
-        "id": 269299208,
+        "id": 3099244522,
         "teacher": "Bet",
         "subject": "Dx artístic",
         "group": "1r APGI",
@@ -3239,18 +2304,18 @@
         "fixed": false
       },
       {
-        "id": 4229213742,
-        "teacher": "Borja",
-        "subject": "Anglès UF2 Influences 1Q",
+        "id": 2761337623,
+        "teacher": "Jordi",
+        "subject": "Taller",
         "group": "1r COM",
-        "room": "",
+        "room": "Taller",
         "day": "Dimecres",
-        "start": "12:00",
+        "start": "16:00",
         "duration": 4,
         "fixed": false
       },
       {
-        "id": 928305373,
+        "id": 2849523953,
         "teacher": "Sònia",
         "subject": "Foto 1Q",
         "group": "2n APGI",
@@ -3261,7 +2326,7 @@
         "fixed": false
       },
       {
-        "id": 821465652,
+        "id": 3442380525,
         "teacher": "Inno",
         "subject": "Obra Final",
         "group": "2n APGI",
@@ -3272,7 +2337,7 @@
         "fixed": false
       },
       {
-        "id": 343752497,
+        "id": 255323026,
         "teacher": "Bego",
         "subject": "Multimèdia UF3 i UF4",
         "group": "2n APGI",
@@ -3283,7 +2348,7 @@
         "fixed": false
       },
       {
-        "id": 599429449,
+        "id": 2154099170,
         "teacher": "Bego",
         "subject": "Teoria de la  imatge",
         "group": "Comú",
@@ -3294,7 +2359,7 @@
         "fixed": false
       },
       {
-        "id": 1900456732,
+        "id": 1327986620,
         "teacher": "Bet",
         "subject": "Fonaments expressió",
         "group": "Comú",
@@ -3305,7 +2370,7 @@
         "fixed": false
       },
       {
-        "id": 3386340013,
+        "id": 106332091,
         "teacher": "Sònia",
         "subject": "Mitjans informàtics",
         "group": "Comú",
@@ -3316,7 +2381,7 @@
         "fixed": false
       },
       {
-        "id": 3011328286,
+        "id": 3240755533,
         "teacher": "Marc",
         "subject": "Màrqueting",
         "group": "Comú",
@@ -3327,7 +2392,7 @@
         "fixed": false
       },
       {
-        "id": 811632698,
+        "id": 1260111757,
         "teacher": "Roger",
         "subject": "Hª del DG",
         "group": "GP",
@@ -3338,7 +2403,7 @@
         "fixed": false
       },
       {
-        "id": 1862254480,
+        "id": 1632730124,
         "teacher": "Sònia",
         "subject": "Interfícies gràfiques",
         "group": "GI",
@@ -3349,7 +2414,7 @@
         "fixed": false
       },
       {
-        "id": 3000090375,
+        "id": 1790372265,
         "teacher": "Noëlle",
         "subject": "Foto UF3",
         "group": "GI, GP",
@@ -3360,37 +2425,15 @@
         "fixed": false
       }
     ],
-    "score": 5063.65,
-    "warnings": [
-      {
-        "id": 390803988,
-        "label": "No s'ha pogut col·locar ANG UF2 Behance my friend 1Q · Borja · 2n COM",
-        "subject": "ANG UF2 Behance my friend 1Q",
-        "teacher": "Borja",
-        "group": "2n COM",
-        "duration": 4,
-        "reason": "No s'ha pogut col·locar.",
-        "constraints": [
-          "El professor Borja no està disponible dilluns.",
-          "El grup 2n COM ja té una altra activitat dilluns en aquesta franja.",
-          "El grup 2n COM ja té una altra activitat dimarts en aquesta franja.",
-          "El professor Borja no està disponible dimarts.",
-          "El professor Borja no està disponible dimecres.",
-          "El grup 2n COM ja té una altra activitat dimecres en aquesta franja.",
-          "El professor Borja no està disponible dijous.",
-          "El grup 2n COM ja té una altra activitat dijous en aquesta franja.",
-          "El professor Borja no està disponible divendres.",
-          "El grup 2n COM ja té una altra activitat divendres en aquesta franja."
-        ]
-      }
-    ],
+    "score": 5074.3,
+    "warnings": [],
     "conflicts": [],
     "metadata": {
       "generator": "phase-1",
       "scheduled_activities": [
         {
           "teaching_block": {
-            "id": "bb4242a5-b046-4efc-8305-8c31fa29f39e",
+            "id": "8eb134a1-979b-4133-a851-2fd8e0ef97ad",
             "duration": 6.0,
             "order": 1,
             "duration_blocks": 12,
@@ -3400,7 +2443,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-96",
+              "requirement_id": "assignment-193",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "PFI Taller",
@@ -3423,7 +2466,7 @@
         },
         {
           "teaching_block": {
-            "id": "a49cb051-72bc-4489-b854-12beff174f5b",
+            "id": "9fec5b7c-a592-41fa-8d8a-045884e610b5",
             "duration": 4.0,
             "order": 1,
             "duration_blocks": 8,
@@ -3433,7 +2476,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-24",
+              "requirement_id": "assignment-121",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Taller",
@@ -3456,7 +2499,7 @@
         },
         {
           "teaching_block": {
-            "id": "11558180-03b4-477e-8908-2529a2c03d06",
+            "id": "ead6df9b-3f23-4506-b244-742d43353d4a",
             "duration": 4.0,
             "order": 1,
             "duration_blocks": 8,
@@ -3466,7 +2509,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-69",
+              "requirement_id": "assignment-166",
               "max_distribution_days": 1,
               "group_id": "GI",
               "subject_id": "Ll. Tec. Audio UF3 1Q",
@@ -3489,7 +2532,7 @@
         },
         {
           "teaching_block": {
-            "id": "bd108958-1901-4e7b-8176-c30f86b7c666",
+            "id": "a7f32cc8-8d4d-4e98-ade6-7b0b399ad8bc",
             "duration": 4.0,
             "order": 1,
             "duration_blocks": 8,
@@ -3499,7 +2542,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-78",
+              "requirement_id": "assignment-175",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "Fonaments DG",
@@ -3522,7 +2565,7 @@
         },
         {
           "teaching_block": {
-            "id": "7d0ad949-05b9-47b9-b5b2-384b02a1d618",
+            "id": "69e55164-f8ad-4642-847e-cee1c56afe54",
             "duration": 3.5,
             "order": 2,
             "duration_blocks": 7,
@@ -3532,7 +2575,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-47",
+              "requirement_id": "assignment-144",
               "max_distribution_days": 3,
               "group_id": "2n COM",
               "subject_id": "Taller",
@@ -3555,40 +2598,7 @@
         },
         {
           "teaching_block": {
-            "id": "3659a237-e470-443f-bb87-a01b0f7fcce1",
-            "duration": 3.5,
-            "order": 3,
-            "duration_blocks": 7,
-            "preferred_room_id": "Taller",
-            "preferred_teacher_id": "Jordi",
-            "fixed": false,
-            "fixed_day": null,
-            "fixed_start": null,
-            "metadata": {
-              "requirement_id": "assignment-47",
-              "max_distribution_days": 3,
-              "group_id": "2n COM",
-              "subject_id": "Taller",
-              "teacher_id": "Jordi",
-              "group": "2n COM",
-              "subject": "Taller",
-              "teacher": "Jordi"
-            }
-          },
-          "day": 3,
-          "start_timeslot": {
-            "day": 3,
-            "period": 4
-          },
-          "duration": 7,
-          "room_id": "Taller",
-          "teacher_id": "Jordi",
-          "group_id": "2n COM",
-          "metadata": {}
-        },
-        {
-          "teaching_block": {
-            "id": "c17e9e4f-fc0b-40ea-ba02-3c121ced21e2",
+            "id": "04f16569-98ac-4636-8163-01f920477b16",
             "duration": 3.5,
             "order": 1,
             "duration_blocks": 7,
@@ -3598,7 +2608,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-88",
+              "requirement_id": "assignment-185",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "MFG1 Comunicació",
@@ -3621,7 +2631,7 @@
         },
         {
           "teaching_block": {
-            "id": "905ac288-96b6-48a7-9b22-edb61da44a89",
+            "id": "a0047270-f0b7-43c5-b92b-1cbc1f8cd280",
             "duration": 3.5,
             "order": 1,
             "duration_blocks": 7,
@@ -3631,7 +2641,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-90",
+              "requirement_id": "assignment-187",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "PFI M3 Mates",
@@ -3654,7 +2664,7 @@
         },
         {
           "teaching_block": {
-            "id": "e27a55b4-26d9-449d-b1bb-c5e74fdcf7dd",
+            "id": "9fe655e4-96dc-44ee-80c0-3771ff518c36",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -3664,7 +2674,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-28",
+              "requirement_id": "assignment-125",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "Edició web",
@@ -3687,7 +2697,7 @@
         },
         {
           "teaching_block": {
-            "id": "9ae0abc3-79df-45d8-b2b0-296050f96cd1",
+            "id": "340b0104-78da-429b-841a-0c831d45c6cd",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -3697,7 +2707,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-31",
+              "requirement_id": "assignment-128",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "GPP",
@@ -3720,7 +2730,7 @@
         },
         {
           "teaching_block": {
-            "id": "bfa6faee-fd05-4f24-bfbb-0a9ad4a3eb57",
+            "id": "76be68c7-f996-4cc1-9e19-d2852e90f0ba",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -3730,7 +2740,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-79",
+              "requirement_id": "assignment-176",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "GPP",
@@ -3753,7 +2763,7 @@
         },
         {
           "teaching_block": {
-            "id": "56fab659-33ab-40f3-a7ef-85eda727b317",
+            "id": "8c20c139-dc3f-423b-b4e8-c122ed0780e6",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -3763,7 +2773,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-47",
+              "requirement_id": "assignment-144",
               "max_distribution_days": 3,
               "group_id": "2n COM",
               "subject_id": "Taller",
@@ -3786,7 +2796,7 @@
         },
         {
           "teaching_block": {
-            "id": "2583766c-e309-47e9-b281-d962f99c6cbb",
+            "id": "cbaf0fac-0dce-4080-ac6d-5df9b8814984",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -3796,7 +2806,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-93",
+              "requirement_id": "assignment-190",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "PFI Taller",
@@ -3819,7 +2829,7 @@
         },
         {
           "teaching_block": {
-            "id": "1b31ed7f-c52d-4d3e-98da-8a252cc9d6e4",
+            "id": "47ab80b8-5f0f-4c66-ba87-424ecb62bcef",
             "duration": 3.0,
             "order": 1,
             "duration_blocks": 6,
@@ -3829,7 +2839,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-76",
+              "requirement_id": "assignment-173",
               "max_distribution_days": 1,
               "group_id": "GI, GP",
               "subject_id": "Ll. Tec. Audio UF3 2Q",
@@ -3852,7 +2862,7 @@
         },
         {
           "teaching_block": {
-            "id": "915cd684-e675-4256-9f1b-8386df71dfa8",
+            "id": "3e7cf280-e594-46dc-a9d3-7a93c2349e60",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -3862,7 +2872,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-12",
+              "requirement_id": "assignment-109",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Multimèdia UF2",
@@ -3885,7 +2895,7 @@
         },
         {
           "teaching_block": {
-            "id": "5f278444-2ca3-4bc7-9f6b-6775d0ec3c0b",
+            "id": "d791d951-83ae-4944-b134-1d84fe453eac",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -3895,7 +2905,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-60",
+              "requirement_id": "assignment-157",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "Projectes UF2",
@@ -3918,7 +2928,7 @@
         },
         {
           "teaching_block": {
-            "id": "57e8c1c6-7183-493c-b93e-544650b53ad3",
+            "id": "7f314fdf-69ca-4aff-afed-166fe91670b8",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -3928,7 +2938,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-65",
+              "requirement_id": "assignment-162",
               "max_distribution_days": 1,
               "group_id": "GI",
               "subject_id": "GPP",
@@ -3951,7 +2961,7 @@
         },
         {
           "teaching_block": {
-            "id": "5591d413-bf61-4ea2-baa7-28100746d1ba",
+            "id": "d1c9eee4-c0cc-4e2e-b8d9-21a5a341841a",
             "duration": 2.5,
             "order": 1,
             "duration_blocks": 5,
@@ -3961,7 +2971,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-85",
+              "requirement_id": "assignment-182",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "Projectes UF3",
@@ -3984,7 +2994,7 @@
         },
         {
           "teaching_block": {
-            "id": "816fa3a2-9547-40ee-98f0-05657fb60fca",
+            "id": "ef108062-cf56-4d4a-872f-5973ae10daad",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -3994,7 +3004,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-1",
+              "requirement_id": "assignment-98",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Anglès UF1 Influences 2Q",
@@ -4017,7 +3027,7 @@
         },
         {
           "teaching_block": {
-            "id": "78a8c207-8621-4114-944e-72a52e8401f9",
+            "id": "778cdc80-c38e-48aa-8e52-ee9a81802f87",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4027,7 +3037,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-2",
+              "requirement_id": "assignment-99",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Dx artístic",
@@ -4050,7 +3060,7 @@
         },
         {
           "teaching_block": {
-            "id": "913fa641-f8b1-47b5-ac48-2fcd61a20b9b",
+            "id": "22398af5-223f-42f4-8655-3475921bdd98",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4060,7 +3070,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-3",
+              "requirement_id": "assignment-100",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Dx Tècnic",
@@ -4083,7 +3093,7 @@
         },
         {
           "teaching_block": {
-            "id": "904708ca-dc5e-41f9-bf57-98d768a8e035",
+            "id": "aee6a756-c7c8-4312-9bc7-c36a5602c938",
             "duration": 2.0,
             "order": 2,
             "duration_blocks": 4,
@@ -4093,7 +3103,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-4",
+              "requirement_id": "assignment-101",
               "max_distribution_days": 2,
               "group_id": "1r APGI",
               "subject_id": "Edició web",
@@ -4116,7 +3126,7 @@
         },
         {
           "teaching_block": {
-            "id": "69fcf365-f61a-4edf-9c2d-dbc2138c9779",
+            "id": "db12645b-7b37-4861-9c94-838e7657599f",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4126,7 +3136,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-5",
+              "requirement_id": "assignment-102",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "FOL UF1",
@@ -4149,7 +3159,7 @@
         },
         {
           "teaching_block": {
-            "id": "6546aacd-208e-4f18-9b32-47b0ce770a27",
+            "id": "b277b3cd-12e7-4f2a-8e07-d6d8316513b6",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4159,7 +3169,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-7",
+              "requirement_id": "assignment-104",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Foto 1Q",
@@ -4182,7 +3192,7 @@
         },
         {
           "teaching_block": {
-            "id": "d5c992ce-fbf9-4de9-ac50-f2be3947a4a0",
+            "id": "5ff09357-4aee-46cd-b4d7-4285691e0268",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4192,7 +3202,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-8",
+              "requirement_id": "assignment-105",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Hª del DG",
@@ -4215,7 +3225,7 @@
         },
         {
           "teaching_block": {
-            "id": "9aa0d598-8688-46b3-918a-4eb5f50316a1",
+            "id": "457fb557-356f-49bd-a9ae-01b450264f82",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4225,7 +3235,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-9",
+              "requirement_id": "assignment-106",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Metodologia 2Q",
@@ -4248,7 +3258,7 @@
         },
         {
           "teaching_block": {
-            "id": "b6a27f77-34db-4499-afe1-cfedfdf0c527",
+            "id": "c465dedb-87fa-4896-a015-5787b3c32a13",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4258,7 +3268,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-10",
+              "requirement_id": "assignment-107",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Mitjans informàtics",
@@ -4281,7 +3291,7 @@
         },
         {
           "teaching_block": {
-            "id": "7634b820-65d6-46f7-bd86-9070a2dd9c5e",
+            "id": "e693da20-213f-4ce9-aa51-ec658c0d2f2a",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4291,7 +3301,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-11",
+              "requirement_id": "assignment-108",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Multimèdia UF1 1Q",
@@ -4314,7 +3324,7 @@
         },
         {
           "teaching_block": {
-            "id": "18ef654b-3543-4103-84fe-be5f1ea060bb",
+            "id": "511bf085-90a3-4c65-bfe0-ed41ecfdefa2",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4324,7 +3334,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-13",
+              "requirement_id": "assignment-110",
               "max_distribution_days": 1,
               "group_id": "1r APGI",
               "subject_id": "Tipografia",
@@ -4347,7 +3357,7 @@
         },
         {
           "teaching_block": {
-            "id": "17154a1d-030e-40a2-8f55-e432126563fa",
+            "id": "ffbdfe93-2692-4cd9-9a9a-352f79d24012",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4357,7 +3367,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-14",
+              "requirement_id": "assignment-111",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Anglès UF2 Influences 1Q",
@@ -4367,9 +3377,9 @@
               "teacher": "Borja"
             }
           },
-          "day": 2,
+          "day": 3,
           "start_timeslot": {
-            "day": 2,
+            "day": 3,
             "period": 8
           },
           "duration": 4,
@@ -4380,7 +3390,7 @@
         },
         {
           "teaching_block": {
-            "id": "1ce34a07-3ce0-4723-924d-5c04981e7d47",
+            "id": "edb08e51-9815-4f82-b40a-b3b542d42fc6",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4390,7 +3400,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-16",
+              "requirement_id": "assignment-113",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Dx Tècnic",
@@ -4413,7 +3423,7 @@
         },
         {
           "teaching_block": {
-            "id": "d5882d1e-cc27-4047-aee6-6ad554adc56c",
+            "id": "4ad1b41b-417e-4d99-8719-eb1cb3f0ecdd",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4423,7 +3433,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-15",
+              "requirement_id": "assignment-112",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Dx artístic",
@@ -4446,7 +3456,7 @@
         },
         {
           "teaching_block": {
-            "id": "2e57d2ab-6b33-4e3e-b648-3be8a7ec4681",
+            "id": "704c9719-8dfb-4553-947d-77cc88605b13",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4456,7 +3466,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-17",
+              "requirement_id": "assignment-114",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "FOL UF1",
@@ -4479,7 +3489,7 @@
         },
         {
           "teaching_block": {
-            "id": "a993b06e-53e2-4af5-a0ad-b1e606bf60f7",
+            "id": "1e63bdf6-a9a4-4ede-8fe8-c78550720302",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4489,7 +3499,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-18",
+              "requirement_id": "assignment-115",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Hª de l'art UF1",
@@ -4512,7 +3522,7 @@
         },
         {
           "teaching_block": {
-            "id": "f00f3417-b73e-49c9-8a13-aab6001b3fb7",
+            "id": "39ba6e4c-7d60-426b-b711-501d5d126609",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4522,7 +3532,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-21",
+              "requirement_id": "assignment-118",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Mitjans informàtics",
@@ -4535,7 +3545,7 @@
           "day": 3,
           "start_timeslot": {
             "day": 3,
-            "period": 8
+            "period": 4
           },
           "duration": 4,
           "room_id": null,
@@ -4545,7 +3555,7 @@
         },
         {
           "teaching_block": {
-            "id": "92dcd7fa-2daa-4748-9681-b0f5111e6c4c",
+            "id": "07a3fe21-d72a-442b-9d4a-dfa5b9802bfe",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4555,7 +3565,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-22",
+              "requirement_id": "assignment-119",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Projectes",
@@ -4568,7 +3578,7 @@
           "day": 3,
           "start_timeslot": {
             "day": 3,
-            "period": 4
+            "period": 0
           },
           "duration": 4,
           "room_id": null,
@@ -4578,7 +3588,7 @@
         },
         {
           "teaching_block": {
-            "id": "5dca4615-fe89-43bb-9a39-0811d80e38f3",
+            "id": "7eed2716-688a-48cd-8010-23105df757ef",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4588,7 +3598,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-23",
+              "requirement_id": "assignment-120",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Taller",
@@ -4598,10 +3608,10 @@
               "teacher": "Jordi"
             }
           },
-          "day": 3,
+          "day": 2,
           "start_timeslot": {
-            "day": 3,
-            "period": 0
+            "day": 2,
+            "period": 16
           },
           "duration": 4,
           "room_id": "Taller",
@@ -4611,7 +3621,7 @@
         },
         {
           "teaching_block": {
-            "id": "59e1450b-f5eb-41c8-affd-24ab2b5e37c4",
+            "id": "98280e7f-d21a-4313-86ba-43ff32ec011b",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4621,7 +3631,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-25",
+              "requirement_id": "assignment-122",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Volum UF2",
@@ -4644,7 +3654,7 @@
         },
         {
           "teaching_block": {
-            "id": "f2bf1855-2157-4d36-8457-4a7bd2edfeb9",
+            "id": "68b3b0a3-7bb7-489e-acfd-44236f0cce47",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4654,7 +3664,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-26",
+              "requirement_id": "assignment-123",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "ANG UF1 Behance my friend 1Q",
@@ -4677,7 +3687,7 @@
         },
         {
           "teaching_block": {
-            "id": "ecc5e495-53c0-47a4-92f4-95c4261c81cd",
+            "id": "2c0536f3-c6ce-4d7c-8e69-37508ba4f67d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4687,7 +3697,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-30",
+              "requirement_id": "assignment-127",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "Foto 1Q",
@@ -4710,7 +3720,7 @@
         },
         {
           "teaching_block": {
-            "id": "4e7546fa-2dc7-4b46-9fac-b958812c876e",
+            "id": "d772111c-3f1f-48ac-ad49-2d69f2980410",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4720,7 +3730,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-32",
+              "requirement_id": "assignment-129",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "Mitjans informàtics 1Q",
@@ -4743,7 +3753,7 @@
         },
         {
           "teaching_block": {
-            "id": "7890fb26-a0cb-4a04-9b69-a8255a5e000e",
+            "id": "a5145574-8bf9-4b3c-a8f4-3dc9814ac6ba",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4753,7 +3763,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-35",
+              "requirement_id": "assignment-132",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "Obra Final",
@@ -4776,7 +3786,7 @@
         },
         {
           "teaching_block": {
-            "id": "2db754d4-b4ba-4aab-a55c-cd589693fe33",
+            "id": "5c4ef331-f1fa-4d03-9a4b-1743c6b7e288",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4786,7 +3796,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-36",
+              "requirement_id": "assignment-133",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "Packaging 2Q",
@@ -4809,7 +3819,73 @@
         },
         {
           "teaching_block": {
-            "id": "82ffbe73-ac6f-419c-bf38-f888d65a09ba",
+            "id": "d7a89019-e17b-4524-a56b-3e2369e0368b",
+            "duration": 3.5,
+            "order": 3,
+            "duration_blocks": 7,
+            "preferred_room_id": "Taller",
+            "preferred_teacher_id": "Jordi",
+            "fixed": false,
+            "fixed_day": null,
+            "fixed_start": null,
+            "metadata": {
+              "requirement_id": "assignment-144",
+              "max_distribution_days": 3,
+              "group_id": "2n COM",
+              "subject_id": "Taller",
+              "teacher_id": "Jordi",
+              "group": "2n COM",
+              "subject": "Taller",
+              "teacher": "Jordi"
+            }
+          },
+          "day": 3,
+          "start_timeslot": {
+            "day": 3,
+            "period": 8
+          },
+          "duration": 7,
+          "room_id": "Taller",
+          "teacher_id": "Jordi",
+          "group_id": "2n COM",
+          "metadata": {}
+        },
+        {
+          "teaching_block": {
+            "id": "ce327907-2a9b-4d02-93a2-b92552d56c5c",
+            "duration": 2.0,
+            "order": 1,
+            "duration_blocks": 4,
+            "preferred_room_id": null,
+            "preferred_teacher_id": "Borja",
+            "fixed": false,
+            "fixed_day": null,
+            "fixed_start": null,
+            "metadata": {
+              "requirement_id": "assignment-135",
+              "max_distribution_days": 1,
+              "group_id": "2n COM",
+              "subject_id": "ANG UF2 Behance my friend 1Q",
+              "teacher_id": "Borja",
+              "group": "2n COM",
+              "subject": "ANG UF2 Behance my friend 1Q",
+              "teacher": "Borja"
+            }
+          },
+          "day": 3,
+          "start_timeslot": {
+            "day": 3,
+            "period": 4
+          },
+          "duration": 4,
+          "room_id": null,
+          "teacher_id": "Borja",
+          "group_id": "2n COM",
+          "metadata": {}
+        },
+        {
+          "teaching_block": {
+            "id": "0a267fe7-4dd4-4a0e-90c0-ecb3b730066e",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4819,7 +3895,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-40",
+              "requirement_id": "assignment-137",
               "max_distribution_days": 1,
               "group_id": "2n COM",
               "subject_id": "Espais 1Q",
@@ -4842,7 +3918,7 @@
         },
         {
           "teaching_block": {
-            "id": "d5989071-41ae-487b-8c1f-d7a90e86a0a8",
+            "id": "728d9469-aaf9-4c21-9d9b-72c27b9d06a3",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4852,7 +3928,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-41",
+              "requirement_id": "assignment-138",
               "max_distribution_days": 1,
               "group_id": "2n COM",
               "subject_id": "Impressió 3D 2Q",
@@ -4875,7 +3951,7 @@
         },
         {
           "teaching_block": {
-            "id": "788bea0d-ea60-41bb-9871-fb33f7aab1fa",
+            "id": "ee05efc3-d852-4bac-96bb-ee2202999331",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4885,7 +3961,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-43",
+              "requirement_id": "assignment-140",
               "max_distribution_days": 1,
               "group_id": "2n COM",
               "subject_id": "GPP",
@@ -4908,7 +3984,7 @@
         },
         {
           "teaching_block": {
-            "id": "110f51f4-642a-4534-a20e-3879a9a8c778",
+            "id": "882c70a6-a133-4864-9222-bc951d556a52",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4918,7 +3994,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-48",
+              "requirement_id": "assignment-145",
               "max_distribution_days": 1,
               "group_id": "2n COM",
               "subject_id": "Volum UF1 1Q",
@@ -4941,7 +4017,7 @@
         },
         {
           "teaching_block": {
-            "id": "79f70c9b-f032-4c85-8061-c01f2cf76e8e",
+            "id": "28c2f529-be9b-4940-bad9-1142c90e9651",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4951,7 +4027,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-49",
+              "requirement_id": "assignment-146",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "Art Experience 2Q",
@@ -4974,7 +4050,7 @@
         },
         {
           "teaching_block": {
-            "id": "66f5bdd7-c02f-4cdb-bd13-92fe8fa8ee6b",
+            "id": "460d35b9-3e5c-4fb5-89f2-e9cf730cf825",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -4984,7 +4060,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-50",
+              "requirement_id": "assignment-147",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "Proj UF1 1Q",
@@ -5007,7 +4083,7 @@
         },
         {
           "teaching_block": {
-            "id": "7d9158b5-e3ad-4147-92ec-c2c9e04bc00e",
+            "id": "fc8b4af5-8001-4a98-8aab-ac57eeeebe1e",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5017,7 +4093,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-51",
+              "requirement_id": "assignment-148",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "FOL UF1",
@@ -5040,7 +4116,7 @@
         },
         {
           "teaching_block": {
-            "id": "60a17786-64b0-4e55-88ce-5cdc42895633",
+            "id": "9f0bab0a-6675-47e7-9d03-0fcebf612330",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5050,7 +4126,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-53",
+              "requirement_id": "assignment-150",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "Foto UF1 i 2",
@@ -5073,7 +4149,7 @@
         },
         {
           "teaching_block": {
-            "id": "d027be16-2fb5-4145-b8f8-e2afeed9aff4",
+            "id": "10a72614-a262-4519-8132-c32db4be6d39",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5083,7 +4159,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-55",
+              "requirement_id": "assignment-152",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "Ll. disp. Taller producció",
@@ -5106,7 +4182,7 @@
         },
         {
           "teaching_block": {
-            "id": "0db5d9bc-b8c3-4b9b-9f26-ab00990a3144",
+            "id": "7d209f84-ad78-4307-9c30-a04837826ca9",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5116,7 +4192,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-56",
+              "requirement_id": "assignment-153",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "Ll. programació",
@@ -5139,7 +4215,7 @@
         },
         {
           "teaching_block": {
-            "id": "274301f9-262b-4360-bab2-a28c10771a7f",
+            "id": "8f62b9f8-928c-4e74-bcc8-2f3a8764ffe6",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5149,7 +4225,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-61",
+              "requirement_id": "assignment-158",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "Teoria de la  imatge",
@@ -5172,7 +4248,7 @@
         },
         {
           "teaching_block": {
-            "id": "a940e57b-36e0-4377-a683-d025fbbd5c8a",
+            "id": "b4dc909e-224e-4047-aa60-40ad0793f2b9",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5182,7 +4258,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-66",
+              "requirement_id": "assignment-163",
               "max_distribution_days": 1,
               "group_id": "GI",
               "subject_id": "Hª del DG",
@@ -5205,7 +4281,7 @@
         },
         {
           "teaching_block": {
-            "id": "38ebfbd2-2f56-4d61-ab51-b2ce72b397be",
+            "id": "b8518f76-377e-4a59-b2a7-12d786d6a8b3",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5215,7 +4291,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-68",
+              "requirement_id": "assignment-165",
               "max_distribution_days": 1,
               "group_id": "GI",
               "subject_id": "Ll. programació",
@@ -5238,7 +4314,7 @@
         },
         {
           "teaching_block": {
-            "id": "d70e28ee-d06b-44d0-ae30-9a64eef48111",
+            "id": "da729f7f-6fbf-4cc7-84b6-df0a0eba24ee",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5248,7 +4324,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-71",
+              "requirement_id": "assignment-168",
               "max_distribution_days": 1,
               "group_id": "GI",
               "subject_id": "Projecte Integrat",
@@ -5271,7 +4347,7 @@
         },
         {
           "teaching_block": {
-            "id": "eeae5bef-cab9-41e2-8790-0469a7a409e7",
+            "id": "d7b8d8c1-3d90-46d2-80d0-1800680fc191",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5281,7 +4357,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-73",
+              "requirement_id": "assignment-170",
               "max_distribution_days": 1,
               "group_id": "GI",
               "subject_id": "Projectes UF4 1Q",
@@ -5304,7 +4380,7 @@
         },
         {
           "teaching_block": {
-            "id": "a4a78dd1-5499-4de4-b152-3b04cc566a61",
+            "id": "170d9db8-272a-4288-8592-a87d94c5ea79",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5314,7 +4390,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-75",
+              "requirement_id": "assignment-172",
               "max_distribution_days": 1,
               "group_id": "GI, GP",
               "subject_id": "Ll. disp. comunicació projecte 2Q",
@@ -5337,7 +4413,7 @@
         },
         {
           "teaching_block": {
-            "id": "631522af-63fe-4ef7-98ae-f7263a08c05a",
+            "id": "c4c6d3be-d63a-480d-9ed6-d614fac7be7d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5347,7 +4423,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-80",
+              "requirement_id": "assignment-177",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "GPP",
@@ -5370,7 +4446,7 @@
         },
         {
           "teaching_block": {
-            "id": "230be8d5-37e0-4589-8eaf-87c15af3693b",
+            "id": "93d7a8e6-89eb-496c-acae-eeaca5ee705c",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5380,7 +4456,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-81",
+              "requirement_id": "assignment-178",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "Hª del DG",
@@ -5403,7 +4479,7 @@
         },
         {
           "teaching_block": {
-            "id": "d3c3a62c-839c-433c-9fbe-01f9d53e014a",
+            "id": "6ad2f0a8-ffff-40c8-b6de-130736f26006",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5413,7 +4489,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-82",
+              "requirement_id": "assignment-179",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "Projecte Integrat",
@@ -5436,7 +4512,7 @@
         },
         {
           "teaching_block": {
-            "id": "8d256999-cf1e-4c6b-82a8-8ca0d1dcc1d7",
+            "id": "47ffba27-bbd2-4c7c-ad85-e1bbe13c6b91",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5446,7 +4522,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-84",
+              "requirement_id": "assignment-181",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "Projectes UF4 1Q",
@@ -5469,7 +4545,7 @@
         },
         {
           "teaching_block": {
-            "id": "02da70c2-c336-47d7-a759-5934129d1891",
+            "id": "cfc7e60e-c8ea-4c7d-9bfa-74716a6a2e0d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5479,7 +4555,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-86",
+              "requirement_id": "assignment-183",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "Teoria publ i mkt",
@@ -5502,7 +4578,7 @@
         },
         {
           "teaching_block": {
-            "id": "338ca82e-dc2f-458f-981f-c7da71fa717b",
+            "id": "0eeb723c-0381-47c9-adea-4d2abe01685c",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5512,7 +4588,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-87",
+              "requirement_id": "assignment-184",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "Tipografia",
@@ -5535,7 +4611,7 @@
         },
         {
           "teaching_block": {
-            "id": "4eff8905-6190-408c-bbf7-bb6ae6125637",
+            "id": "fb04f551-84e4-426a-a41a-93bf42299da4",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5545,7 +4621,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-92",
+              "requirement_id": "assignment-189",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "MPRL",
@@ -5568,7 +4644,7 @@
         },
         {
           "teaching_block": {
-            "id": "b9e7075c-b516-46fc-84fa-36f0c68aa0dd",
+            "id": "e8473cb7-8dd7-473f-9371-7e88cbe2e212",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5578,7 +4654,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-95",
+              "requirement_id": "assignment-192",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "PFI Taller",
@@ -5601,7 +4677,7 @@
         },
         {
           "teaching_block": {
-            "id": "46354113-1278-45a5-a040-d484ee4e6a3b",
+            "id": "e6e956e4-7591-4c68-871c-402eedc31270",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5611,7 +4687,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-97",
+              "requirement_id": "assignment-194",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "PFI Taller",
@@ -5634,7 +4710,7 @@
         },
         {
           "teaching_block": {
-            "id": "77fec4ce-47b5-4682-b14b-93b829b77315",
+            "id": "98fa2d0a-d9a0-4e6c-8be7-9fc062b1994d",
             "duration": 2.0,
             "order": 1,
             "duration_blocks": 4,
@@ -5644,7 +4720,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-74",
+              "requirement_id": "assignment-171",
               "max_distribution_days": 1,
               "group_id": "GI, GP",
               "subject_id": "Foto UF3",
@@ -5667,7 +4743,7 @@
         },
         {
           "teaching_block": {
-            "id": "4519467b-f475-462a-aae2-5139b9a45f65",
+            "id": "38885e98-0ccd-4970-8b37-d5fa924babc8",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -5677,7 +4753,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-4",
+              "requirement_id": "assignment-101",
               "max_distribution_days": 2,
               "group_id": "1r APGI",
               "subject_id": "Edició web",
@@ -5700,7 +4776,7 @@
         },
         {
           "teaching_block": {
-            "id": "e3b1fadc-d0f6-4887-b82b-469c4c792e70",
+            "id": "af3544b3-dac6-4734-8955-57e3c7bf454c",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -5710,7 +4786,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-6",
+              "requirement_id": "assignment-103",
               "max_distribution_days": 2,
               "group_id": "1r APGI",
               "subject_id": "Fonaments DG",
@@ -5733,7 +4809,7 @@
         },
         {
           "teaching_block": {
-            "id": "7e6e86c2-3d62-4a7c-92af-d6edd052f3f9",
+            "id": "8c58d1fd-41a0-4b92-a371-cf02a2373373",
             "duration": 1.5,
             "order": 2,
             "duration_blocks": 3,
@@ -5743,7 +4819,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-6",
+              "requirement_id": "assignment-103",
               "max_distribution_days": 2,
               "group_id": "1r APGI",
               "subject_id": "Fonaments DG",
@@ -5766,7 +4842,7 @@
         },
         {
           "teaching_block": {
-            "id": "e48bffcd-4008-4cd0-8723-5ed9c7c698a5",
+            "id": "022a32f3-4057-409b-be6f-4af5663660ec",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -5776,7 +4852,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-33",
+              "requirement_id": "assignment-130",
               "max_distribution_days": 2,
               "group_id": "2n APGI",
               "subject_id": "Multimèdia UF3 i UF4",
@@ -5799,7 +4875,7 @@
         },
         {
           "teaching_block": {
-            "id": "9e8cc70e-f9f0-4d00-a9fb-7a1ed28c2e55",
+            "id": "5fb8f05b-25ba-4f93-b80b-0b7af957ef9c",
             "duration": 1.5,
             "order": 2,
             "duration_blocks": 3,
@@ -5809,7 +4885,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-33",
+              "requirement_id": "assignment-130",
               "max_distribution_days": 2,
               "group_id": "2n APGI",
               "subject_id": "Multimèdia UF3 i UF4",
@@ -5832,7 +4908,7 @@
         },
         {
           "teaching_block": {
-            "id": "76f0fce3-630a-49d2-95dc-c75c9eda9b05",
+            "id": "b532a42c-a938-4e7d-99c9-f48610cd249c",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -5842,7 +4918,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-39",
+              "requirement_id": "assignment-136",
               "max_distribution_days": 1,
               "group_id": "2n COM",
               "subject_id": "Dx artístic",
@@ -5852,10 +4928,10 @@
               "teacher": "Eulàlia"
             }
           },
-          "day": 4,
+          "day": 3,
           "start_timeslot": {
-            "day": 4,
-            "period": 4
+            "day": 3,
+            "period": 1
           },
           "duration": 3,
           "room_id": null,
@@ -5865,7 +4941,7 @@
         },
         {
           "teaching_block": {
-            "id": "108cb4ac-a39f-4465-923c-99ef6e3ae5a8",
+            "id": "50efa1c2-1c05-4f38-80a9-15a06f13f1f4",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -5875,7 +4951,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-52",
+              "requirement_id": "assignment-149",
               "max_distribution_days": 2,
               "group_id": "Comú",
               "subject_id": "Fonaments expressió",
@@ -5898,7 +4974,7 @@
         },
         {
           "teaching_block": {
-            "id": "3b1d6844-940b-49a8-bd6b-ea2790aa6332",
+            "id": "893060ae-1fb6-489b-bea9-4a322bcd37b0",
             "duration": 1.5,
             "order": 2,
             "duration_blocks": 3,
@@ -5908,7 +4984,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-52",
+              "requirement_id": "assignment-149",
               "max_distribution_days": 2,
               "group_id": "Comú",
               "subject_id": "Fonaments expressió",
@@ -5931,7 +5007,7 @@
         },
         {
           "teaching_block": {
-            "id": "95da2a40-b773-4530-a072-90535c305a1d",
+            "id": "4922c786-a007-4cb8-8fe4-6fabfc5da9a6",
             "duration": 1.5,
             "order": 2,
             "duration_blocks": 3,
@@ -5941,7 +5017,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-57",
+              "requirement_id": "assignment-154",
               "max_distribution_days": 2,
               "group_id": "Comú",
               "subject_id": "Ll. Tec. Audio UF1",
@@ -5964,7 +5040,7 @@
         },
         {
           "teaching_block": {
-            "id": "aa74859e-97c1-4e57-bfd2-3a1ba620f270",
+            "id": "ea20e334-dc14-42bc-9011-5ef34807b5e6",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -5974,7 +5050,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-59",
+              "requirement_id": "assignment-156",
               "max_distribution_days": 2,
               "group_id": "Comú",
               "subject_id": "Mitjans informàtics",
@@ -5997,7 +5073,7 @@
         },
         {
           "teaching_block": {
-            "id": "840c2971-f13d-468e-b542-83fa4b085d13",
+            "id": "260c6be6-464e-433e-b2ea-66c6c91cdf4c",
             "duration": 1.5,
             "order": 2,
             "duration_blocks": 3,
@@ -6007,7 +5083,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-59",
+              "requirement_id": "assignment-156",
               "max_distribution_days": 2,
               "group_id": "Comú",
               "subject_id": "Mitjans informàtics",
@@ -6030,7 +5106,7 @@
         },
         {
           "teaching_block": {
-            "id": "2f8ed303-d392-44d0-9544-b9d28bf6a987",
+            "id": "582f8fee-3412-4063-8841-68593e1336b0",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -6040,7 +5116,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-62",
+              "requirement_id": "assignment-159",
               "max_distribution_days": 2,
               "group_id": "Comú",
               "subject_id": "Tipografia",
@@ -6063,7 +5139,7 @@
         },
         {
           "teaching_block": {
-            "id": "2225b300-90ac-4b58-9fda-67d976189156",
+            "id": "15d6c20c-c939-43a0-b996-22cb1f3c0c73",
             "duration": 1.5,
             "order": 2,
             "duration_blocks": 3,
@@ -6073,7 +5149,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-62",
+              "requirement_id": "assignment-159",
               "max_distribution_days": 2,
               "group_id": "Comú",
               "subject_id": "Tipografia",
@@ -6096,7 +5172,7 @@
         },
         {
           "teaching_block": {
-            "id": "358478c8-dfd7-4b64-afee-7c27b961c157",
+            "id": "d7d3940a-8ed3-4852-954e-f2d94e487e1a",
             "duration": 1.5,
             "order": 2,
             "duration_blocks": 3,
@@ -6106,7 +5182,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-64",
+              "requirement_id": "assignment-161",
               "max_distribution_days": 2,
               "group_id": "GI",
               "subject_id": "GPP",
@@ -6129,7 +5205,7 @@
         },
         {
           "teaching_block": {
-            "id": "f8bd14ee-638d-4873-8aff-7d7cb1be52b1",
+            "id": "2a1738b6-c9d8-4bb4-9502-d12a4e900c04",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -6139,7 +5215,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-67",
+              "requirement_id": "assignment-164",
               "max_distribution_days": 2,
               "group_id": "GI",
               "subject_id": "Interfícies gràfiques",
@@ -6162,7 +5238,7 @@
         },
         {
           "teaching_block": {
-            "id": "53038e7b-3b3a-4909-bc08-d522defbce07",
+            "id": "5126dd79-d6c5-4df5-bdab-ab36fe25e71b",
             "duration": 1.5,
             "order": 2,
             "duration_blocks": 3,
@@ -6172,7 +5248,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-67",
+              "requirement_id": "assignment-164",
               "max_distribution_days": 2,
               "group_id": "GI",
               "subject_id": "Interfícies gràfiques",
@@ -6195,7 +5271,7 @@
         },
         {
           "teaching_block": {
-            "id": "e9ddd700-a094-4226-8bf8-67f2f8c8ba33",
+            "id": "9df72465-5c3e-4800-810a-3082b3fd2b41",
             "duration": 1.5,
             "order": 2,
             "duration_blocks": 3,
@@ -6205,7 +5281,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-72",
+              "requirement_id": "assignment-169",
               "max_distribution_days": 2,
               "group_id": "GI",
               "subject_id": "Projectes UF3",
@@ -6228,7 +5304,7 @@
         },
         {
           "teaching_block": {
-            "id": "eafb5af3-71a7-4996-a387-dfdf168af29c",
+            "id": "b75a7971-0ddf-4607-87ee-a777e4d457da",
             "duration": 1.5,
             "order": 1,
             "duration_blocks": 3,
@@ -6238,7 +5314,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-89",
+              "requirement_id": "assignment-186",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "MFG2 Social",
@@ -6261,7 +5337,7 @@
         },
         {
           "teaching_block": {
-            "id": "3b4122da-8b94-4cf4-b934-1a85deed4f87",
+            "id": "fcf19437-69be-46a3-a91a-a00c73bee24d",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6271,7 +5347,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-19",
+              "requirement_id": "assignment-116",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Materials UF2",
@@ -6294,7 +5370,7 @@
         },
         {
           "teaching_block": {
-            "id": "dadaeca7-2fa0-4b7d-a664-726bd41350d1",
+            "id": "9c568df8-b993-4335-85e3-03d581cad82e",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6304,7 +5380,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-20",
+              "requirement_id": "assignment-117",
               "max_distribution_days": 1,
               "group_id": "1r COM",
               "subject_id": "Materials UF1",
@@ -6327,7 +5403,7 @@
         },
         {
           "teaching_block": {
-            "id": "c299b194-1f37-4ca9-a2cb-2cceeaac19ff",
+            "id": "f718bf16-65e0-462e-80a0-143cde51f2a6",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6337,7 +5413,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-27",
+              "requirement_id": "assignment-124",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "Dx artístic",
@@ -6360,7 +5436,7 @@
         },
         {
           "teaching_block": {
-            "id": "170df330-4255-48dd-ad6a-c1c56a5aa56c",
+            "id": "2af94c61-230f-4c80-8ed5-a62eb9f09c5e",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6370,7 +5446,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-29",
+              "requirement_id": "assignment-126",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "FOL UF3",
@@ -6393,7 +5469,7 @@
         },
         {
           "teaching_block": {
-            "id": "7942d099-1f66-4196-a38f-a876d0593c21",
+            "id": "152063a7-5363-4255-bbd4-f58d1ec6c416",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6403,7 +5479,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-34",
+              "requirement_id": "assignment-131",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "Obra Final",
@@ -6426,7 +5502,7 @@
         },
         {
           "teaching_block": {
-            "id": "47493ad6-db74-4c36-9229-1bb4f1c3bf60",
+            "id": "376d740e-bb51-46f8-94cd-54142ac638a3",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6436,7 +5512,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-37",
+              "requirement_id": "assignment-134",
               "max_distribution_days": 1,
               "group_id": "2n APGI",
               "subject_id": "Tipografia",
@@ -6459,7 +5535,7 @@
         },
         {
           "teaching_block": {
-            "id": "7ab08134-de0e-4b8f-86a6-b710dcae4139",
+            "id": "c8441f51-31f1-49dd-a7cd-4739250481dc",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6469,7 +5545,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-42",
+              "requirement_id": "assignment-139",
               "max_distribution_days": 1,
               "group_id": "2n COM",
               "subject_id": "FOL UF3",
@@ -6492,7 +5568,7 @@
         },
         {
           "teaching_block": {
-            "id": "5d784ce0-92a3-4b5c-956d-10755ba66dd4",
+            "id": "8f4e7a78-7e72-4eb0-a9a6-f11de796db6b",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6502,7 +5578,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-44",
+              "requirement_id": "assignment-141",
               "max_distribution_days": 1,
               "group_id": "2n COM",
               "subject_id": "GPP",
@@ -6515,7 +5591,7 @@
           "day": 4,
           "start_timeslot": {
             "day": 4,
-            "period": 8
+            "period": 4
           },
           "duration": 2,
           "room_id": null,
@@ -6525,7 +5601,7 @@
         },
         {
           "teaching_block": {
-            "id": "c50e9381-b2e2-476b-9e35-5b16aa106f5e",
+            "id": "f5eceb23-9621-4357-87ab-112d9333cb2f",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6535,40 +5611,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-45",
-              "max_distribution_days": 2,
-              "group_id": "2n COM",
-              "subject_id": "Obra Final",
-              "teacher_id": "Eli",
-              "group": "2n COM",
-              "subject": "Obra Final",
-              "teacher": "Eli"
-            }
-          },
-          "day": 3,
-          "start_timeslot": {
-            "day": 3,
-            "period": 2
-          },
-          "duration": 2,
-          "room_id": null,
-          "teacher_id": "Eli",
-          "group_id": "2n COM",
-          "metadata": {}
-        },
-        {
-          "teaching_block": {
-            "id": "519379b5-d023-449f-b515-2b46eb6fe235",
-            "duration": 1.0,
-            "order": 2,
-            "duration_blocks": 2,
-            "preferred_room_id": null,
-            "preferred_teacher_id": "Eli",
-            "fixed": false,
-            "fixed_day": null,
-            "fixed_start": null,
-            "metadata": {
-              "requirement_id": "assignment-45",
+              "requirement_id": "assignment-142",
               "max_distribution_days": 2,
               "group_id": "2n COM",
               "subject_id": "Obra Final",
@@ -6591,24 +5634,24 @@
         },
         {
           "teaching_block": {
-            "id": "1869138d-8b6a-4c81-b714-3e3d172f9c2d",
+            "id": "f11d5592-f484-4ddb-9672-1525daff66c9",
             "duration": 1.0,
-            "order": 1,
+            "order": 2,
             "duration_blocks": 2,
             "preferred_room_id": null,
-            "preferred_teacher_id": "Núria",
+            "preferred_teacher_id": "Eli",
             "fixed": false,
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-46",
-              "max_distribution_days": 1,
+              "requirement_id": "assignment-142",
+              "max_distribution_days": 2,
               "group_id": "2n COM",
-              "subject_id": "Render de producte",
-              "teacher_id": "Núria",
+              "subject_id": "Obra Final",
+              "teacher_id": "Eli",
               "group": "2n COM",
-              "subject": "Render de producte",
-              "teacher": "Núria"
+              "subject": "Obra Final",
+              "teacher": "Eli"
             }
           },
           "day": 0,
@@ -6618,13 +5661,46 @@
           },
           "duration": 2,
           "room_id": null,
+          "teacher_id": "Eli",
+          "group_id": "2n COM",
+          "metadata": {}
+        },
+        {
+          "teaching_block": {
+            "id": "e9ddb0b4-ccbd-4ab7-a864-e938dac3b4e6",
+            "duration": 1.0,
+            "order": 1,
+            "duration_blocks": 2,
+            "preferred_room_id": null,
+            "preferred_teacher_id": "Núria",
+            "fixed": false,
+            "fixed_day": null,
+            "fixed_start": null,
+            "metadata": {
+              "requirement_id": "assignment-143",
+              "max_distribution_days": 1,
+              "group_id": "2n COM",
+              "subject_id": "Render de producte",
+              "teacher_id": "Núria",
+              "group": "2n COM",
+              "subject": "Render de producte",
+              "teacher": "Núria"
+            }
+          },
+          "day": 4,
+          "start_timeslot": {
+            "day": 4,
+            "period": 6
+          },
+          "duration": 2,
+          "room_id": null,
           "teacher_id": "Núria",
           "group_id": "2n COM",
           "metadata": {}
         },
         {
           "teaching_block": {
-            "id": "f3a7c09a-512b-4005-b689-8dfedc67abf7",
+            "id": "cd101176-6fdf-41da-8895-95734eb97ca7",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6634,7 +5710,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-54",
+              "requirement_id": "assignment-151",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "Hª de la imatge UF1",
@@ -6657,7 +5733,7 @@
         },
         {
           "teaching_block": {
-            "id": "e9c99313-759c-4277-b79d-e32fdb1c7176",
+            "id": "6e2c973f-8893-495f-980f-56122745d9d0",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6667,7 +5743,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-57",
+              "requirement_id": "assignment-154",
               "max_distribution_days": 2,
               "group_id": "Comú",
               "subject_id": "Ll. Tec. Audio UF1",
@@ -6690,7 +5766,7 @@
         },
         {
           "teaching_block": {
-            "id": "b371e2ec-1aec-4cc3-b93c-711fbc227621",
+            "id": "a06ea3c7-9472-49b7-beaa-ed81c0da0f46",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6700,7 +5776,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-58",
+              "requirement_id": "assignment-155",
               "max_distribution_days": 1,
               "group_id": "Comú",
               "subject_id": "Màrqueting",
@@ -6723,7 +5799,7 @@
         },
         {
           "teaching_block": {
-            "id": "b7f5f372-243f-4f8a-8a42-48fcf3e8cb7f",
+            "id": "ec17a26a-b579-4dc0-96b5-95010db07619",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6733,7 +5809,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-63",
+              "requirement_id": "assignment-160",
               "max_distribution_days": 1,
               "group_id": "GI",
               "subject_id": "FOL GPP",
@@ -6756,7 +5832,7 @@
         },
         {
           "teaching_block": {
-            "id": "f6800eed-ba8b-4036-b510-b86edffb5d66",
+            "id": "7fb09839-fab1-40d2-b438-0dd5c3a01aa3",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6766,7 +5842,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-64",
+              "requirement_id": "assignment-161",
               "max_distribution_days": 2,
               "group_id": "GI",
               "subject_id": "GPP",
@@ -6789,7 +5865,7 @@
         },
         {
           "teaching_block": {
-            "id": "49dd6c3e-7ace-4bab-af36-9ceb4fe47602",
+            "id": "43478130-5b64-4209-95be-0d8035cf38c4",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6799,7 +5875,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-70",
+              "requirement_id": "assignment-167",
               "max_distribution_days": 1,
               "group_id": "GI",
               "subject_id": "Projecte Integrat",
@@ -6822,7 +5898,7 @@
         },
         {
           "teaching_block": {
-            "id": "e89bd111-2eef-45b2-9fb5-9681ca58f482",
+            "id": "70eae675-72e3-40be-bcff-27626fab5ad1",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6832,7 +5908,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-72",
+              "requirement_id": "assignment-169",
               "max_distribution_days": 2,
               "group_id": "GI",
               "subject_id": "Projectes UF3",
@@ -6855,7 +5931,7 @@
         },
         {
           "teaching_block": {
-            "id": "86e5bdb1-f7ff-4ed1-a63a-9547408d5e7f",
+            "id": "96761d03-da99-44a7-8a39-ad539398ba6f",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6865,7 +5941,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-77",
+              "requirement_id": "assignment-174",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "FOL UF3",
@@ -6888,7 +5964,7 @@
         },
         {
           "teaching_block": {
-            "id": "11ecd5c9-01fb-49ca-a682-d922d9cdf4f3",
+            "id": "60826617-ab8d-4c06-bda4-fb3e32143287",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6898,7 +5974,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-83",
+              "requirement_id": "assignment-180",
               "max_distribution_days": 1,
               "group_id": "GP",
               "subject_id": "Projecte Integrat",
@@ -6921,7 +5997,7 @@
         },
         {
           "teaching_block": {
-            "id": "9712bad4-530b-45b3-b409-f0ab4b80c265",
+            "id": "84147ea8-f367-4283-8731-2849aef73ca9",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6931,7 +6007,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-91",
+              "requirement_id": "assignment-188",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "MFG4 Mon Professional",
@@ -6954,7 +6030,7 @@
         },
         {
           "teaching_block": {
-            "id": "80a11dde-5975-407e-8ba8-ae228c937c94",
+            "id": "3f46257d-d92b-46ea-ad07-46d27242e440",
             "duration": 1.0,
             "order": 1,
             "duration_blocks": 2,
@@ -6964,7 +6040,7 @@
             "fixed_day": null,
             "fixed_start": null,
             "metadata": {
-              "requirement_id": "assignment-94",
+              "requirement_id": "assignment-191",
               "max_distribution_days": 1,
               "group_id": "PFI",
               "subject_id": "PFI Tutoria",
@@ -6987,53 +6063,26 @@
         }
       ],
       "score_breakdown": {
-        "total_score": 5063.65,
-        "compactness_score": 106.5,
+        "total_score": 5074.3,
+        "compactness_score": 109.0,
         "distribution_score": 0.0,
-        "balance_score": -90.0,
-        "gap_penalty": 3.5,
-        "warning_penalty": 2.0,
+        "balance_score": -85.5,
+        "gap_penalty": 3.0,
+        "warning_penalty": 0.0,
         "metadata": {
-          "activity_count": 109,
-          "warning_count": 1,
-          "soft_violation_count": 7,
-          "teacher_affinity_score": 52.65,
+          "activity_count": 110,
+          "warning_count": 0,
+          "soft_violation_count": 6,
+          "teacher_affinity_score": 53.8,
           "quarter_pair_teacher_score": 5000.0,
           "maximum_group_daily_imbalance_hours": 6.5
         }
       },
-      "unscheduled_activities": [
-        {
-          "id": 390803988,
-          "teacher": "Borja",
-          "subject": "ANG UF2 Behance my friend 1Q",
-          "group": "2n COM",
-          "room": "",
-          "duration": 4,
-          "reason": "No s'ha pogut col·locar."
-        }
-      ]
+      "unscheduled_activities": []
     }
   },
-  "generation_stats": {
-    "blocks_total": 110,
-    "blocks_placed": 109,
-    "blocks_failed": 1,
-    "proposals_generated": 4,
-    "source": "academic_workbook",
-    "fixed_activities_total": 0
-  },
-  "unscheduled_activities": [
-    {
-      "id": 390803988,
-      "teacher": "Borja",
-      "subject": "ANG UF2 Behance my friend 1Q",
-      "group": "2n COM",
-      "room": "",
-      "duration": 4,
-      "reason": "No s'ha pogut col·locar."
-    }
-  ],
+  "generation_stats": null,
+  "unscheduled_activities": [],
   "metadata": {
     "last_source": "proposal"
   }

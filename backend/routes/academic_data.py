@@ -18,6 +18,47 @@ def _normalized_name(value: str) -> str:
     return str(value or "").strip().casefold()
 
 
+def _tutor_groups_by_teacher(repo) -> Dict[str, str]:
+    """Retorna, per a cada professor, la llista de grups on consta com a tutor.
+
+    La dada viu al grup (`Dades acadèmiques > Grups > Tutor`); això només la
+    resumeix per poder-la mostrar a la fitxa del professor.
+    """
+    groups_by_teacher: Dict[str, List[str]] = {}
+    for group in repo.list_groups():
+        tutor_name = str(group.get("tutor") or "").strip()
+        group_name = str(group.get("name") or "").strip()
+        if not tutor_name or not group_name:
+            continue
+        groups_by_teacher.setdefault(_normalized_name(tutor_name), []).append(group_name)
+    return {key: ", ".join(names) for key, names in groups_by_teacher.items()}
+
+
+def _merge_teacher_restriction(repo, teacher_name: str, values: Dict[str, object]) -> None:
+    """Actualitza només els camps indicats de la restricció del professor,
+    conservant la resta (max_days, no_gaps, franges... ja guardades)."""
+    existing = next(
+        (
+            item
+            for item in repo.list_teacher_restrictions()
+            if _normalized_name(item.get("teacher")) == _normalized_name(teacher_name)
+        ),
+        {},
+    )
+    repo.upsert_teacher_restriction({**existing, **values, "teacher": teacher_name})
+
+
+def _normalized_max_days(value) -> Optional[int]:
+    """`Màxim de dies de classe per setmana`: buit o 0 vol dir sense límit."""
+    if value in (None, ""):
+        return None
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number > 0 else None
+
+
 @router.get("/summary")
 def academic_data_summary():
     return get_academic_data_repo().summary()
@@ -30,6 +71,7 @@ class TeacherDTO(BaseModel):
     center_hours: Optional[float] = None
     coordination_name: Optional[str] = ""
     coordination_hours: Optional[float] = None
+    max_days: Optional[int] = None
 
 
 class TeacherUpdateDTO(BaseModel):
@@ -39,6 +81,7 @@ class TeacherUpdateDTO(BaseModel):
     center_hours: Optional[float] = None
     coordination_name: Optional[str] = None
     coordination_hours: Optional[float] = None
+    max_days: Optional[int] = None
 
 
 class TeacherRestrictionDTO(BaseModel):
@@ -180,8 +223,12 @@ def list_teachers():
     repo = get_academic_data_repo()
     teachers = repo.list_teachers()
     restrictions = {r["teacher"]: r for r in repo.list_teacher_restrictions()}
+    tutor_groups = _tutor_groups_by_teacher(repo)
     for teacher in teachers:
         teacher.update(restrictions.get(teacher["name"], {}))
+        # `tutor_of` = grups on aquest professor consta com a tutor/a (vegeu
+        # `_tutor_groups_by_teacher`): informació de la fitxa, no un camp propi.
+        teacher["tutor_of"] = tutor_groups.get(_normalized_name(teacher["name"]), "")
     return teachers
 
 
@@ -191,11 +238,16 @@ def create_teacher(payload: TeacherDTO):
     try:
         record = payload.model_dump()
         active = record.pop("active", True)
+        max_days = _normalized_max_days(record.pop("max_days", None))
         repo.create_teacher(record)
         if not active:
             repo.delete_teacher(record["name"])
-        if payload.unavailable_slots:
-            repo.upsert_teacher_restriction({"teacher": payload.name, "unavailable_slots": payload.unavailable_slots})
+        if payload.unavailable_slots or max_days:
+            repo.upsert_teacher_restriction({
+                "teacher": payload.name,
+                "max_days": max_days,
+                "unavailable_slots": payload.unavailable_slots or [],
+            })
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"ok": True}
@@ -210,11 +262,18 @@ def update_teacher(name: str, payload: TeacherUpdateDTO):
     if payload.active is False:
         repo.delete_teacher(name)
         return {"ok": True}
-    updated = {**current, **{k: v for k, v in payload.model_dump().items() if v is not None and k != "active"}}
+    values = payload.model_dump()
+    # `max_days` no és un camp del professor sinó de la seva restricció, i
+    # `unavailable_slots` s'hi desa igualment: tots dos es tracten a part
+    # perquè `update_teacher` no els pot escriure.
+    max_days = _normalized_max_days(values.pop("max_days", None))
+    updated = {**current, **{k: v for k, v in values.items() if v is not None and k != "active"}}
     try:
         repo.update_teacher(name, updated)
         if payload.unavailable_slots is not None:
-            repo.upsert_teacher_restriction({"teacher": updated["name"], "unavailable_slots": payload.unavailable_slots})
+            _merge_teacher_restriction(repo, updated["name"], {"unavailable_slots": payload.unavailable_slots})
+        if payload.max_days is not None:
+            _merge_teacher_restriction(repo, updated["name"], {"max_days": max_days})
     except KeyError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     return {"ok": True}

@@ -45,7 +45,9 @@ TEACHER_COLUMNS = [
     ("no_gaps", "Sense buits (Sí/No)"),
     ("max_hours_per_day", "Màx. hores/dia"),
     ("max_consecutive_hours", "Màx. hores consecutives"),
+    ("max_days", "Màxim de dies de classe per setmana (opcional)"),
     ("unavailable_slots", "Franges no disponibles (franges separades per comes)"),
+    ("tutor_of", "Tutor/a de (grups, informatiu: es canvia a Grups)"),
 ]
 
 GROUP_COLUMNS = [
@@ -56,6 +58,7 @@ GROUP_COLUMNS = [
     ("no_gaps", "Sense buits (Sí/No)"),
     ("max_hours_per_day", "Màx. hores/dia"),
     ("max_consecutive_hours", "Màx. hores consecutives"),
+    ("max_days", "Màxim de dies de classe per setmana (opcional)"),
     ("minimum_daily_hours", "Mínim d'hores diàries"),
     ("preferred_availability", "Disponibilitat preferida (franges separades per comes)"),
     ("unavailable_slots", "Franges no disponibles (franges separades per comes)"),
@@ -191,8 +194,24 @@ def _write_sheet(workbook: Workbook, title: str, columns, rows: List[Dict[str, A
     sheet.freeze_panes = sheet.cell(row=start_row + 1, column=1)
 
 
+def _text_to_optional_int(value: Any):
+    if value in (None, ""):
+        return None
+    try:
+        return int(float(str(value).replace(",", ".")))
+    except ValueError:
+        return None
+
+
 def _teacher_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
     restrictions = {item["teacher"]: item for item in repo.list_teacher_restrictions()}
+    # Grups on cada professor consta com a tutor/a (la dada viu al grup).
+    tutor_groups: Dict[str, List[str]] = {}
+    for group in repo.list_groups():
+        tutor_name = str(group.get("tutor") or "").strip()
+        group_name = str(group.get("name") or "").strip()
+        if tutor_name and group_name:
+            tutor_groups.setdefault(tutor_name.casefold(), []).append(group_name)
     rows = []
     for teacher in repo.list_teachers():
         restriction = restrictions.get(teacher["name"], {})
@@ -205,8 +224,10 @@ def _teacher_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
             "no_gaps": _bool_to_text(restriction.get("no_gaps")),
             "max_hours_per_day": restriction.get("max_hours_per_day", ""),
             "max_consecutive_hours": restriction.get("max_consecutive_hours", ""),
+            "max_days": restriction.get("max_days", ""),
             "preferred_availability": _slots_to_text(restriction.get("preferred_availability")),
             "unavailable_slots": _slots_to_text(restriction.get("unavailable_slots")),
+            "tutor_of": ", ".join(tutor_groups.get(str(teacher.get("name") or "").casefold(), [])),
         })
     return rows
 
@@ -224,6 +245,7 @@ def _group_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
             "no_gaps": _bool_to_text(restriction.get("no_gaps")),
             "max_hours_per_day": restriction.get("max_hours_per_day", ""),
             "max_consecutive_hours": restriction.get("max_consecutive_hours", ""),
+            "max_days": restriction.get("max_days", ""),
             "minimum_daily_hours": restriction.get("minimum_daily_hours", ""),
             "preferred_availability": _slots_to_text(restriction.get("preferred_availability")),
             "unavailable_slots": _slots_to_text(restriction.get("unavailable_slots")),
@@ -362,12 +384,14 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
             "coordination_hours": _text_to_optional_float(row.get("coordination_hours")),
         })
         teachers_created += 1
-        if row.get("no_gaps") is not None or row.get("unavailable_slots") or row.get("preferred_availability"):
+        max_days = _text_to_optional_int(row.get("max_days"))
+        if row.get("no_gaps") is not None or row.get("unavailable_slots") or row.get("preferred_availability") or max_days:
             repo.upsert_teacher_restriction({
                 "teacher": name,
                 "no_gaps": _text_to_bool(row.get("no_gaps")),
                 "max_hours_per_day": row.get("max_hours_per_day") or None,
                 "max_consecutive_hours": row.get("max_consecutive_hours") or None,
+                "max_days": max_days,
                 "preferred_availability": _text_to_slots(row.get("preferred_availability")),
                 "unavailable_slots": _text_to_slots(row.get("unavailable_slots")),
             })
@@ -383,12 +407,14 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
             "is_split": _text_to_bool(row.get("is_split")),
         })
         groups_created += 1
-        if row.get("no_gaps") is not None or row.get("unavailable_slots") or row.get("preferred_availability"):
+        group_max_days = _text_to_optional_int(row.get("max_days"))
+        if row.get("no_gaps") is not None or row.get("unavailable_slots") or row.get("preferred_availability") or group_max_days:
             repo.upsert_group_restriction({
                 "group": name,
                 "no_gaps": _text_to_bool(row.get("no_gaps")),
                 "max_hours_per_day": row.get("max_hours_per_day") or None,
                 "max_consecutive_hours": row.get("max_consecutive_hours") or None,
+                "max_days": group_max_days,
                 "minimum_daily_hours": _text_to_optional_float(row.get("minimum_daily_hours")),
                 "preferred_availability": _text_to_slots(row.get("preferred_availability")),
                 "unavailable_slots": _text_to_slots(row.get("unavailable_slots")),
