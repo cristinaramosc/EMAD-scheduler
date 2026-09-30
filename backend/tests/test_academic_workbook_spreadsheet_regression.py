@@ -52,6 +52,55 @@ def test_workbook_headers_include_tutor_split_capacity_lengths_and_consecutive_c
     assert any(h.startswith("Consecutiva amb - Professor") for h in subject_headers)
 
 
+def test_workbook_headers_include_teacher_max_days_tutor_of_and_group_max_days():
+    buffer = build_workbook(repo=None, blank=True)
+    workbook = load_workbook(buffer)
+
+    teacher_headers = [cell.value for cell in workbook["Professors"][2]]
+    group_headers = [cell.value for cell in workbook["Grups"][2]]
+
+    assert "Màxim de dies de classe per setmana (opcional)" in teacher_headers
+    assert any(h and h.startswith("Tutor/a de") for h in teacher_headers)
+    assert "Màxim de dies de classe per setmana (opcional)" in group_headers
+
+
+def _sheet_records(workbook, title):
+    sheet = workbook[title]
+    labels = {cell.column: str(cell.value or "") for cell in sheet[2]}
+    records = []
+    for row in sheet.iter_rows(min_row=3):
+        if all(cell.value in (None, "") for cell in row):
+            continue
+        records.append({labels[cell.column]: cell.value for cell in row if cell.column in labels})
+    return records
+
+
+def test_export_then_import_round_trips_teacher_max_days_and_tutor_groups():
+    repo = _seeded_repo()
+    repo.upsert_teacher_restriction({"teacher": "Jordi", "max_days": 4, "no_gaps": True})
+    repo.upsert_group_restriction({"group": "2n COM", "max_days": 3})
+
+    buffer = build_workbook(repo, blank=False)
+    workbook = load_workbook(buffer)
+
+    teacher_row = next(r for r in _sheet_records(workbook, "Professors") if r["Nom"] == "Jordi")
+    assert teacher_row["Màxim de dies de classe per setmana (opcional)"] == 4
+    assert teacher_row["Tutor/a de (grups, informatiu: es canvia a Grups)"] == "2n COM"
+
+    group_row = next(r for r in _sheet_records(workbook, "Grups") if r["Nom del grup"] == "2n COM")
+    assert group_row["Màxim de dies de classe per setmana (opcional)"] == 3
+
+    repo2 = AcademicDataRepository()
+    import_workbook(repo2, buffer.getvalue())
+
+    teacher_restriction = next(r for r in repo2.list_teacher_restrictions() if r["teacher"] == "Jordi")
+    assert teacher_restriction["max_days"] == 4
+    assert teacher_restriction["no_gaps"] is True
+
+    group_restriction = next(r for r in repo2.list_group_restrictions() if r["group"] == "2n COM")
+    assert group_restriction["max_days"] == 3
+
+
 def test_export_then_import_round_trips_tutor_split_capacity_lengths_and_consecutive_group():
     repo = _seeded_repo()
 

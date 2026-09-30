@@ -42,6 +42,8 @@ const TEACHER_SHEET_COLUMNS = [
   { ...keyColumn("center_hours", floatColumn), title: "Hores de centre" },
   { ...keyColumn("coordination_name", textColumn), title: "Coordinació (nom)" },
   { ...keyColumn("coordination_hours", floatColumn), title: "Coordinació (hores)" },
+  { ...keyColumn("max_days", textColumn), title: "Màx. dies" },
+  { ...keyColumn("tutor_of", textColumn), title: "Tutor/a de" },
 ];
 
 const GROUP_SHEET_COLUMNS = [
@@ -127,6 +129,7 @@ function createTeacherRestrictionDraft(teacherName = "") {
   return {
     teacher: teacherName,
     no_gaps: false,
+    max_days: "",
     max_hours_per_day: "",
     max_consecutive_hours: "",
     preferred_availability: [],
@@ -959,6 +962,7 @@ export default function App() {
             ...data,
             teacher: data.teacher || teacher.name,
             no_gaps: Boolean(data.no_gaps),
+            max_days: data.max_days ?? "",
             max_hours_per_day: data.max_hours_per_day ?? "",
             max_consecutive_hours: data.max_consecutive_hours ?? "",
             preferred_availability: Array.isArray(data.preferred_availability) ? data.preferred_availability : [],
@@ -1008,6 +1012,7 @@ export default function App() {
         ...data,
         teacher: teacherName,
         no_gaps: Boolean(data.no_gaps),
+        max_days: data.max_days ?? "",
         max_hours_per_day: data.max_hours_per_day ?? "",
         max_consecutive_hours: data.max_consecutive_hours ?? "",
         preferred_availability: Array.isArray(data.preferred_availability) ? data.preferred_availability : [],
@@ -1017,6 +1022,13 @@ export default function App() {
       setTeacherRestrictionEditor(teacherName);
       setTeacherRestrictionDraft(createTeacherRestrictionDraft(teacherName));
     }
+  }
+
+  function teacherTutorGroups(teacherName) {
+    // Grups on consta com a tutor/a: ve del grup (Grups > Tutor) i el backend
+    // el resumeix a `tutor_of` a GET /academic-data/teachers.
+    const teacher = teachers.find((item) => item.name === teacherName);
+    return teacher?.tutor_of || "";
   }
 
   async function saveTeacherRestrictions() {
@@ -1032,6 +1044,7 @@ export default function App() {
       const payload = {
         teacher: teacherRestrictionDraft.teacher,
         no_gaps: Boolean(teacherRestrictionDraft.no_gaps),
+        max_days: teacherRestrictionDraft.max_days === "" ? null : Number(teacherRestrictionDraft.max_days),
         max_hours_per_day: teacherRestrictionDraft.max_hours_per_day === "" ? null : Number(teacherRestrictionDraft.max_hours_per_day),
         max_consecutive_hours: teacherRestrictionDraft.max_consecutive_hours === "" ? null : Number(teacherRestrictionDraft.max_consecutive_hours),
         preferred_availability: teacherRestrictionDraft.preferred_availability || [],
@@ -1073,6 +1086,11 @@ export default function App() {
           <h3>{teacherRestrictionEditor}</h3>
           <button type="button" onClick={() => openTeacherRestrictionEditor("")}>Tanca</button>
         </div>
+        {teacherTutorGroups(teacherRestrictionEditor) && (
+          <div className="muted" style={{ marginBottom: 8 }}>
+            Tutor/a de: {teacherTutorGroups(teacherRestrictionEditor)}
+          </div>
+        )}
 
         <div className="restriction-quick-fields">
           <label className="restriction-checkbox">
@@ -1082,6 +1100,16 @@ export default function App() {
               onChange={(event) => setTeacherRestrictionDraft({ ...teacherRestrictionDraft, no_gaps: event.target.checked })}
             />
             Sense buits
+          </label>
+          <label className="restriction-number-field" title="Nombre màxim de dies de classe per setmana (buit = sense límit).">
+            Màx. dies de classe/setmana
+            <input
+              type="number"
+              min="0"
+              className="hours-input"
+              value={teacherRestrictionDraft.max_days}
+              onChange={(event) => setTeacherRestrictionDraft({ ...teacherRestrictionDraft, max_days: event.target.value })}
+            />
           </label>
           <label className="restriction-number-field">
             Màx. hores/dia
@@ -3009,6 +3037,8 @@ export default function App() {
         center_hours: t.center_hours ?? "",
         coordination_name: t.coordination_name || "",
         coordination_hours: t.coordination_hours ?? "",
+        max_days: t.max_days ?? "",
+        tutor_of: t.tutor_of || "",
       }),
       create: (row) => apiJson("POST", "/academic-data/teachers", {
         name: row.name,
@@ -3016,12 +3046,15 @@ export default function App() {
         center_hours: row.center_hours === "" ? null : Number(row.center_hours),
         coordination_name: row.coordination_name || "",
         coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
+        max_days: row.max_days === "" || row.max_days === null ? 0 : Math.round(Number(row.max_days)),
       }),
       update: (name, row) => apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, {
         active: row.active !== false,
         center_hours: row.center_hours === "" ? null : Number(row.center_hours),
         coordination_name: row.coordination_name || "",
         coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
+        // 0 = sense límit: així buidar la casella també esborra el valor desat.
+        max_days: row.max_days === "" || row.max_days === null ? 0 : Math.round(Number(row.max_days)),
       }),
       remove: (name) => apiJson("DELETE", `/academic-data/teachers/${encodeURIComponent(name)}`),
     },
@@ -3421,8 +3454,9 @@ export default function App() {
                 {entitySheetOpen.teachers ? (
                   <div>
                     <div className="muted" style={{ marginBottom: 8 }}>
-                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. Les restriccions
-                      horàries es continuen editant des del panell de la dreta.
+                      Doble clic per editar. Copia/enganxa des d'Excel o Google Sheets. La resta de
+                      restriccions horàries es continuen editant des del panell de la dreta; «Tutor/a de» és
+                      informatiu i s'edita a la pestanya Grups.
                     </div>
                     <DataSheetGrid
                       value={entitySheetRows.teachers}
@@ -3460,6 +3494,7 @@ export default function App() {
                       <th>Actiu</th>
                       <th>Hores de centre</th>
                       <th>Coordinació</th>
+                      <th>Tutor/a de</th>
                       <th>Restriccions</th>
                       <th>Accions</th>
                     </tr>
@@ -3532,6 +3567,10 @@ export default function App() {
                           )}
                         </td>
                         <td>
+                          {t.tutor_of ? t.tutor_of : <span className="muted">—</span>}
+                        </td>
+                        <td>
+                          {t.max_days ? <span>Màx. {t.max_days} dies/setmana{" "}</span> : null}
                           {manualCount > 0 && (
                             <span>{manualCount} franges no disponibles</span>
                           )}
