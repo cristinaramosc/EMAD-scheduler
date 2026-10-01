@@ -4,11 +4,11 @@ from uuid import uuid4
 try:
     from backend.models.teaching_block import TeachingBlock
     from backend.models.teaching_requirement import TeachingRequirement
-    from time_units import blocks_to_hours
+    from time_units import blocks_to_hours, hours_to_blocks
 except ModuleNotFoundError:  # pragma: no cover
     from models.teaching_block import TeachingBlock
     from models.teaching_requirement import TeachingRequirement
-    from time_units import blocks_to_hours
+    from time_units import blocks_to_hours, hours_to_blocks
 
 
 def _generate_block_distributions(requirement: TeachingRequirement) -> List[List[int]]:
@@ -19,6 +19,19 @@ def _generate_block_distributions(requirement: TeachingRequirement) -> List[List
     max_block_size = requirement.max_consecutive_blocks
     min_distribution_days = requirement.min_distribution_days
     max_distribution_days = requirement.max_distribution_days
+
+    allowed_block_sizes = None
+    if requirement.allowed_session_lengths:
+        allowed_block_sizes = set()
+        for length in requirement.allowed_session_lengths:
+            try:
+                block_count = hours_to_blocks(float(length))
+            except (TypeError, ValueError):
+                continue
+            if min_block_size <= block_count <= max_block_size:
+                allowed_block_sizes.add(block_count)
+        if not allowed_block_sizes:
+            return []
 
     distributions: List[List[int]] = []
 
@@ -33,7 +46,12 @@ def _generate_block_distributions(requirement: TeachingRequirement) -> List[List
         if remaining < min_possible or remaining > max_possible:
             return
 
-        for block_count in range(min_block_size, min(max_block_size, remaining) + 1):
+        block_sizes = (
+            sorted(size for size in allowed_block_sizes if size <= remaining)
+            if allowed_block_sizes is not None
+            else range(min_block_size, min(max_block_size, remaining) + 1)
+        )
+        for block_count in block_sizes:
             prefix.append(block_count)
             build_for_days(prefix, remaining - block_count, days_left - 1)
             prefix.pop()

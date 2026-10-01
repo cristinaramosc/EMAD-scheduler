@@ -515,12 +515,9 @@ function getSubjectBaseName(value) {
 }
 
 /**
- * L'hora de Tutoria (del tutor/a, també la dedicada a les famílies) no és
- * lectiva per als alumnes: no ha d'ocupar la graella del grup, però sí que
- * ha de sortir a l'horari del professor i com a informació a l'exportació.
- * Es compara per paraules senceres perquè també comptin 'PFI Tutoria' o
- * 'Tutoria famílies' (mateixa regla que al backend, a
- * backend/scheduler_engine/subject_utils.py).
+ * La Tutoria no és lectiva per defecte, excepte per al grup PFI. Es compara
+ * per paraules senceres perquè també comptin 'PFI Tutoria' o 'Tutoria
+ * famílies'; la lectivitat depèn del grup, igual que al backend.
  */
 function isTutoriaSubject(subject) {
   const tokens = String(subject || "")
@@ -529,6 +526,11 @@ function isTutoriaSubject(subject) {
     .split(/[^\p{L}\p{N}]+/u)
     .filter(Boolean);
   return tokens.some((token) => token === "tutoria" || token === "tutories");
+}
+
+function isNonLectiveTutoriaActivity(activity) {
+  return isTutoriaSubject(activity?.subject)
+    && !activityBelongsToGroup(activity?.group, "PFI");
 }
 
 /**
@@ -671,6 +673,7 @@ export default function App() {
     center_hours: "",
     coordination_name: "",
     coordination_hours: "",
+    max_days: "",
   });
   const [teacherEdit, setTeacherEdit] = useState(null);
   const [teacherEditValues, setTeacherEditValues] = useState({
@@ -679,6 +682,7 @@ export default function App() {
     center_hours: "",
     coordination_name: "",
     coordination_hours: "",
+    max_days: "",
   });
   const [teacherRestrictions, setTeacherRestrictions] = useState([]);
   const [teacherRestrictionEditor, setTeacherRestrictionEditor] = useState("");
@@ -723,6 +727,30 @@ export default function App() {
       return "";
     }
     return lengths.map((value) => String(value)).join("+");
+  }
+
+  function splitConsecutiveGroup(value) {
+    const [subject = "", teacher = ""] = String(value || "").split("::", 2);
+    return { subject, teacher };
+  }
+
+  function resolveConsecutiveGroupValue(value, group, assignments) {
+    const { subject, teacher } = splitConsecutiveGroup(value);
+    if (!subject || teacher) {
+      return value || "";
+    }
+
+    const matches = assignments.filter((assignment) => (
+      assignment.group === group && assignment.subject === subject
+    ));
+    const legacyMatch = matches[matches.length - 1];
+    return legacyMatch ? `${subject}::${legacyMatch.teacher || ""}` : value;
+  }
+
+  function consecutiveGroupLabel(value, group, assignments) {
+    const resolved = resolveConsecutiveGroupValue(value, group, assignments);
+    const { subject, teacher } = splitConsecutiveGroup(resolved);
+    return teacher ? `${subject} · ${teacher}` : subject;
   }
 
   const availableSubjectOptions = useMemo(() => {
@@ -1828,10 +1856,7 @@ export default function App() {
     if (selectedGroup) {
       nextActivities = nextActivities.filter((activity) => activityBelongsToGroup(activity?.group, selectedGroup));
       if (!teacherFilter && !roomFilter) {
-        // La Tutoria no ocupa cap franja del grup: només és informativa
-        // (surt com a nota sota el nom del grup a la descàrrega). Al seu
-        // horari sí que ha d'aparèixer com a bloc normal.
-        nextActivities = nextActivities.filter((activity) => !isTutoriaSubject(activity?.subject));
+        nextActivities = nextActivities.filter((activity) => !isNonLectiveTutoriaActivity(activity));
       }
     }
 
@@ -1859,12 +1884,12 @@ export default function App() {
     }
 
     const tutoringSlots = [...new Set((activities || [])
-      .filter((activity) => isTutoriaSubject(activity?.subject)
+      .filter((activity) => isNonLectiveTutoriaActivity(activity)
         && activityBelongsToGroup(activity?.group, selectedGroup))
       .map((activity) => [activity.day, activity.start].filter(Boolean).join(" "))
       .filter(Boolean))];
 
-    return { tutor, tutoringSlots };
+    return { tutor, tutoringSlots, isPfiGroup: selectedGroup.trim().toLowerCase() === "pfi" };
   }, [activities, groups, selectedGroup]);
 
   const syntheticBreakActivities = useMemo(() => {
@@ -2094,10 +2119,8 @@ export default function App() {
     if (!subject || !subject.trim()) {
       return;
     }
-    // L'hora de tutoria és la del tutor/a del grup: si es deixa el professor
-    // en blanc, el bloc no apareixeria a l'horari de cap professor (la vista
-    // del grup no el mostra, perquè la tutoria no és lectiva per als
-    // alumnes), i a l'exportació sortiria sense nom.
+    // L'hora de tutoria s'assigna al tutor/a del grup perquè aparegui al seu
+    // horari de professor i a l'exportació.
     const groupTutor = isTutoriaSubject(subject)
       ? (groups.find((group) => group.name === selectedGroup)?.tutor || "")
       : "";
@@ -2715,7 +2738,7 @@ export default function App() {
     const isSelected = selectedActivityId === activity.id;
     const normalizedSubject = (activity.subject || "").trim().toLowerCase();
     const isSyntheticBreak = Boolean(activity.isSyntheticBreak);
-    const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio" || isTutoriaSubject(activity.subject);
+    const isBreakOrCoordination = normalizedSubject === "descans" || normalizedSubject === "coordinació" || normalizedSubject === "coordinacio" || isNonLectiveTutoriaActivity(activity);
     const groupColor = !hasConflict && !isBreakOrCoordination ? getGroupColor(activity.group) : null;
 
     return (
@@ -2752,6 +2775,9 @@ export default function App() {
         <small>
           {activity.group}
           {activity.room ? ` · ${activity.room}` : ""}
+        </small>
+        <small className="activity-duration">
+          {(Number(activity.duration || 1) / 2).toLocaleString("ca-ES", { maximumFractionDigits: 1 })} h
         </small>
         {hasConflict && conflictReasons.length > 0 ? (
           <small className="activity-conflict-reason">⚠️ {conflictReasons[0]}</small>
@@ -2943,7 +2969,7 @@ export default function App() {
       max_session_days: a.max_session_days || "",
       fixed_day: a.fixed_day || "",
       fixed_start: a.fixed_start || "",
-      consecutive_group: a.consecutive_group || "",
+      consecutive_group: resolveConsecutiveGroupValue(a.consecutive_group, a.group, teachingAssignments),
       notes: a.notes || "",
     }));
     setSpreadsheetRows(rows);
@@ -3447,8 +3473,8 @@ export default function App() {
             <button onClick={() => setAcademicTab("teachers")} className={academicTab === "teachers" ? "active" : ""}>Professors</button>
             <button onClick={() => setAcademicTab("groups")} className={academicTab === "groups" ? "active" : ""}>Grups d'alumnes</button>
             <button onClick={() => setAcademicTab("rooms")} className={academicTab === "rooms" ? "active" : ""}>Aules</button>
-            <button onClick={() => setAcademicTab("subjects")} className={academicTab === "subjects" ? "active" : ""}>Assignatures</button>
-            <button onClick={() => setAcademicTab("assignments")} className={academicTab === "assignments" ? "active" : ""}>Assignacions docents</button>
+            <button onClick={() => setAcademicTab("subjects")} className={academicTab === "subjects" ? "active" : ""}>Matèries úniques ({availableSubjectOptions.length})</button>
+            <button onClick={() => setAcademicTab("assignments")} className={academicTab === "assignments" ? "active" : ""}>Assignacions docents ({teachingAssignments.length})</button>
             <button style={{ marginLeft: 16 }} onClick={() => refreshAcademicLists()}>Actualitza</button>
           </div>
 
@@ -3515,6 +3541,7 @@ export default function App() {
                       <th>Actiu</th>
                       <th>Hores de centre</th>
                       <th>Coordinació</th>
+                      <th>Màx. dies/setmana</th>
                       <th>Tutor/a de</th>
                       <th>Restriccions</th>
                       <th>Accions</th>
@@ -3588,10 +3615,27 @@ export default function App() {
                           )}
                         </td>
                         <td>
+                          {teacherEdit === t.name ? (
+                            <input
+                              type="number"
+                              min="1"
+                              max="5"
+                              step="1"
+                              className="hours-input"
+                              placeholder="Sense límit"
+                              value={teacherEditValues.max_days}
+                              onChange={(event) => setTeacherEditValues({ ...teacherEditValues, max_days: event.target.value })}
+                            />
+                          ) : t.max_days ? (
+                            `${t.max_days} dies`
+                          ) : (
+                            <span className="muted">Sense límit</span>
+                          )}
+                        </td>
+                        <td>
                           {t.tutor_of ? t.tutor_of : <span className="muted">—</span>}
                         </td>
                         <td>
-                          {t.max_days ? <span>Màx. {t.max_days} dies/setmana{" "}</span> : null}
                           {manualCount > 0 && (
                             <span>{manualCount} franges no disponibles</span>
                           )}
@@ -3614,6 +3658,7 @@ export default function App() {
                                   center_hours: teacherEditValues.center_hours === "" ? null : Number(teacherEditValues.center_hours),
                                   coordination_name: teacherEditValues.coordination_name,
                                   coordination_hours: teacherEditValues.coordination_hours === "" ? null : Number(teacherEditValues.coordination_hours),
+                                  max_days: teacherEditValues.max_days === "" ? 0 : Number(teacherEditValues.max_days),
                                 };
                                 const res = await updateTeacher(t.name, payload);
                                 if (res.ok) {
@@ -3635,6 +3680,7 @@ export default function App() {
                                   center_hours: t.center_hours ?? "",
                                   coordination_name: t.coordination_name || "",
                                   coordination_hours: t.coordination_hours ?? "",
+                                  max_days: t.max_days ?? "",
                                 });
                               }}>Edita</button>
                               <button onClick={async () => {
@@ -3693,6 +3739,18 @@ export default function App() {
                         </div>
                       </td>
                       <td>
+                        <input
+                          type="number"
+                          min="1"
+                          max="5"
+                          step="1"
+                          className="hours-input"
+                          placeholder="Sense límit"
+                          value={teacherDraft.max_days}
+                          onChange={(event) => setTeacherDraft({ ...teacherDraft, max_days: event.target.value })}
+                        />
+                      </td>
+                      <td>
                         <button onClick={async () => {
                           if (!teacherDraft.name) {
                             alert("El nom del professor és obligatori");
@@ -3702,10 +3760,11 @@ export default function App() {
                             ...teacherDraft,
                             center_hours: teacherDraft.center_hours === "" ? null : Number(teacherDraft.center_hours),
                             coordination_hours: teacherDraft.coordination_hours === "" ? null : Number(teacherDraft.coordination_hours),
+                            max_days: teacherDraft.max_days === "" ? 0 : Number(teacherDraft.max_days),
                           };
                           const res = await createTeacher(payload);
                           if (res.ok) {
-                            setTeacherDraft({ name: "", active: true, center_hours: "", coordination_name: "", coordination_hours: "" });
+                            setTeacherDraft({ name: "", active: true, center_hours: "", coordination_name: "", coordination_hours: "", max_days: "" });
                             await refreshAcademicLists();
                           } else {
                             alert("No s'ha pogut crear el professor.");
@@ -4531,19 +4590,14 @@ export default function App() {
                               {teachingAssignments
                                 .filter((other) => other.group === a.group && other.id !== a.id)
                                 .map((other) => (
-                                  <option key={other.id} value={other.subject}>
+                                  <option key={other.id} value={`${other.subject}::${other.teacher || ""}`}>
                                     {other.subject} · {other.teacher || "Professor no assignat"}
                                   </option>
                                 ))}
                             </select>
                           ) : (
                             a.consecutive_group
-                              ? `${a.consecutive_group}${(() => {
-                                const consecutiveAssignment = teachingAssignments.find(
-                                  (other) => other.group === a.group && other.subject === a.consecutive_group
-                                );
-                                return consecutiveAssignment?.teacher ? ` · ${consecutiveAssignment.teacher}` : "";
-                              })()}`
+                              ? consecutiveGroupLabel(a.consecutive_group, a.group, teachingAssignments)
                               : "—"
                           )}
                         </td>
@@ -4628,7 +4682,7 @@ export default function App() {
                                   fixed_day: a.fixed_day || "",
                                   fixed_start: a.fixed_start || "",
                                   max_session_days: a.max_session_days || "",
-                                  consecutive_group: a.consecutive_group || "",
+                                  consecutive_group: resolveConsecutiveGroupValue(a.consecutive_group, a.group, teachingAssignments),
                                 });
                               }}>Edita</button>
                               <button onClick={async () => {
@@ -4756,7 +4810,7 @@ export default function App() {
                           {teachingAssignments
                             .filter((other) => other.group === assignmentDraft.group)
                             .map((other) => (
-                              <option key={other.id} value={other.subject}>
+                              <option key={other.id} value={`${other.subject}::${other.teacher || ""}`}>
                                 {other.subject} · {other.teacher || "Professor no assignat"}
                               </option>
                             ))}
@@ -4878,11 +4932,13 @@ export default function App() {
           {selectedGroupTutorInfo && (
             <div className="group-tutor-summary">
               <strong>Tutor/a: {selectedGroupTutorInfo.tutor}</strong>
-              <span>
-                Tutoria (no lectiva): {selectedGroupTutorInfo.tutoringSlots.length
-                  ? selectedGroupTutorInfo.tutoringSlots.join(" · ")
-                  : "pendent d'assignar"}
-              </span>
+              {!selectedGroupTutorInfo.isPfiGroup && (
+                <span>
+                  Tutoria (no lectiva): {selectedGroupTutorInfo.tutoringSlots.length
+                    ? selectedGroupTutorInfo.tutoringSlots.join(" · ")
+                    : "pendent d'assignar"}
+                </span>
+              )}
             </div>
           )}
 

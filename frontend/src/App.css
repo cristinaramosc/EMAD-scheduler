@@ -460,6 +460,11 @@ button.primary:hover:not(:disabled) {
   opacity: 0.85;
 }
 
+.activity-card .activity-duration {
+  font-weight: 700;
+  opacity: 1;
+}
+
 .activity-info-button {
   align-self: flex-start;
   background: rgba(255, 255, 255, 0.22);

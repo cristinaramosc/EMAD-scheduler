@@ -17,6 +17,113 @@ from services.schedule_exporter import build_schedule_export
 from services.schedule_pdf_exporter import build_schedule_pdf
 
 
+def test_fixed_assignment_accepts_excel_time_with_seconds():
+    from repositories.requirement_repository import RequirementRepository
+    from scheduler_engine.engine import SchedulerEngine
+    from scheduler_engine.models import SchoolCalendar
+
+    repo = AcademicDataRepository()
+    repo.create_teacher({"name": "Joan"})
+    repo.create_group({"name": "PFI"})
+    repo.create_canonical_assignment({
+        "teacher": "Joan",
+        "subject": "Taller",
+        "group": "PFI",
+        "weekly_hours": 1,
+        "fixed_day": "Dimarts",
+        "fixed_start": "08:30:00",
+    })
+    day_names = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+    hour_names = [f"{8 + index // 2}:{'00' if index % 2 == 0 else '30'}" for index in range(28)]
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=list(range(5)), periods_per_day=len(hour_names)),
+        time_labels={"day_names": day_names, "hour_names": hour_names},
+        academic_data_repo=repo,
+    )
+
+    result = use_cases.generate_proposals_from_academic_data()
+    activities = (result.get("best_proposal") or {}).get("activities") or []
+
+    assert len(activities) == 1
+    assert activities[0]["day"] == "Dimarts"
+    assert activities[0]["start"] == "8:30"
+    assert activities[0]["fixed"] is True
+
+
+def test_consecutive_assignment_targets_subject_and_teacher():
+    from repositories.requirement_repository import RequirementRepository
+    from scheduler_engine.engine import SchedulerEngine
+    from scheduler_engine.models import ScheduleProposal, SchoolCalendar
+
+    use_cases = SchedulerUseCases.__new__(SchedulerUseCases)
+    use_cases._academic_data_repo = AcademicDataRepository()
+    use_cases._time_labels = {
+        "day_names": ["Dilluns"],
+        "hour_names": [f"{8 + index // 2}:{'00' if index % 2 == 0 else '30'}" for index in range(20)],
+    }
+    use_cases._school_calendar = SchoolCalendar(days=[0], periods_per_day=20)
+    use_cases._scheduler_engine = SchedulerEngine()
+
+    activities = [
+        Activity(1, "Eli", "GPP", "2n COM", "", "Dilluns", "10:00", 2),
+        Activity(2, "Jordi", "GPP", "2n COM", "", "Dilluns", "13:00", 2),
+        Activity(3, "Bego", "FOL", "2n COM", "", "Dilluns", "8:00", 2),
+    ]
+    proposal = ScheduleProposal(id="consecutive-gpp", activities=activities)
+    assignments = [
+        {"teacher": "Jordi", "subject": "GPP", "group": "2n COM"},
+        {"teacher": "Eli", "subject": "GPP", "group": "2n COM"},
+        {"teacher": "Bego", "subject": "FOL", "group": "2n COM", "consecutive_group": "GPP::Jordi"},
+    ]
+
+    aligned = use_cases._apply_consecutive_group_preferences(
+        proposal, assignments, use_cases._time_labels["hour_names"]
+    )
+    starts_by_teacher = {activity.teacher: activity.start for activity in aligned.activities}
+
+    assert starts_by_teacher["Jordi"] == "9:00"
+    assert starts_by_teacher["Eli"] == "10:00"
+
+
+def test_allowed_session_lengths_split_pfi_math_and_communication():
+    from repositories.requirement_repository import RequirementRepository
+    from scheduler_engine.engine import SchedulerEngine
+    from scheduler_engine.models import SchoolCalendar
+
+    repo = AcademicDataRepository()
+    repo.create_group({"name": "PFI"})
+    for teacher, subject in (("Judit", "PFI M3 Mates"), ("Imma", "MFG1 Comunicació")):
+        repo.create_teacher({"name": teacher})
+        repo.create_canonical_assignment({
+            "teacher": teacher,
+            "subject": subject,
+            "group": "PFI",
+            "weekly_hours": 3.5,
+            "allowed_session_lengths": [2.0, 1.5],
+        })
+    day_names = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+    hour_names = [f"{8 + index // 2}:{'00' if index % 2 == 0 else '30'}" for index in range(28)]
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=list(range(5)), periods_per_day=len(hour_names)),
+        time_labels={"day_names": day_names, "hour_names": hour_names},
+        academic_data_repo=repo,
+    )
+
+    result = use_cases.generate_proposals_from_academic_data()
+    activities = (result.get("best_proposal") or {}).get("activities") or []
+
+    for subject in ("PFI M3 Mates", "MFG1 Comunicació"):
+        sessions = [activity for activity in activities if activity["subject"] == subject]
+        assert sorted(activity["duration"] for activity in sessions) == [3, 4]
+        assert len({activity["day"] for activity in sessions}) == 2
+
+
 # ---------------------------------------------------------------------------
 # Bloqueig d'horari de grup
 # ---------------------------------------------------------------------------
@@ -116,6 +223,40 @@ def test_quarter_pair_alignment_reuses_start_even_with_different_durations():
 
     assert aligned.activities[0].start == "9:00"
     assert aligned.activities[1].start == "9:00"
+
+
+def test_quarter_pair_alignment_does_not_move_fixed_activity():
+    uc = _make_use_cases([])
+    uc._academic_data_repo = AcademicDataRepository()
+    uc._time_labels = {
+        "day_names": ["Dilluns"],
+        "hour_names": ["8:00", "8:30", "9:00", "9:30", "10:00", "10:30"],
+    }
+    uc._school_calendar = type("Calendar", (), {
+        "days": [0],
+        "periods_per_day": 6,
+        "periods_for_day": lambda self, day: [
+            type("Slot", (), {"day": day, "period": period})() for period in range(6)
+        ],
+    })()
+    uc._scheduler_engine = __import__("scheduler_engine.engine", fromlist=["SchedulerEngine"]).SchedulerEngine()
+    fixed_activity = Activity(1, "Joan", "Taller 2Q", "PFI", "", "Dilluns", "10:00", 1, fixed=True)
+    flexible_activity = Activity(2, "Marc", "Taller 1Q", "PFI", "", "Dilluns", "8:00", 1)
+    proposal = type("Proposal", (), {
+        "id": "fixed-quarter",
+        "activities": [fixed_activity, flexible_activity],
+        "score": 0,
+        "warnings": [],
+        "conflicts": [],
+        "score_breakdown": None,
+        "metadata": {},
+    })()
+
+    aligned = uc._apply_quarter_pair_alignment(proposal)
+
+    assert fixed_activity.start == "10:00"
+    assert flexible_activity.start == "10:00"
+    assert aligned.activities[0].start == "10:00"
 
 
 def test_quarter_pair_alignment_only_matches_opposite_subject_endings():
@@ -362,6 +503,24 @@ def test_single_group_compaction_still_works_as_before():
     assert moved_ids == [1]
 
 
+def test_compaction_preserves_fixed_activity_and_packs_around_it():
+    uc = _make_use_cases_for_compaction(
+        [],
+        hour_names=[f"{hour}:{minute:02d}" for hour in range(8, 15) for minute in (0, 30)],
+    )
+    activities = [
+        Activity(1, "Joan", "Taller", "PFI", "", "Dilluns", "10:00", 2, fixed=True),
+        Activity(2, "Marc", "Projectes", "PFI", "", "Dilluns", "14:00", 2),
+    ]
+
+    compacted, moved_ids = uc._compact_activities(activities)
+    by_id = {activity.id: activity for activity in compacted}
+
+    assert by_id[1].start == "10:00"
+    assert by_id[2].start == "11:00"
+    assert moved_ids == [2]
+
+
 def test_group_compaction_respects_group_daily_start_time():
     """La compactació no ha de forçar el grup a començar a les 8:00 si la
     restricció de grup exigeix començar més tard (p.ex. 10:00)."""
@@ -439,9 +598,8 @@ _TUTORIA_FAMILY_ACTIVITIES = [
 ]
 
 
-def test_program_prefixed_tutoria_is_not_a_block_in_the_group_sheet():
-    """'PFI Tutoria' ha de comportar-se com 'Tutoria': no ocupa la graella
-    del grup perquè no és lectiva per als alumnes."""
+def test_pfi_tutoria_is_a_block_in_the_group_sheet():
+    """La tutoria del PFI és lectiva i apareix com una activitat del grup."""
     from openpyxl import load_workbook
 
     buffer = build_schedule_export(_TUTORIA_FAMILY_ACTIVITIES)
@@ -449,10 +607,10 @@ def test_program_prefixed_tutoria_is_not_a_block_in_the_group_sheet():
     sheet = workbook["G-PFI"]
 
     cell_texts = [str(cell.value) for row in sheet.iter_rows() for cell in row if cell.value]
-    assert not any("PFI Tutoria" in text and "—" not in text for text in cell_texts)
+    assert any("PFI Tutoria" in text and "Judit" in text for text in cell_texts)
 
 
-def test_program_prefixed_tutoria_appears_as_a_note_under_the_group_title():
+def test_pfi_tutoria_is_not_added_as_a_nonlective_group_note():
     from openpyxl import load_workbook
 
     buffer = build_schedule_export(_TUTORIA_FAMILY_ACTIVITIES)
@@ -460,7 +618,29 @@ def test_program_prefixed_tutoria_appears_as_a_note_under_the_group_title():
     sheet = workbook["G-PFI"]
 
     note_texts = [str(cell.value) for row in sheet.iter_rows() for cell in row if cell.value]
-    assert any("Tutoria: Judit" in text and "Dimarts 11:00" in text for text in note_texts)
+    assert not any("Tutoria: Judit" in text for text in note_texts)
+
+
+def test_pfi_tutoria_counts_as_lective_when_placing_mandatory_pfi_break():
+    repo = AcademicDataRepository()
+    repo.create_group({"name": "PFI"})
+    uc = SchedulerUseCases.__new__(SchedulerUseCases)
+    uc._time_labels = {
+        "day_names": ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"],
+        "hour_names": [f"{hour}:{minute:02d}" for hour in range(8, 15) for minute in (0, 30)],
+    }
+    uc._academic_data_repo = repo
+    activities = [
+        Activity(1, "Judit", "PFI Tutoria", "PFI", "", "Dilluns", "8:00", 2),
+        Activity(2, "Imma", "MFG1 Comunicació", "PFI", "", "Dilluns", "9:00", 4),
+        Activity(3, "Judit", "PFI M3 Mates", "PFI", "", "Dilluns", "11:00", 4),
+    ]
+
+    result = uc._insert_default_group_breaks(activities)
+
+    assert result[0].start == "8:00"
+    assert result[1].start == "9:30"
+    assert result[2].start == "11:30"
 
 
 def test_program_prefixed_tutoria_is_a_real_block_on_the_teacher_sheet():

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from typing import List, Optional, Sequence, Tuple
 
 try:
@@ -165,8 +166,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
         if morning_latest is not None:
             morning_rank = 0 if slot.period <= morning_latest else 1
             morning_delta = abs(slot.period - morning_latest)
-            gap_count = self._daily_gap_count(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
-            return (morning_rank, gap_count, morning_delta, day, slot.period)
+            gap_slots, _ = self._daily_gap_counts(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
+            return (morning_rank, gap_slots, morning_delta, day, slot.period)
 
         preferred_start = self._preferred_group_start_period(group_id, context)
         if preferred_start is not None:
@@ -176,8 +177,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
             afternoon_rank = 1
             delta = 0
 
-        gap_count = self._daily_gap_count(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
-        return (afternoon_rank, gap_count, delta, day, slot.period)
+        gap_slots, _ = self._daily_gap_counts(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
+        return (afternoon_rank, gap_slots, delta, day, slot.period)
 
     def _morning_group_latest_start_period(
         self,
@@ -221,16 +222,16 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         return 14 if context.school_calendar.periods_per_day >= 15 else None
 
-    def _daily_gap_count(
+    def _daily_gap_counts(
         self,
         group_id: Optional[str],
         day: int,
         slot: TimeSlot,
         required_slots: int,
         all_activities: Sequence[ScheduledActivity],
-    ) -> int:
+    ) -> tuple[int, int]:
         if not group_id:
-            return 0
+            return 0, 0
 
         intervals = []
         for activity in all_activities:
@@ -243,14 +244,23 @@ class GreedyPlacementStrategy(PlacementStrategy):
         intervals.append((slot.period, slot.period + required_slots))
         intervals.sort()
 
-        gap_count = 0
-        for index in range(1, len(intervals)):
-            previous_end = intervals[index - 1][1]
-            current_start = intervals[index][0]
-            if current_start > previous_end:
-                gap_count += 1
+        merged_intervals = []
+        for start, end in intervals:
+            if merged_intervals and start <= merged_intervals[-1][1]:
+                previous_start, previous_end = merged_intervals[-1]
+                merged_intervals[-1] = (previous_start, max(previous_end, end))
+            else:
+                merged_intervals.append((start, end))
 
-        return gap_count
+        gap_slots = 0
+        gap_windows = 0
+        for index in range(1, len(merged_intervals)):
+            gap = merged_intervals[index][0] - merged_intervals[index - 1][1]
+            if gap > 0:
+                gap_slots += gap
+                gap_windows += 1
+
+        return gap_slots, gap_windows
 
     def _group_daily_gap_limit_conflict_exists(
         self,
@@ -269,8 +279,16 @@ class GreedyPlacementStrategy(PlacementStrategy):
             return False
 
         required_slots = teaching_block.duration_blocks or 1
-        return self._daily_gap_count(group_id, start_slot.day, start_slot, required_slots, activities) > 1
+        gap_slots, gap_windows = self._daily_gap_counts(
+            group_id, start_slot.day, start_slot, required_slots, activities
+        )
+        strict_gap_groups = {"gi", "gp"}
+        group_names_normalized = {normalize_group_name(name) for name in group_names(group_id)}
+        if group_names_normalized.intersection(strict_gap_groups):
+            return gap_slots > 1
+        return gap_windows > 1
 
+    @lru_cache(maxsize=4096)
     def _groups_overlap(self, parent_a: str, parent_b: str) -> bool:
         names_a = set(group_names(parent_a)) or {parent_a}
         names_b = set(group_names(parent_b)) or {parent_b}
@@ -469,7 +487,10 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 any_calendar_slot = True
                 day_name = self._day_name(day)
 
-                if self._group_conflict_exists(teaching_block, slot, all_activities, context):
+                if self._group_same_subject_day_conflict_exists(teaching_block, day, all_activities):
+                    subject_label = metadata.get("subject") or teaching_block.id
+                    add(f"L'assignatura {subject_label} ja està programada per al grup {group_label} {day_name}.")
+                elif self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     add(f"El grup {group_label} ja té una altra activitat {day_name} en aquesta franja.")
 
                 if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, all_activities, context):
@@ -606,6 +627,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         required_slots = teaching_block.duration_blocks or 1
         candidate_subject = (teaching_block.metadata or {}).get("subject")
+        candidate_subject_key = normalize_group_name(candidate_subject)
         candidate_parent, _ = _parent_and_quarter(group_id, candidate_subject)
         raw_split_groups = (context.configuration.get("split_groups") or set()) if context is not None else set()
         split_groups = {normalize_group_name(name) for name in raw_split_groups}
@@ -618,6 +640,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
             activity_parent, _ = _parent_and_quarter(activity.group_id, existing_subject)
             if not self._groups_overlap(activity_parent, candidate_parent):
                 continue
+            if candidate_subject_key and candidate_subject_key == normalize_group_name(existing_subject):
+                return True
             activity_end = activity.start_timeslot.period + activity.duration
             candidate_end = start_slot.period + required_slots
             if start_slot.period < activity_end and candidate_end > activity.start_timeslot.period:
@@ -645,6 +669,32 @@ class GreedyPlacementStrategy(PlacementStrategy):
                         continue
                 return True
 
+        return False
+
+    def _group_same_subject_day_conflict_exists(
+        self,
+        teaching_block: TeachingBlock,
+        day: int,
+        activities: Sequence[ScheduledActivity],
+    ) -> bool:
+        metadata = teaching_block.metadata or {}
+        group_id = metadata.get("group_id") or metadata.get("group")
+        subject_key = normalize_group_name(metadata.get("subject"))
+        if not group_id or not subject_key:
+            return False
+
+        candidate_parent, _ = _parent_and_quarter(group_id, metadata.get("subject"))
+        for activity in activities:
+            if activity.day != day:
+                continue
+            existing_metadata = activity.teaching_block.metadata or {}
+            existing_subject = existing_metadata.get("subject")
+            if subject_key != normalize_group_name(existing_subject):
+                continue
+            existing_group = activity.group_id or existing_metadata.get("group_id") or existing_metadata.get("group")
+            existing_parent, _ = _parent_and_quarter(existing_group, existing_subject)
+            if self._groups_overlap(candidate_parent, existing_parent):
+                return True
         return False
 
     def _group_max_days_conflict_exists(

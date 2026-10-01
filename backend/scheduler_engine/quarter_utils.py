@@ -14,12 +14,14 @@ a `group_conflict.py` per apuntar-hi, en lloc de mantenir una còpia.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import Optional, Tuple
 
 _QUARTER_1Q = "1q"
 _QUARTER_2Q = "2q"
 
 
+@lru_cache(maxsize=1024)
 def quarter_suffix(text: Optional[str]) -> Optional[str]:
     """Retorna '1q' o '2q' si el text conté aquest marcador com a paraula
     sencera (independent de majúscules/minúscules), tant si hi és al final
@@ -36,6 +38,7 @@ def quarter_suffix(text: Optional[str]) -> Optional[str]:
     return None
 
 
+@lru_cache(maxsize=1024)
 def strip_quarter_suffix(text: Optional[str]) -> str:
     """Retorna el text sense el marcador 1Q/2Q (si en té, al principi o al
     final), amb espais nets."""
@@ -46,10 +49,12 @@ def strip_quarter_suffix(text: Optional[str]) -> str:
     return re.sub(r"\s+", " ", without_suffix).strip()
 
 
+@lru_cache(maxsize=1024)
 def normalize_group_name(text: Optional[str]) -> str:
     return re.sub(r"\s+", " ", (text or "").strip()).casefold()
 
 
+@lru_cache(maxsize=1024)
 def group_names(text: Optional[str]) -> Tuple[str, ...]:
     """Retorna els noms de grup individuals d'un camp que pot contenir
     diversos grups separats per coma (p.ex. 'GI, GP'), normalitzats.
@@ -85,6 +90,7 @@ def with_quarter_suffix(base_name: str, quarter: Optional[str]) -> str:
     return f"{base} {normalized}"
 
 
+@lru_cache(maxsize=1024)
 def parent_and_quarter(group: Optional[str], subject: Optional[str]) -> Tuple[str, Optional[str]]:
     """Retorna (grup_pare, marcador_de_quadrimestre) per a una combinació
     de grup + assignatura. El marcador es dedueix primer del nom del grup
@@ -99,6 +105,7 @@ def parent_and_quarter(group: Optional[str], subject: Optional[str]) -> Tuple[st
     return normalize_group_name(group_text), quarter_suffix(subject)
 
 
+@lru_cache(maxsize=4096)
 def is_valid_quarter_pair(
     first_group: Optional[str],
     first_subject: Optional[str],
