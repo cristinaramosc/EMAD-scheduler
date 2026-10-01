@@ -36,6 +36,19 @@ def _seeded_repo() -> AcademicDataRepository:
     return repo
 
 
+def test_summary_counts_unique_subjects_from_assignments_when_catalog_is_empty():
+    repo = _seeded_repo()
+    repo.create_canonical_assignment({
+        "teacher": "Eli",
+        "subject": "GPP",
+        "group": "1r APGI",
+        "weekly_hours": 1,
+    })
+
+    assert repo.list_subjects() == []
+    assert repo.summary()["subjects"] == 2
+
+
 def test_workbook_headers_include_tutor_split_capacity_lengths_and_consecutive_columns():
     buffer = build_workbook(repo=None, blank=True)
     workbook = load_workbook(buffer)

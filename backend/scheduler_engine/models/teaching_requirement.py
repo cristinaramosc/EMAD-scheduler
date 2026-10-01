@@ -30,6 +30,7 @@ class TeachingRequirement:
 
     # opcionals
     preferred_distribution: Dict[str, int] = field(default_factory=dict)
+    allowed_session_lengths: List[float] = field(default_factory=list)
     preferred_rooms: List[str] = field(default_factory=list)
     fixed_teacher: bool = False
     priority: int = 2

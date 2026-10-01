@@ -16,6 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from services.block_generator import BlockGenerator
 from .models import Activity, Conflict, GenerationContext, GenerationResult, ScheduleProposal, ScheduledActivity
 from .placement_strategy import GreedyPlacementStrategy, PlacementStrategy
+from .quarter_utils import group_names, parent_and_quarter
 from .teacher_utils import teacher_label, teacher_names
 from .proposal_scorer import ProposalScorer
 
@@ -293,6 +294,8 @@ class SchedulerGenerator:
         for index, displaced in enumerate(list(scheduled_activities)):
             if displaced.teaching_block.fixed:
                 continue
+            if not self._blocks_share_scheduling_resource(teaching_block, displaced, context):
+                continue
 
             remaining = scheduled_activities[:index] + scheduled_activities[index + 1 :]
             replacement = self._placement_strategy.place(teaching_block, context, remaining)
@@ -311,6 +314,37 @@ class SchedulerGenerator:
             return replacement
 
         return None
+
+    @staticmethod
+    def _blocks_share_scheduling_resource(
+        candidate: TeachingBlock,
+        scheduled: ScheduledActivity,
+        context: GenerationContext,
+    ) -> bool:
+        candidate_metadata = candidate.metadata or {}
+        scheduled_block = scheduled.teaching_block
+        scheduled_metadata = scheduled_block.metadata or {}
+
+        candidate_group = candidate_metadata.get("group_id") or candidate_metadata.get("group")
+        scheduled_group = scheduled.group_id or scheduled_metadata.get("group_id") or scheduled_metadata.get("group")
+        if candidate_group and scheduled_group:
+            candidate_parent, _ = parent_and_quarter(candidate_group, candidate_metadata.get("subject"))
+            scheduled_parent, _ = parent_and_quarter(scheduled_group, scheduled_metadata.get("subject"))
+            if set(group_names(candidate_parent)) & set(group_names(scheduled_parent)):
+                return True
+
+        candidate_teachers = set(teacher_names(candidate.preferred_teacher_id or candidate_metadata.get("teacher")))
+        scheduled_teachers = set(teacher_names(scheduled.teacher_id or scheduled_block.preferred_teacher_id or scheduled_metadata.get("teacher")))
+        if candidate_teachers & scheduled_teachers:
+            return True
+
+        if context.configuration.get("room_constraints_enabled", False):
+            candidate_room = candidate.preferred_room_id
+            scheduled_room = scheduled.room_id or scheduled_block.preferred_room_id
+            if candidate_room and candidate_room == scheduled_room:
+                return True
+
+        return False
 
     def _fixed_day_first(self, blocks: Sequence[TeachingBlock]) -> List[TeachingBlock]:
         """Manté l'ordre relatiu de cada llista (sort estable) però posa

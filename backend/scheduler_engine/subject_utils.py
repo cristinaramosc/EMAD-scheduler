@@ -1,15 +1,13 @@
 """Utilitats compartides per classificar assignatures pel seu nom.
 
-El cas de referència és la **Tutoria** (l'hora de tutoria del tutor/a, també
-la que dedica a les famílies): ocupa la franja del professor que la fa, però
-**no és lectiva per als alumnes** — no ha d'ocupar la graella del grup ni
-comptar com a dia lectiu, i als fulls d'horari surt com a informació.
+La Tutoria no és lectiva per defecte, excepte la tutoria del grup PFI, que
+forma part de l'horari de classe. Totes ocupen la franja del professor.
 
 Aquesta regla vivia duplicada (i amb coincidència exacta de text) a
 `constraints/group_conflict.py`, `constraints/group_max_days.py` i
-`services/schedule_exporter.py`; per això noms reals com `PFI Tutoria` o
-`Tutoria famílies` no s'hi reconeixien. Ara hi ha una única implementació
-aquí, igual que `quarter_utils.py` concentra la regla dels quadrimestres.
+`services/schedule_exporter.py`; `is_non_lective_tutoria` aplica la regla
+tenint en compte el grup. Així `PFI Tutoria` és lectiva per a PFI, però no
+per a un altre grup. `quarter_utils.py` concentra la regla dels quadrimestres.
 """
 
 from __future__ import annotations
@@ -36,3 +34,10 @@ def is_tutoria_subject(subject: Optional[str]) -> bool:
     només contingui la cadena de text per casualitat.
     """
     return any(token in _TUTORIA_TOKENS for token in _subject_tokens(subject))
+
+
+def is_non_lective_tutoria(subject: Optional[str], group: Optional[str]) -> bool:
+    """PFI Tutoria is lective for PFI; other tutoring activities are not."""
+    if not is_tutoria_subject(subject):
+        return False
+    return "pfi" not in _subject_tokens(group)

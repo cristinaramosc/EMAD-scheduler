@@ -143,6 +143,17 @@ class AcademicDataRepository:
         active_teacher_restrictions = self._active_records(self._teacher_restrictions)
         active_group_restrictions = self._active_records(self._group_restrictions)
 
+        subject_names = {
+            _normalize_key(item.get("name", ""))
+            for item in active_subjects
+            if item.get("name")
+        }
+        subject_names.update(
+            _normalize_key(item.get("subject", ""))
+            for item in active_assignments
+            if item.get("subject")
+        )
+
         weekly_hours = round(
             sum(float(item.get("weekly_hours", 0.0)) for item in active_assignments),
             2,
@@ -151,7 +162,7 @@ class AcademicDataRepository:
         return {
             "teachers": len(active_teachers),
             "groups": len(active_groups),
-            "subjects": len(active_subjects),
+            "subjects": len(subject_names),
             "teaching_assignments": len(active_assignments),
             "weekly_teaching_hours": weekly_hours,
             "rooms": len(active_rooms),

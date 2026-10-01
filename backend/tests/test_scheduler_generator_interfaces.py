@@ -602,6 +602,51 @@ def test_scheduler_generator_reorganizes_a_flexible_activity_for_a_later_block()
     }
 
 
+def test_local_reorganization_skips_an_unrelated_scheduled_activity():
+    class CountingStrategy:
+        def __init__(self):
+            self.calls = 0
+
+        def place(self, teaching_block, context, activities, excluded_days=None):
+            self.calls += 1
+            return None
+
+    strategy = CountingStrategy()
+    generator = SchedulerGenerator(placement_strategy=strategy)
+    candidate = TeachingBlock(
+        id="candidate",
+        duration=1,
+        order=2,
+        preferred_teacher_id="Carme",
+        metadata={"group": "2n APGI", "teacher": "Carme"},
+    )
+    unrelated_block = TeachingBlock(
+        id="unrelated",
+        duration=1,
+        order=1,
+        preferred_teacher_id="Biel",
+        metadata={"group": "1r COM", "teacher": "Biel"},
+    )
+    unrelated_activity = ScheduledActivity(
+        teaching_block=unrelated_block,
+        day=0,
+        start_timeslot=TimeSlot(day=0, period=0),
+        duration=1,
+        teacher_id="Biel",
+        group_id="1r COM",
+    )
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=2),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={"room_constraints_enabled": True},
+    )
+
+    assert generator._try_local_reorganization(candidate, context, [unrelated_activity]) is None
+    assert strategy.calls == 0
+
+
 def test_group_no_gaps_restriction_blocks_non_contiguous_placement():
     from scheduler_engine.placement_strategy import GreedyPlacementStrategy
 
@@ -706,7 +751,7 @@ def test_slot_preference_prefers_afternoon_start_and_compact_day():
     assert late_key < early_key
 
 
-def test_group_daily_gap_limit_blocks_slots_that_leave_multiple_free_windows():
+def test_group_daily_gap_limit_allows_one_empty_slot_and_blocks_larger_gaps():
     from scheduler_engine.placement_strategy import GreedyPlacementStrategy
 
     strategy = GreedyPlacementStrategy()
@@ -726,7 +771,7 @@ def test_group_daily_gap_limit_blocks_slots_that_leave_multiple_free_windows():
             duration=2,
             room_id="R1",
             teacher_id="T1",
-            group_id="g1",
+            group_id="GI",
         ),
         ScheduledActivity(
             teaching_block=TeachingBlock(id="existing-2", duration=1.0, order=2),
@@ -735,16 +780,7 @@ def test_group_daily_gap_limit_blocks_slots_that_leave_multiple_free_windows():
             duration=1,
             room_id="R1",
             teacher_id="T1",
-            group_id="g1",
-        ),
-        ScheduledActivity(
-            teaching_block=TeachingBlock(id="existing-3", duration=1.0, order=3),
-            day=0,
-            start_timeslot=TimeSlot(day=0, period=6),
-            duration=1,
-            room_id="R1",
-            teacher_id="T1",
-            group_id="g1",
+            group_id="GI",
         ),
     )
 
@@ -753,12 +789,156 @@ def test_group_daily_gap_limit_blocks_slots_that_leave_multiple_free_windows():
         duration=1.0,
         order=4,
         duration_blocks=1,
+        metadata={"group": "GI"},
+    )
+
+    assert strategy._group_daily_gap_limit_conflict_exists(candidate, TimeSlot(day=0, period=2), existing, context) is False
+    assert strategy._group_daily_gap_limit_conflict_exists(candidate, TimeSlot(day=0, period=3), existing, context) is False
+    assert strategy._group_daily_gap_limit_conflict_exists(candidate, TimeSlot(day=0, period=5), existing, context) is True
+
+
+def test_group_daily_gap_count_merges_overlapping_activity_intervals():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=16),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+    existing = (
+        ScheduledActivity(
+            teaching_block=TeachingBlock(id="long", duration=10.0, order=1),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=0),
+            duration=10,
+            room_id="R1",
+            teacher_id="T1",
+            group_id="GI",
+        ),
+        ScheduledActivity(
+            teaching_block=TeachingBlock(id="overlap", duration=2.0, order=2),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=2),
+            duration=2,
+            room_id="R1",
+            teacher_id="T1",
+            group_id="GI",
+        ),
+        ScheduledActivity(
+            teaching_block=TeachingBlock(id="later", duration=1.0, order=3),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=11),
+            duration=1,
+            room_id="R1",
+            teacher_id="T1",
+            group_id="GI",
+        ),
+    )
+    candidate = TeachingBlock(
+        id="candidate",
+        duration=1.0,
+        order=4,
+        duration_blocks=1,
+        metadata={"group": "GI"},
+    )
+
+    assert strategy._group_daily_gap_limit_conflict_exists(
+        candidate, TimeSlot(day=0, period=12), existing, context
+    ) is False
+
+
+def test_non_gi_gp_groups_keep_single_gap_window_limit():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=8),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+    existing = (
+        ScheduledActivity(
+            teaching_block=TeachingBlock(id="first", duration=2.0, order=1),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=0),
+            duration=2,
+            group_id="g1",
+        ),
+        ScheduledActivity(
+            teaching_block=TeachingBlock(id="second", duration=1.0, order=2),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=4),
+            duration=1,
+            group_id="g1",
+        ),
+        ScheduledActivity(
+            teaching_block=TeachingBlock(id="third", duration=1.0, order=3),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=6),
+            duration=1,
+            group_id="g1",
+        ),
+    )
+    candidate = TeachingBlock(
+        id="candidate",
+        duration=1.0,
+        order=4,
+        duration_blocks=1,
         metadata={"group": "g1"},
     )
 
-    assert strategy._group_daily_gap_limit_conflict_exists(candidate, TimeSlot(day=0, period=2), existing, context) is True
-    assert strategy._group_daily_gap_limit_conflict_exists(candidate, TimeSlot(day=0, period=3), existing, context) is True
-    assert strategy._group_daily_gap_limit_conflict_exists(candidate, TimeSlot(day=0, period=5), existing, context) is False
+    assert strategy._group_daily_gap_limit_conflict_exists(
+        candidate, TimeSlot(day=0, period=2), existing, context
+    ) is True
+    assert strategy._group_daily_gap_limit_conflict_exists(
+        candidate, TimeSlot(day=0, period=5), existing, context
+    ) is False
+
+
+def test_same_group_subject_is_placed_on_a_different_day():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=8),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+    first_block = TeachingBlock(
+        id="pfi-taller-joan",
+        duration=2.0,
+        order=1,
+        preferred_teacher_id="Joan Carles",
+        metadata={"subject": "PFI Taller", "group": "PFI", "teacher": "Joan Carles"},
+    )
+    first_session = ScheduledActivity(
+        teaching_block=first_block,
+        day=0,
+        start_timeslot=TimeSlot(day=0, period=0),
+        duration=4,
+        teacher_id="Joan Carles",
+        group_id="PFI",
+    )
+    second_block = TeachingBlock(
+        id="pfi-taller-marc",
+        duration=1.0,
+        order=2,
+        duration_blocks=2,
+        preferred_teacher_id="Marc F.",
+        metadata={"subject": "pfi taller", "group": "PFI", "teacher": "Marc F."},
+    )
+
+    placement = strategy.place(second_block, context, [first_session])
+
+    assert placement is not None
+    assert placement.day == 1
 
 
 def test_scheduler_generator_orchestrates_teaching_requirements_into_proposals():
