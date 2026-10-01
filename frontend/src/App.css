@@ -266,6 +266,17 @@ button.primary:hover:not(:disabled) {
   min-width: 0;
   width: 100%;
 
+
+.group-tutor-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.group-tutor-summary span {
+  color: var(--color-text-secondary);
+}
   --slot-height: 36px;
   grid-auto-rows: var(--slot-height);
   grid-template-columns: 52px repeat(5, minmax(80px, 1fr));

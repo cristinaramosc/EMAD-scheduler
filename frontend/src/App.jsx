@@ -1846,6 +1846,27 @@ export default function App() {
     return nextActivities;
   }, [activities, selectedGroup, teacherFilter, teacherScheduleActivities, roomFilter, roomScheduleActivities]);
 
+  const selectedGroupTutorInfo = useMemo(() => {
+    if (!selectedGroup) {
+      return null;
+    }
+
+    const group = groups.find((item) => individualGroupNames(item?.name)
+      .some((name) => name.toLowerCase() === selectedGroup.toLowerCase()));
+    const tutor = String(group?.tutor || "").trim();
+    if (!tutor) {
+      return null;
+    }
+
+    const tutoringSlots = [...new Set((activities || [])
+      .filter((activity) => isTutoriaSubject(activity?.subject)
+        && activityBelongsToGroup(activity?.group, selectedGroup))
+      .map((activity) => [activity.day, activity.start].filter(Boolean).join(" "))
+      .filter(Boolean))];
+
+    return { tutor, tutoringSlots };
+  }, [activities, groups, selectedGroup]);
+
   const syntheticBreakActivities = useMemo(() => {
     if (!selectedGroup || teacherFilter || roomFilter) {
       return [];
@@ -4853,6 +4874,17 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {selectedGroupTutorInfo && (
+            <div className="group-tutor-summary">
+              <strong>Tutor/a: {selectedGroupTutorInfo.tutor}</strong>
+              <span>
+                Tutoria (no lectiva): {selectedGroupTutorInfo.tutoringSlots.length
+                  ? selectedGroupTutorInfo.tutoringSlots.join(" · ")
+                  : "pendent d'assignar"}
+              </span>
+            </div>
+          )}
 
           <div className="timetable" aria-label="Horari">
           <div className="corner-cell" style={{ gridColumn: 1, gridRow: 1 }} />
