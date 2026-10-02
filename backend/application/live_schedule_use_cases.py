@@ -1031,6 +1031,14 @@ class LiveScheduleUseCases:
             name = teacher.get("name")
             if not name:
                 continue
+            # `list_teachers()` filtra pel flag intern del repositori (sempre
+            # actiu en crear), no pel camp `active` de la fitxa. Un professor
+            # marcat com a inactiu (o files amb noms combinats com "Eli,
+            # Cristina", que no són un professor real) no ha de rebre hores
+            # de centre ni el bloc fix de dimecres; si no, xocaria amb el
+            # bloc del professor real al mateix dimecres 14-15h.
+            if not teacher.get("active", True):
+                continue
 
             restriction = restrictions.get(name, {})
             weekly_meeting_active = restriction.get("weekly_meeting_active", True)

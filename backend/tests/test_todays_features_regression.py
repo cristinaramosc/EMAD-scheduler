@@ -929,3 +929,60 @@ def test_taller_2n_com_10h_with_max_session_days_3_is_spread_across_days():
     assert len({activity["day"] for activity in taller}) <= 3
     assert sum(activity["duration"] for activity in taller) == 20
 
+# ---------------------------------------------------------------------------
+# Hores de centre: els professors inactius no rebien el bloc fix de dimecres
+# ---------------------------------------------------------------------------
+
+
+def test_center_hours_are_not_assigned_to_inactive_teachers():
+    """`list_teachers()` filtra pel flag intern del repositori (sempre actiu en
+    crear), no pel camp `active` de la fitxa. Per això les files inactives
+    —incloent els noms combinats com "Eli, Cristina"— també rebien el bloc fix
+    de dimecres (Reunió 14-15h + Coordinació 15-16h) i xocaven amb el del
+    professor real, fent que es perdessin per a tothom. Ara només es processen
+    els professors actius."""
+    from repositories.working_timetable_repository import (
+        WorkingTimetableRepository,
+        WorkingTimetableSnapshot,
+    )
+    from scheduler_engine.engine import SchedulerEngine
+
+    class _InMemoryWorkingTimetableRepository(WorkingTimetableRepository):
+        def __init__(self):
+            self._snapshot = WorkingTimetableSnapshot()
+
+        def load_snapshot(self):
+            return self._snapshot
+
+        def save_snapshot(self, snapshot):
+            self._snapshot = snapshot
+
+    repo = AcademicDataRepository()
+    repo.create_teacher({"name": "Eli", "active": True, "center_hours": 1, "coordination_hours": 0})
+    repo.create_teacher({"name": "Eli, Cristina", "active": False})
+    repo.create_teacher({"name": "Borja", "active": False})
+
+    use_cases = LiveScheduleUseCases(
+        engine=SchedulerEngine(),
+        working_timetable_repo=_InMemoryWorkingTimetableRepository(),
+        academic_data_repo=repo,
+    )
+    use_cases.load(
+        [
+            {"id": 1, "teacher": "Eli", "subject": "Projectes", "group": "1r COM", "room": "", "day": "Dilluns", "start": "8:00", "duration": 4},
+        ]
+    )
+
+    result = use_cases.assign_center_and_coordination_hours()
+
+    assert result.get("ok") is True
+    teachers_with_center_hours = {
+        activity["teacher"]
+        for activity in result["activities"]
+        if activity.get("subject") in ("Reunió", "Coordinació", "Hores de centre")
+    }
+    assert teachers_with_center_hours == {"Eli"}
+
+    skipped_teachers = {item.get("teacher") for item in result.get("skipped_no_slot", [])}
+    assert "Eli, Cristina" not in skipped_teachers
+    assert "Borja" not in skipped_teachers
