@@ -16,7 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from services.block_generator import BlockGenerator
 from .models import Activity, Conflict, GenerationContext, GenerationResult, ScheduleProposal, ScheduledActivity
 from .placement_strategy import GreedyPlacementStrategy, PlacementStrategy
-from .quarter_utils import group_names, parent_and_quarter
+from .quarter_utils import group_names, parent_and_quarter, quarter_suffix
 from .teacher_utils import teacher_label, teacher_names
 from .proposal_scorer import ProposalScorer
 
@@ -352,6 +352,16 @@ class SchedulerGenerator:
         que les activitats flexibles puguin ocupar-los la franja."""
         return sorted(blocks, key=lambda block: 0 if getattr(block, "fixed", False) else 1)
 
+    def _quarter_pair_anchor_key(self, block: TeachingBlock) -> tuple:
+        """Clau d'ordenació que posa primer els blocs 1Q/2Q que afecten més
+        d'un grup (p.ex. 'GI, GP'), perquè ancoren la franja comuna de la
+        parella, i després ordena els blocs per durada descendent."""
+        metadata = block.metadata or {}
+        subject = metadata.get("subject")
+        group = metadata.get("group") or metadata.get("group_id")
+        is_combined_quarter = quarter_suffix(subject) is not None and len(group_names(group)) > 1
+        return (0 if is_combined_quarter else 1, -(block.duration_blocks or 0))
+
     def _build_orderings(self, teaching_blocks: Sequence[TeachingBlock], context: GenerationContext) -> List[List[TeachingBlock]]:
         blocks = list(teaching_blocks)
         orderings = [self._fixed_day_first(blocks), self._fixed_day_first(list(reversed(blocks)))]
@@ -359,6 +369,16 @@ class SchedulerGenerator:
         sorted_by_duration_desc = sorted(blocks, key=lambda block: block.duration_blocks or 0, reverse=True)
         sorted_by_duration_asc = sorted(blocks, key=lambda block: block.duration_blocks or 0)
         orderings.extend([self._fixed_day_first(sorted_by_duration_desc), self._fixed_day_first(sorted_by_duration_asc)])
+
+        # Nova ordenació: primer els blocs 1Q/2Q que afecten MÉS d'un grup
+        # (p.ex. "Ll. Tec. Audio UF3 2Q" a "GI, GP"). Són els més restringits
+        # (necessiten tots els seus grups lliures alhora) i així ancoren una
+        # franja comuna; la seva parella 1Q/2Q d'un sol grup s'hi acaba
+        # enganxant (via `_try_quarter_pair_slot`). La resta, dels blocs més
+        # llargs als més curts, per encabir primer les peces més difícils.
+        orderings.append(
+            self._fixed_day_first(sorted(blocks, key=self._quarter_pair_anchor_key))
+        )
 
         if context.random_seed is not None:
             rng = random.Random(context.random_seed)
