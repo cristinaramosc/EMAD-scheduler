@@ -39,6 +39,8 @@ const ASSIGNMENT_SHEET_COLUMNS = [
 const TEACHER_SHEET_COLUMNS = [
   { ...keyColumn("name", textColumn), title: "Nom" },
   { ...keyColumn("active", checkboxColumn), title: "Actiu" },
+  { ...keyColumn("dedication_pct", floatColumn), title: "Dedicació (%)" },
+  { ...keyColumn("dni", textColumn), title: "DNI" },
   { ...keyColumn("center_hours", floatColumn), title: "Hores de centre" },
   { ...keyColumn("coordination_name", textColumn), title: "Coordinació (nom)" },
   { ...keyColumn("coordination_hours", floatColumn), title: "Coordinació (hores)" },
@@ -670,6 +672,8 @@ export default function App() {
   const [teacherDraft, setTeacherDraft] = useState({
     name: "",
     active: true,
+    dedication_pct: "",
+    dni: "",
     center_hours: "",
     coordination_name: "",
     coordination_hours: "",
@@ -679,11 +683,14 @@ export default function App() {
   const [teacherEditValues, setTeacherEditValues] = useState({
     name: "",
     active: true,
+    dedication_pct: "",
+    dni: "",
     center_hours: "",
     coordination_name: "",
     coordination_hours: "",
     max_days: "",
   });
+  const [pdfShowDni, setPdfShowDni] = useState(false);
   const [teacherRestrictions, setTeacherRestrictions] = useState([]);
   const [teacherRestrictionEditor, setTeacherRestrictionEditor] = useState("");
   const [teacherRestrictionDraft, setTeacherRestrictionDraft] = useState(createTeacherRestrictionDraft(""));
@@ -816,7 +823,7 @@ export default function App() {
 
   async function downloadScheduleExport() {
     try {
-      const response = await fetch(`${API_URL}/scheduler/export/pdf`);
+      const response = await fetch(`${API_URL}/scheduler/export/pdf${pdfShowDni ? "?show_dni=true" : ""}`);
       if (!response.ok) {
         setError("No s'ha pogut generar el PDF dels horaris.");
         return;
@@ -1861,7 +1868,8 @@ export default function App() {
     }
 
     if (teacherFilter) {
-      nextActivities = nextActivities.filter((activity) => activity.teacher === teacherFilter);
+      // Una assignatura amb dos professors ("A, B") surt al calendari de tots dos.
+      nextActivities = nextActivities.filter((activity) => String(activity.teacher || "").split(",").map((name) => name.trim()).includes(teacherFilter));
     }
 
     if (roomFilter) {
@@ -3081,6 +3089,8 @@ export default function App() {
       normalize: (t) => ({
         name: t.name || "",
         active: t.active !== false,
+        dedication_pct: t.dedication_pct ?? "",
+        dni: t.dni || "",
         center_hours: t.center_hours ?? "",
         coordination_name: t.coordination_name || "",
         coordination_hours: t.coordination_hours ?? "",
@@ -3090,6 +3100,8 @@ export default function App() {
       create: (row) => apiJson("POST", "/academic-data/teachers", {
         name: row.name,
         active: row.active !== false,
+        dedication_pct: row.dedication_pct === "" || row.dedication_pct === null || row.dedication_pct === undefined ? 0 : Number(row.dedication_pct),
+        dni: row.dni || "",
         center_hours: row.center_hours === "" ? null : Number(row.center_hours),
         coordination_name: row.coordination_name || "",
         coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
@@ -3097,6 +3109,8 @@ export default function App() {
       }),
       update: (name, row) => apiJson("PATCH", `/academic-data/teachers/${encodeURIComponent(name)}`, {
         active: row.active !== false,
+        dedication_pct: row.dedication_pct === "" || row.dedication_pct === null || row.dedication_pct === undefined ? 0 : Number(row.dedication_pct),
+        dni: row.dni || "",
         center_hours: row.center_hours === "" ? null : Number(row.center_hours),
         coordination_name: row.coordination_name || "",
         coordination_hours: row.coordination_hours === "" ? null : Number(row.coordination_hours),
@@ -3539,6 +3553,8 @@ export default function App() {
                     <tr>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("name", setAcademicSort)}>Nom{sortIndicator("name", academicSort)}</th>
                       <th>Actiu</th>
+                      <th>Dedicació</th>
+                      <th>DNI</th>
                       <th>Hores de centre</th>
                       <th>Coordinació</th>
                       <th>Màx. dies/setmana</th>
@@ -3572,6 +3588,38 @@ export default function App() {
                             />
                           ) : (
                             t.active !== false ? "Sí" : "No"
+                          )}
+                        </td>
+                        <td>
+                          {teacherEdit === t.name ? (
+                            <input
+                              type="number"
+                              min="0"
+                              max="100"
+                              step="0.5"
+                              className="hours-input"
+                              placeholder="%"
+                              value={teacherEditValues.dedication_pct}
+                              onChange={(event) => setTeacherEditValues({ ...teacherEditValues, dedication_pct: event.target.value })}
+                            />
+                          ) : t.contract_hours ? (
+                            <span title={`Lectives ${t.contract_hours.lective} h + centre ${t.contract_hours.centre} h + preparació ${t.contract_hours.preparation} h = ${t.contract_hours.total} h`}>
+                              {t.contract_hours.pct}% · {t.contract_hours.total}h
+                            </span>
+                          ) : (
+                            <span className="muted">—</span>
+                          )}
+                        </td>
+                        <td>
+                          {teacherEdit === t.name ? (
+                            <input
+                              type="text"
+                              style={{ width: 100 }}
+                              value={teacherEditValues.dni}
+                              onChange={(event) => setTeacherEditValues({ ...teacherEditValues, dni: event.target.value })}
+                            />
+                          ) : (
+                            t.dni || <span className="muted">—</span>
                           )}
                         </td>
                         <td>
@@ -3655,6 +3703,8 @@ export default function App() {
                                 const payload = {
                                   name: teacherEditValues.name,
                                   active: teacherEditValues.active,
+                                  dedication_pct: teacherEditValues.dedication_pct === "" ? 0 : Number(teacherEditValues.dedication_pct),
+                                  dni: teacherEditValues.dni,
                                   center_hours: teacherEditValues.center_hours === "" ? null : Number(teacherEditValues.center_hours),
                                   coordination_name: teacherEditValues.coordination_name,
                                   coordination_hours: teacherEditValues.coordination_hours === "" ? null : Number(teacherEditValues.coordination_hours),
@@ -3677,6 +3727,8 @@ export default function App() {
                                 setTeacherEditValues({
                                   name: t.name,
                                   active: t.active !== false,
+                                  dedication_pct: t.dedication_pct ?? "",
+                                  dni: t.dni || "",
                                   center_hours: t.center_hours ?? "",
                                   coordination_name: t.coordination_name || "",
                                   coordination_hours: t.coordination_hours ?? "",
@@ -3706,6 +3758,26 @@ export default function App() {
                           type="checkbox"
                           checked={teacherDraft.active}
                           onChange={(event) => setTeacherDraft({ ...teacherDraft, active: event.target.checked })}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          className="hours-input"
+                          placeholder="%"
+                          value={teacherDraft.dedication_pct}
+                          onChange={(event) => setTeacherDraft({ ...teacherDraft, dedication_pct: event.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          style={{ width: 100 }}
+                          value={teacherDraft.dni}
+                          onChange={(event) => setTeacherDraft({ ...teacherDraft, dni: event.target.value })}
                         />
                       </td>
                       <td>
@@ -3758,13 +3830,14 @@ export default function App() {
                           }
                           const payload = {
                             ...teacherDraft,
+                            dedication_pct: teacherDraft.dedication_pct === "" ? 0 : Number(teacherDraft.dedication_pct),
                             center_hours: teacherDraft.center_hours === "" ? null : Number(teacherDraft.center_hours),
                             coordination_hours: teacherDraft.coordination_hours === "" ? null : Number(teacherDraft.coordination_hours),
                             max_days: teacherDraft.max_days === "" ? 0 : Number(teacherDraft.max_days),
                           };
                           const res = await createTeacher(payload);
                           if (res.ok) {
-                            setTeacherDraft({ name: "", active: true, center_hours: "", coordination_name: "", coordination_hours: "", max_days: "" });
+                            setTeacherDraft({ name: "", active: true, dedication_pct: "", dni: "", center_hours: "", coordination_name: "", coordination_hours: "", max_days: "" });
                             await refreshAcademicLists();
                           } else {
                             alert("No s'ha pogut crear el professor.");
@@ -4914,6 +4987,10 @@ export default function App() {
               >
                 ⬇️ Descarrega horaris
               </button>
+              <label style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: "normal" }} title="Imprimeix el DNI de cada professor a la seva pàgina del PDF">
+                <input type="checkbox" checked={pdfShowDni} onChange={(event) => setPdfShowDni(event.target.checked)} />
+                DNI al PDF
+              </label>
             </div>
             {proposals && proposals.length > 0 && (
               <div style={{ marginLeft: 12 }}>

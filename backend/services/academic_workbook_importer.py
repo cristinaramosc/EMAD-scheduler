@@ -29,6 +29,8 @@ EXPECTED_FILES = {
     "04_Aules.xlsx",
 }
 
+Record = Dict[str, Any]
+
 
 @dataclass
 class ValidationIssue:
@@ -606,39 +608,6 @@ class AcademicWorkbookImporter:
         if not value:
             return []
         return [item.strip() for item in value.split(";") if item.strip()]
-
-    def _dedupe_name_records(self, rows: List[Record]) -> List[Record]:
-        seen = {}
-        for row in rows:
-            key = row["name"].strip().lower()
-            if not key:
-                continue
-            existing = seen.get(key)
-            if existing is None:
-                seen[key] = dict(row)
-                # ensure name is stripped
-                seen[key]["name"] = row["name"].strip()
-                # normalize allowed_session_lengths to list if present
-                if "allowed_session_lengths" in seen[key] and seen[key]["allowed_session_lengths"] is None:
-                    seen[key]["allowed_session_lengths"] = []
-            else:
-                # merge allowed_session_lengths if present
-                a = existing.get("allowed_session_lengths") or []
-                b = row.get("allowed_session_lengths") or []
-                merged = sorted({float(x) for x in list(a) + list(b)}) if (a or b) else []
-                if merged:
-                    existing["allowed_session_lengths"] = merged
-
-                existing_weekly = existing.get("weekly_hours")
-                incoming_weekly = row.get("weekly_hours")
-                if incoming_weekly is not None:
-                    if existing_weekly is None:
-                        existing["weekly_hours"] = float(incoming_weekly)
-                    else:
-                        existing["weekly_hours"] = round(float(existing_weekly) + float(incoming_weekly), 2)
-
-        output = list(sorted(seen.values(), key=lambda r: r["name"]))
-        return output
 
     def _bytes_to_io(self, payload: bytes):
         try:

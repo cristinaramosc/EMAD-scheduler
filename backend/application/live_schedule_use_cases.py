@@ -8,12 +8,20 @@ try:
     from backend.scheduler_engine.models.schedule import Schedule
     from backend.repositories.academic_data_repository import AcademicDataRepository
     from backend.scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
+    from backend.scheduler_engine.teacher_utils import teacher_names
+    from backend.scheduler_engine.subject_utils import is_tutoria_subject
+    from backend.services.contract_hours import contract_hours
+    from backend.services.schedule_pdf_exporter import classify_activity
 except ModuleNotFoundError:  # pragma: no cover
     from repositories.working_timetable_repository import WorkingTimetableRepository, WorkingTimetableSnapshot
     from scheduler_engine.models.activity import Activity
     from scheduler_engine.models.schedule import Schedule
     from repositories.academic_data_repository import AcademicDataRepository
     from scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
+    from scheduler_engine.teacher_utils import teacher_names
+    from scheduler_engine.subject_utils import is_tutoria_subject
+    from services.contract_hours import contract_hours
+    from services.schedule_pdf_exporter import classify_activity
 
 from .serializers import serialize_activity, serialize_conflicts
 
@@ -79,7 +87,7 @@ class LiveScheduleUseCases:
         activities = [
             activity
             for activity in current_state.get("activities", [])
-            if activity.get("teacher") == teacher_name
+            if teacher_name in teacher_names(activity.get("teacher"))
         ]
         return {
             "teacher": teacher_name,
@@ -940,6 +948,7 @@ class LiveScheduleUseCases:
         blocks_needed: int,
         hour_names: List[str],
         hour_index: Dict[str, int],
+        group: str = "",
     ) -> tuple:
         """Col·loca `blocks_needed` blocs de 30 min per a `teacher` com a
         `subject`, enganxats abans o després de les classes que ja tingui
@@ -951,7 +960,7 @@ class LiveScheduleUseCases:
 
         teacher_days = [
             day for day in self._DAY_ORDER
-            if any(a.teacher == teacher and a.day == day for a in self._engine.state.all())
+            if any(teacher in teacher_names(a.teacher) and a.day == day for a in self._engine.state.all())
         ]
 
         for day in teacher_days:
@@ -959,7 +968,7 @@ class LiveScheduleUseCases:
                 break
 
             day_activities = sorted(
-                (a for a in self._engine.state.all() if a.teacher == teacher and a.day == day),
+                (a for a in self._engine.state.all() if teacher in teacher_names(a.teacher) and a.day == day),
                 key=lambda a: hour_index.get(a.start, -1),
             )
             if not day_activities:
@@ -976,9 +985,9 @@ class LiveScheduleUseCases:
             last_end_idx = hour_index.get(last.start, -1) + last.duration
             if 0 <= last_end_idx and last_end_idx + chunk <= len(hour_names):
                 start_name = hour_names[last_end_idx]
-                result = self.add_manual_activity(subject=subject, day=day, start=start_name, duration=chunk, teacher=teacher)
+                result = self.add_manual_activity(subject=subject, day=day, start=start_name, duration=chunk, teacher=teacher, group=group)
                 if result.get("ok"):
-                    added.append({"teacher": teacher, "day": day, "start": start_name, "duration": chunk, "subject": subject})
+                    added.append({"teacher": teacher, "day": day, "start": start_name, "duration": chunk, "subject": subject, "group": group})
                     blocks_needed -= chunk
                     placed = True
 
@@ -989,15 +998,15 @@ class LiveScheduleUseCases:
                 if place_blocks > 0:
                     start_idx = first_start_idx - place_blocks
                     start_name = hour_names[start_idx]
-                    result = self.add_manual_activity(subject=subject, day=day, start=start_name, duration=place_blocks, teacher=teacher)
+                    result = self.add_manual_activity(subject=subject, day=day, start=start_name, duration=place_blocks, teacher=teacher, group=group)
                     if result.get("ok"):
-                        added.append({"teacher": teacher, "day": day, "start": start_name, "duration": place_blocks, "subject": subject})
+                        added.append({"teacher": teacher, "day": day, "start": start_name, "duration": place_blocks, "subject": subject, "group": group})
                         blocks_needed -= place_blocks
 
         if blocks_needed > 0 and teacher_days:
             day = teacher_days[-1]
             day_activities = sorted(
-                (a for a in self._engine.state.all() if a.teacher == teacher and a.day == day),
+                (a for a in self._engine.state.all() if teacher in teacher_names(a.teacher) and a.day == day),
                 key=lambda a: hour_index.get(a.start, -1),
             )
             if day_activities:
@@ -1007,9 +1016,9 @@ class LiveScheduleUseCases:
                     place_blocks = min(blocks_needed, len(hour_names) - last_end_idx)
                     if place_blocks > 0:
                         start_name = hour_names[last_end_idx]
-                        result = self.add_manual_activity(subject=subject, day=day, start=start_name, duration=place_blocks, teacher=teacher)
+                        result = self.add_manual_activity(subject=subject, day=day, start=start_name, duration=place_blocks, teacher=teacher, group=group)
                         if result.get("ok"):
-                            added.append({"teacher": teacher, "day": day, "start": start_name, "duration": place_blocks, "subject": subject})
+                            added.append({"teacher": teacher, "day": day, "start": start_name, "duration": place_blocks, "subject": subject, "group": group})
                             blocks_needed -= place_blocks
                             exceeded.append({"teacher": teacher, "day": day, "subject": subject, "extra_blocks": place_blocks})
 
@@ -1028,6 +1037,13 @@ class LiveScheduleUseCases:
         self._ensure_active_schedule_from_proposal()
         hour_names, hour_index = self._half_hour_grid()
         restrictions = {r.get("teacher"): r for r in self._academic_data_repo.list_teacher_restrictions()}
+
+        tutored_groups: Dict[str, List[str]] = {}
+        for group in self._academic_data_repo.list_groups():
+            tutor = str(group.get("tutor") or "").strip()
+            group_name = str(group.get("name") or "").strip()
+            if tutor and group_name:
+                tutored_groups.setdefault(tutor.casefold(), []).append(group_name)
 
         added_meetings: List[Dict[str, Any]] = []
         added_hours: List[Dict[str, Any]] = []
@@ -1052,12 +1068,17 @@ class LiveScheduleUseCases:
             weekly_coordination_active = restriction.get("weekly_coordination_active", True)
             block_active = {"Reunió": weekly_meeting_active, "Coordinació": weekly_coordination_active}
 
-            remaining_center = self._to_hours(teacher.get("center_hours"))
+            # Si el professor té un % de jornada, les hores de centre són les
+            # del contracte (7,5 h al 100 %, vegeu `contract_hours`) i inclouen
+            # la reunió i la coordinació fixes de dimecres; si no, es fa servir
+            # el camp manual `center_hours` com sempre.
+            contract = contract_hours(teacher.get("dedication_pct"))
+            remaining_center = contract["centre"] if contract else self._to_hours(teacher.get("center_hours"))
             remaining_coordination = self._to_hours(teacher.get("coordination_hours"))
 
             existing_day_activities = [
                 a for a in self._engine.state.all()
-                if a.teacher == name and a.day == self._FIXED_MEETING_DAY
+                if name in teacher_names(a.teacher) and a.day == self._FIXED_MEETING_DAY
             ]
             for subject, start in self._FIXED_MEETING_BLOCKS:
                 if not block_active[subject]:
@@ -1079,6 +1100,23 @@ class LiveScheduleUseCases:
                     remaining_center = max(0.0, remaining_center - 1.0)
                 else:
                     remaining_coordination = max(0.0, remaining_coordination - 1.0)
+                    if contract:
+                        remaining_center = max(0.0, remaining_center - 1.0)
+
+            # Tutoria: el tutor/a de cada grup en té 1 h lectiva setmanal (no
+            # lectiva per als alumnes: no ocupa franja del grup). Només s'hi
+            # assigna si no consta ja cap Tutoria d'aquest grup.
+            for tutored_group in tutored_groups.get(name.casefold(), []):
+                if self._group_has_tutoria(tutored_group):
+                    continue
+                pending, added, exceeded = self._place_extra_hours_for_teacher(
+                    teacher=name, subject="Tutoria", blocks_needed=self._TUTORIA_BLOCKS,
+                    hour_names=hour_names, hour_index=hour_index, group=tutored_group,
+                )
+                added_hours.extend(added)
+                daily_hours_exceeded.extend(exceeded)
+                if pending > 0:
+                    skipped_no_slot.append({"teacher": name, "subject": "Tutoria", "group": tutored_group, "reason": "no_existing_day", "pending_blocks": pending})
 
             for subject, remaining in (("Hores de centre", remaining_center), ("Coordinació", remaining_coordination)):
                 blocks_needed = round(remaining * 2)
@@ -1102,6 +1140,55 @@ class LiveScheduleUseCases:
             **self.state(),
         }
 
+
+    #: Durada de la Tutoria automàtica: 1 h (2 blocs de 30 min).
+    _TUTORIA_BLOCKS = 2
+
+    def _group_has_tutoria(self, group_name: str) -> bool:
+        """True si l'horari actiu ja té una Tutoria per a aquest grup."""
+        target = set(group_names(group_name))
+        return any(
+            is_tutoria_subject(a.subject) and target.intersection(group_names(a.group))
+            for a in self._engine.state.all()
+        )
+
+    def teacher_hours_summary(self) -> List[Dict[str, Any]]:
+        """Per a cada professor amb % de jornada: hores de contracte (lectives,
+        centre, preparació) i hores que ja té a l'horari actiu, amb la
+        diferència, perquè es vegi si falten o sobren hores lectives o de
+        centre. Les lectives sumen classes, tutories i coordinacions."""
+        if self._academic_data_repo is None:
+            return []
+        scheduled: Dict[str, Dict[str, float]] = {}
+        for activity in self._engine.state.all():
+            row = {
+                "subject": activity.subject, "day": activity.day, "start": activity.start,
+                "group": activity.group, "teacher": activity.teacher, "duration": activity.duration,
+            }
+            kind = classify_activity(row)
+            if kind is None:
+                continue
+            hours = (activity.duration or 0) / 2
+            bucket = {"subject": "classes", "tutoria": "tutoria", "coordination": "coordination"}.get(kind, "centre")
+            for name in teacher_names(activity.teacher):
+                totals = scheduled.setdefault(name, {"classes": 0.0, "tutoria": 0.0, "coordination": 0.0, "centre": 0.0})
+                totals[bucket] += hours
+        summary = []
+        for teacher in self._academic_data_repo.list_teachers():
+            name = teacher.get("name")
+            contract = contract_hours(teacher.get("dedication_pct"))
+            if not name or not teacher.get("active", True) or contract is None:
+                continue
+            done = scheduled.get(name, {"classes": 0.0, "tutoria": 0.0, "coordination": 0.0, "centre": 0.0})
+            lective_done = done["classes"] + done["tutoria"] + done["coordination"]
+            summary.append({
+                "teacher": name,
+                "contract": contract,
+                "scheduled": {**done, "lective": lective_done},
+                "missing_lective": round(contract["lective"] - lective_done, 2),
+                "missing_centre": round(contract["centre"] - done["centre"], 2),
+            })
+        return summary
 
     def _persist_active_schedule(self, clear_proposal: bool) -> None:
         previous = self._working_timetable_repo.load_snapshot()

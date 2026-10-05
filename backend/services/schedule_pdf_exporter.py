@@ -33,6 +33,7 @@ from reportlab.pdfgen import canvas
 
 if __package__ and __package__.startswith("backend"):
     from backend.scheduler_engine.quarter_utils import parent_and_quarter, strip_quarter_suffix
+    from backend.services.contract_hours import contract_hours
     from backend.services.schedule_exporter import (
         _LOGO_PATH,
         _hour_sort_key,
@@ -42,6 +43,7 @@ if __package__ and __package__.startswith("backend"):
     )
 else:  # pragma: no cover
     from scheduler_engine.quarter_utils import parent_and_quarter, strip_quarter_suffix
+    from services.contract_hours import contract_hours
     from services.schedule_exporter import (
         _LOGO_PATH,
         _hour_sort_key,
@@ -245,6 +247,8 @@ def _draw_page_header(
     activities: Sequence[Dict[str, Any]],
     notes: List[str],
     tutoria_slots: List[str],
+    teacher: Optional[Dict[str, Any]] = None,
+    show_dni: bool = False,
 ) -> float:
     """Dibuixa la capçalera i retorna la y on comença la graella.
 
@@ -268,6 +272,9 @@ def _draw_page_header(
     c.drawString(block_left, line_y, _COURSE_LABEL)
     c.setFont(_FONT_BOLD, _TITLE_SIZE)
     title = f"Aula {display_name}" if sheet_kind == "room" else display_name
+    contract = contract_hours((teacher or {}).get("dedication_pct")) if sheet_kind == "teacher" else None
+    if contract:
+        title = f"{display_name} {_format_hours(contract['pct'])}%"
     c.drawRightString(right, line_y, title)
     c.setStrokeColor(_INK)
     c.setLineWidth(0.8)
@@ -298,13 +305,27 @@ def _draw_page_header(
                 totals["coordination"] += hours
             elif kind in {"centre", "claustre", "coordination_fixed"}:
                 totals["centre"] += hours
-        lectives = _format_hours(totals["lective"])
-        if totals["coordination"]:
-            lectives += f" + {_format_hours(totals['coordination'])}"
+        if contract:
+            # Hores de contracte (segons el % de jornada): les lectives inclouen
+            # classes, tutories i coordinacions; es mostren separades com
+            # "classes + coordinacions".
+            coordination = min(totals["coordination"], contract["lective"])
+            lectives = _format_hours(round(contract["lective"] - coordination, 2))
+            if coordination:
+                lectives += f" + {_format_hours(coordination)}"
+            centre_hours, preparation = contract["centre"], contract["preparation"]
+        else:
+            lectives = _format_hours(totals["lective"])
+            if totals["coordination"]:
+                lectives += f" + {_format_hours(totals['coordination'])}"
+            centre_hours, preparation = totals["centre"], None
+        has_coordination = bool(totals["coordination"])
         legend = [
-            ([_KIND_STYLE["coordination"][0], _KIND_STYLE["subject"][0]] if totals["coordination"] else [_KIND_STYLE["subject"][0]], f"Hores Lectives: {lectives}"),
-            ([_KIND_STYLE["centre"][0]], f"Hores de Centre: {_format_hours(totals['centre'])}"),
+            ([_KIND_STYLE["coordination"][0], _KIND_STYLE["subject"][0]] if has_coordination else [_KIND_STYLE["subject"][0]], f"Hores Lectives: {lectives}"),
+            ([_KIND_STYLE["centre"][0]], f"Hores de Centre: {_format_hours(centre_hours)}"),
         ]
+        if preparation is not None:
+            legend.append(([_KIND_STYLE["claustre"][0]], f"Hores de Preparació: {_format_hours(preparation)}"))
         # El text s'alinea a l'esquerra, tot a la mateixa x; els punts de
         # color s'alineen a la dreta, enganxats al text.
         text_x = block_left + 4 * mm * max(len(dots) for dots, _ in legend) + 1 * mm
@@ -317,6 +338,12 @@ def _draw_page_header(
             y -= _HEADER_ROW_STEP
 
     header_bottom = min(logo_bottom, y + _HEADER_ROW_STEP - 3 * mm)  # y ja és sota l'última línia
+    dni = str((teacher or {}).get("dni") or "").strip()
+    if show_dni and sheet_kind == "teacher" and dni:
+        c.setFillColor(_INK)
+        c.setFont(_FONT, 11)
+        c.drawString(left, logo_bottom - 7 * mm, dni)
+        header_bottom = min(header_bottom, logo_bottom - 10 * mm)
     return header_bottom - _HEADER_TO_GRID_GAP
 
 
@@ -576,16 +603,22 @@ def _tutoria_slot_text(activity: Dict[str, Any]) -> str:
     return f"{day} {_hhmm(start)}–{_hhmm(end)}".strip()
 
 
-def build_schedule_pdf(activities: Sequence[Dict[str, Any]], teachers: Optional[Sequence[Dict[str, Any]]] = None) -> BytesIO:
+def build_schedule_pdf(
+    activities: Sequence[Dict[str, Any]],
+    teachers: Optional[Sequence[Dict[str, Any]]] = None,
+    show_dni: bool = False,
+) -> BytesIO:
     """Retorna un .pdf (com a BytesIO) vertical amb una pàgina per a cada
     grup pare, professor i aula que apareguin a `activities`. Els grups
     combinats (p.ex. 'GI, GP') generen una pàgina per a cada grup
     individual. La Tutoria no ocupa franja a la pàgina del grup (surt a la
     capçalera, amb dia i hora) i és un bloc real a la del professor.
 
-    `teachers` (opcional) aporta el nom de la coordinació de cada professor,
-    que s'escriu al bloc taronja de coordinació.
+    `teachers` (opcional) aporta el nom de la coordinació de cada professor
+    (bloc taronja), el seu % de jornada (que dona les hores de contracte de
+    la capçalera) i el DNI, que només s'imprimeix si `show_dni` és True.
     """
+    teacher_records = {_norm(t.get("name")): t for t in (teachers or []) if t.get("name")}
     coordination_names = {
         _norm(t.get("name")): str(t.get("coordination_name") or "").strip()
         for t in (teachers or [])
@@ -638,7 +671,11 @@ def build_schedule_pdf(activities: Sequence[Dict[str, Any]], teachers: Optional[
         c.showPage()
 
     for sheet_kind, display_name, sheet_activities, notes, tutoria_slots in sections:
-        grid_top = _draw_page_header(c, sheet_kind, display_name, sheet_activities, notes, tutoria_slots)
+        grid_top = _draw_page_header(
+            c, sheet_kind, display_name, sheet_activities, notes, tutoria_slots,
+            teacher=teacher_records.get(_norm(display_name)) if sheet_kind == "teacher" else None,
+            show_dni=show_dni,
+        )
         _draw_grid(c, sheet_kind, sheet_activities, grid_top, coordination_names)
         c.showPage()
 

@@ -44,18 +44,27 @@ def export_schedule():
 
 
 @router.get("/export/pdf")
-def export_schedule_pdf():
+def export_schedule_pdf(show_dni: bool = False):
     """Descarrega un .pdf amb una pàgina per a cada grup, professor i
     aula de l'horari actiu, en format vertical amb l'aspecte de l'horari
-    del professorat d'EMAD (blocs de colors segons el tipus d'activitat)."""
+    del professorat d'EMAD (blocs de colors segons el tipus d'activitat).
+    `show_dni=true` afegeix el DNI a la pàgina de cada professor."""
     use_cases = get_live_schedule_use_cases()
     activities = use_cases.export_activities()
-    buffer = build_schedule_pdf(activities, teachers=use_cases.export_teachers())
+    buffer = build_schedule_pdf(activities, teachers=use_cases.export_teachers(), show_dni=show_dni)
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
         headers={"Content-Disposition": "attachment; filename=horaris.pdf"},
     )
+
+
+@router.get("/teacher-hours-summary")
+def teacher_hours_summary():
+    """Hores de contracte (segons el % de jornada) i hores assignades de
+    cada professor, amb la diferència en hores lectives i de centre."""
+    use_cases = get_live_schedule_use_cases()
+    return use_cases.teacher_hours_summary()
 
 
 @router.get("/teacher/{teacher_name}/schedule")
