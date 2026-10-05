@@ -254,20 +254,28 @@ class SchedulerGenerator:
         return sorted(blocks, key=lambda block: 0 if getattr(block, "fixed", False) else 1)
 
     def _build_orderings(self, teaching_blocks: Sequence[TeachingBlock], context: GenerationContext) -> List[List[TeachingBlock]]:
+        """Posa primer els blocs que consumeixen recursos més escassos."""
         blocks = list(teaching_blocks)
-        orderings = [self._fixed_day_first(blocks), self._fixed_day_first(list(reversed(blocks)))]
 
-        sorted_by_duration_desc = sorted(blocks, key=lambda block: block.duration_blocks or 0, reverse=True)
-        sorted_by_duration_asc = sorted(blocks, key=lambda block: block.duration_blocks or 0)
-        orderings.extend([self._fixed_day_first(sorted_by_duration_desc), self._fixed_day_first(sorted_by_duration_asc)])
+        def priority(block: TeachingBlock):
+            room = 1 if getattr(block, "preferred_room_id", None) else 0
+            teacher = 1 if getattr(block, "preferred_teacher_id", None) else 0
+            fixed = 1 if getattr(block, "fixed", False) else 0
+            duration = block.duration_blocks or 1
+            return (-(room and teacher), -teacher, -room, -fixed, -duration, str(block.id))
+
+        prioritized = sorted(blocks, key=priority)
+        orderings = [
+            self._fixed_day_first(prioritized),
+            self._fixed_day_first(sorted(blocks, key=lambda b: (-(b.duration_blocks or 1), str(b.id)))),
+            self._fixed_day_first(list(reversed(prioritized))),
+        ]
 
         if context.random_seed is not None:
             rng = random.Random(context.random_seed)
-            shuffled = list(blocks)
+            shuffled = list(prioritized)
             rng.shuffle(shuffled)
             orderings.append(self._fixed_day_first(shuffled))
-        else:
-            orderings.append(self._fixed_day_first(list(blocks)))
 
         unique_orderings: List[List[TeachingBlock]] = []
         seen = set()
