@@ -102,8 +102,8 @@ class PlacementStrategy(ABC):
         group_spread = max(loads) - min(loads) if len(loads) > 1 else 0
 
         group_gaps = self._gaps_for_entity(group_with_candidate)
-        group_gap_count = sum(1 for gap in group_gaps if gap > 0)
-        group_excess_gaps = sum(max(0, gap - 1) for gap in group_gaps)
+        group_gap_count = sum(1 for _, gap_start, gap_end in group_gaps if gap_end > gap_start)
+        group_excess_gaps = sum(max(0, gap_end - gap_start - 1) for _, gap_start, gap_end in group_gaps)
 
         teacher_with_candidate = teacher_activities + [candidate]
         teacher_days = len({a.day for a in teacher_with_candidate})
