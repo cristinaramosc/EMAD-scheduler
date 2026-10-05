@@ -1009,3 +1009,61 @@ def test_scheduler_generator_detects_teacher_conflicts_when_present():
     conflicts = generator._detect_conflicts(proposal)
 
     assert any(conflict.type == "teacher_conflict" for conflict in conflicts)
+
+
+def test_every_ordering_places_priority_one_blocks_first_after_fixed_ones():
+    generator = SchedulerGenerator()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=6),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    def block(block_id, duration_blocks, priority, fixed=False):
+        return TeachingBlock(
+            id=block_id,
+            duration=duration_blocks / 2,
+            order=1,
+            duration_blocks=duration_blocks,
+            fixed=fixed,
+            metadata={"priority": priority},
+        )
+
+    blocks = [
+        block("normal-long", 4, 2),
+        block("normal-short", 1, 2),
+        block("room-short", 1, 1),
+        block("fixed-normal", 2, 2, fixed=True),
+        block("teacher-days-long", 3, 1),
+    ]
+
+    for ordering in generator._build_orderings(blocks, context):
+        ids = [item.id for item in ordering]
+        assert ids[0] == "fixed-normal"
+        assert set(ids[1:3]) == {"room-short", "teacher-days-long"}
+        assert set(ids[3:]) == {"normal-long", "normal-short"}
+
+
+def test_requirement_priority_is_carried_into_block_metadata():
+    generator = SchedulerGenerator()
+    requirement = TeachingRequirement(
+        id="req-priority",
+        group_id="g1",
+        subject_id="s1",
+        teacher_id="t1",
+        weekly_hours=1.0,
+        min_days=1,
+        max_days=1,
+        min_block_duration=1.0,
+        max_consecutive_hours=1.0,
+        allow_half_hour_blocks=False,
+        priority=1,
+    )
+
+    blocks = generator._build_blocks_from_requirements([requirement])
+
+    assert blocks
+    assert all(item.metadata["priority"] == 1 for item in blocks)
+

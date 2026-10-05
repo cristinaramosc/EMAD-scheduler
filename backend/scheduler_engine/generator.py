@@ -149,6 +149,7 @@ class SchedulerGenerator:
             metadata = {
                 "requirement_id": requirement.id,
                 "max_distribution_days": requirement.max_distribution_days,
+                "priority": requirement.priority,
                 "group_id": requirement.group_id,
                 "subject_id": requirement.subject_id,
                 "teacher_id": requirement.teacher_id,
@@ -349,8 +350,16 @@ class SchedulerGenerator:
     def _fixed_day_first(self, blocks: Sequence[TeachingBlock]) -> List[TeachingBlock]:
         """Manté l'ordre relatiu de cada llista (sort estable) però posa
         primer els blocs amb dia fix, perquè el motor els col·loqui abans
-        que les activitats flexibles puguin ocupar-los la franja."""
-        return sorted(blocks, key=lambda block: 0 if getattr(block, "fixed", False) else 1)
+        que les activitats flexibles puguin ocupar-los la franja, i després
+        els de prioritat 1 (aula assignada, professor amb màxim de dies,
+        restriccions), perquè cap ordenació els relegui al final."""
+        return sorted(
+            blocks,
+            key=lambda block: (
+                0 if getattr(block, "fixed", False) else 1,
+                int((block.metadata or {}).get("priority") or 2),
+            ),
+        )
 
     def _quarter_pair_anchor_key(self, block: TeachingBlock) -> tuple:
         """Clau d'ordenació que posa primer els blocs 1Q/2Q que afecten més
