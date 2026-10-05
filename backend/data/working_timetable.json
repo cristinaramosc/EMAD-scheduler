@@ -12,29 +12,29 @@
       "fixed": true
     },
     {
-      "id": 3464152232,
-      "teacher": "Sara",
-      "subject": "MPRL",
+      "id": 2457574211,
+      "teacher": "Judit",
+      "subject": "PFI M3 Mates",
       "group": "PFI",
       "room": "",
       "day": "Dimarts",
-      "start": "11:30",
+      "start": "12:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 675075505,
+      "id": 2517788643,
       "teacher": "Sara",
       "subject": "MFG4 Mon Professional",
       "group": "PFI",
       "room": "",
       "day": "Dimarts",
-      "start": "13:30",
+      "start": "14:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 1336625012,
+      "id": 1670462773,
       "teacher": "Sònia",
       "subject": "Ll. disp. comunicació projecte 2Q",
       "group": "GI, GP",
@@ -45,7 +45,7 @@
       "fixed": false
     },
     {
-      "id": 3266920471,
+      "id": 3076144552,
       "teacher": "Sònia",
       "subject": "Projectes UF4 1Q",
       "group": "GI",
@@ -56,7 +56,7 @@
       "fixed": false
     },
     {
-      "id": 3391238168,
+      "id": 2711969750,
       "teacher": "Sònia",
       "subject": "Projecte Integrat",
       "group": "GI",
@@ -67,7 +67,7 @@
       "fixed": false
     },
     {
-      "id": 3243905172,
+      "id": 4184709793,
       "teacher": "Noëlle",
       "subject": "Tipografia",
       "group": "GP",
@@ -78,7 +78,7 @@
       "fixed": false
     },
     {
-      "id": 4276620510,
+      "id": 3250725478,
       "teacher": "Marc",
       "subject": "Projectes UF3",
       "group": "GI",
@@ -89,7 +89,7 @@
       "fixed": false
     },
     {
-      "id": 4140572725,
+      "id": 57570443,
       "teacher": "Sònia",
       "subject": "Interfícies gràfiques",
       "group": "GI",
@@ -100,18 +100,18 @@
       "fixed": false
     },
     {
-      "id": 2284801531,
+      "id": 1825230853,
       "teacher": "Sònia",
       "subject": "Metodologia 2Q",
       "group": "1r APGI",
       "room": "",
       "day": "Dimarts",
-      "start": "8:00",
+      "start": "14:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 2403355829,
+      "id": 2960204099,
       "teacher": "Sònia",
       "subject": "Multimèdia UF1 1Q",
       "group": "1r APGI",
@@ -122,18 +122,18 @@
       "fixed": false
     },
     {
-      "id": 1106460739,
+      "id": 2312809388,
       "teacher": "Borja",
       "subject": "Anglès UF1 Influences 2Q",
       "group": "1r APGI",
       "room": "",
       "day": "Dimarts",
-      "start": "10:30",
+      "start": "16:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 2608913195,
+      "id": 1143854061,
       "teacher": "Noëlle",
       "subject": "Foto 1Q",
       "group": "1r APGI",
@@ -144,7 +144,7 @@
       "fixed": false
     },
     {
-      "id": 1279056020,
+      "id": 3141634949,
       "teacher": "Noëlle",
       "subject": "Fonaments DG",
       "group": "1r APGI",
@@ -155,40 +155,40 @@
       "fixed": false
     },
     {
-      "id": 1426660011,
-      "teacher": "Núria",
-      "subject": "Mitjans informàtics",
+      "id": 470372032,
+      "teacher": "Eulàlia",
+      "subject": "Volum UF2",
       "group": "1r COM",
       "room": "",
-      "day": "Dimarts",
+      "day": "Divendres",
       "start": "8:30",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 1482705040,
+      "id": 753395584,
       "teacher": "Bet",
       "subject": "Dx Tècnic",
       "group": "1r COM",
       "room": "",
-      "day": "Dimarts",
-      "start": "10:30",
+      "day": "Divendres",
+      "start": "11:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 1665055911,
+      "id": 3524047158,
       "teacher": "Borja",
       "subject": "Anglès UF2 Influences 2Q",
       "group": "1r COM",
       "room": "",
-      "day": "Dimarts",
+      "day": "Dimecres",
       "start": "12:30",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 2814273087,
+      "id": 4122966996,
       "teacher": "Alfred",
       "subject": "Mitjans informàtics 1Q",
       "group": "2n APGI",
@@ -199,7 +199,7 @@
       "fixed": false
     },
     {
-      "id": 245511852,
+      "id": 2111601395,
       "teacher": "Alfred",
       "subject": "Packaging 2Q",
       "group": "2n APGI",
@@ -210,7 +210,7 @@
       "fixed": false
     },
     {
-      "id": 2968169734,
+      "id": 1152412761,
       "teacher": "Noëlle",
       "subject": "Foto UF1 i 2",
       "group": "Comú",
@@ -221,7 +221,7 @@
       "fixed": false
     },
     {
-      "id": 3212446031,
+      "id": 984985691,
       "teacher": "Bet",
       "subject": "Fonaments expressió",
       "group": "Comú",
@@ -232,7 +232,7 @@
       "fixed": false
     },
     {
-      "id": 1325387499,
+      "id": 3222589922,
       "teacher": "Bego",
       "subject": "Ll. Tec. Audio UF1",
       "group": "Comú",
@@ -243,7 +243,7 @@
       "fixed": false
     },
     {
-      "id": 3513304005,
+      "id": 4161579764,
       "teacher": "Marc",
       "subject": "Màrqueting",
       "group": "Comú",
@@ -254,7 +254,7 @@
       "fixed": false
     },
     {
-      "id": 94140587,
+      "id": 1056120029,
       "teacher": "Imma",
       "subject": "MFG2 Social",
       "group": "PFI",
@@ -265,13 +265,13 @@
       "fixed": false
     },
     {
-      "id": 544081301,
+      "id": 1957771155,
       "teacher": "Imma",
       "subject": "MFG1 Comunicació",
       "group": "PFI",
       "room": "",
       "day": "Dimecres",
-      "start": "9:30",
+      "start": "10:00",
       "duration": 4,
       "fixed": false
     },
@@ -282,12 +282,12 @@
       "group": "PFI",
       "room": "Taller",
       "day": "Dimecres",
-      "start": "11:30",
+      "start": "12:00",
       "duration": 5,
       "fixed": true
     },
     {
-      "id": 2998845875,
+      "id": 3069734146,
       "teacher": "Bet",
       "subject": "Fonaments DG",
       "group": "GP",
@@ -298,7 +298,7 @@
       "fixed": false
     },
     {
-      "id": 2361464876,
+      "id": 456670971,
       "teacher": "Eli",
       "subject": "Projecte Integrat",
       "group": "GP",
@@ -309,7 +309,7 @@
       "fixed": false
     },
     {
-      "id": 1937822295,
+      "id": 276125948,
       "teacher": "Inno",
       "subject": "Edició web",
       "group": "2n APGI",
@@ -320,29 +320,29 @@
       "fixed": false
     },
     {
-      "id": 426497351,
+      "id": 3357600659,
       "teacher": "Borja",
       "subject": "ANG UF1 Behance my friend 1Q",
       "group": "2n APGI",
       "room": "",
       "day": "Dimecres",
-      "start": "11:30",
+      "start": "12:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 3119439454,
+      "id": 2311317306,
       "teacher": "Sònia",
       "subject": "Foto 2Q",
       "group": "2n APGI",
       "room": "",
       "day": "Dimecres",
-      "start": "11:30",
+      "start": "12:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 851499813,
+      "id": 253118401,
       "teacher": "Jordi",
       "subject": "Taller",
       "group": "2n COM",
@@ -353,29 +353,29 @@
       "fixed": false
     },
     {
-      "id": 12025530,
+      "id": 3126544471,
       "teacher": "Jordi",
       "subject": "GPP",
       "group": "2n COM",
       "room": "",
       "day": "Dimecres",
-      "start": "11:30",
+      "start": "12:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 332463701,
+      "id": 1032981702,
       "teacher": "Eli",
       "subject": "Obra Final",
       "group": "2n COM",
       "room": "",
       "day": "Dimecres",
-      "start": "12:30",
+      "start": "13:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 147806375,
+      "id": 241524760,
       "teacher": "Bet",
       "subject": "Dx artístic",
       "group": "1r APGI",
@@ -386,7 +386,7 @@
       "fixed": false
     },
     {
-      "id": 2462656360,
+      "id": 2436202734,
       "teacher": "Bego",
       "subject": "Multimèdia UF2",
       "group": "1r APGI",
@@ -397,7 +397,7 @@
       "fixed": false
     },
     {
-      "id": 2165810523,
+      "id": 1051631391,
       "teacher": "Inno",
       "subject": "Edició web",
       "group": "1r APGI",
@@ -408,7 +408,7 @@
       "fixed": false
     },
     {
-      "id": 2982834703,
+      "id": 3317238581,
       "teacher": "Jordi",
       "subject": "Taller",
       "group": "1r COM",
@@ -419,7 +419,7 @@
       "fixed": false
     },
     {
-      "id": 73060524,
+      "id": 3218738799,
       "teacher": "Jordi",
       "subject": "Materials UF2",
       "group": "1r COM",
@@ -430,7 +430,7 @@
       "fixed": false
     },
     {
-      "id": 580989831,
+      "id": 3379546691,
       "teacher": "Bego",
       "subject": "Teoria de la  imatge",
       "group": "Comú",
@@ -441,7 +441,7 @@
       "fixed": false
     },
     {
-      "id": 2382897305,
+      "id": 351192669,
       "teacher": "Bego",
       "subject": "Ll. Tec. Audio UF1",
       "group": "Comú",
@@ -452,7 +452,7 @@
       "fixed": false
     },
     {
-      "id": 3435592654,
+      "id": 1071457492,
       "teacher": "Sònia",
       "subject": "Mitjans informàtics",
       "group": "Comú",
@@ -463,7 +463,7 @@
       "fixed": false
     },
     {
-      "id": 3699969292,
+      "id": 1181012773,
       "teacher": "Noëlle",
       "subject": "Tipografia",
       "group": "Comú",
@@ -474,7 +474,7 @@
       "fixed": false
     },
     {
-      "id": 2951946250,
+      "id": 2696541891,
       "teacher": "Inno",
       "subject": "Ll. programació",
       "group": "GI",
@@ -485,24 +485,24 @@
       "fixed": false
     },
     {
-      "id": 188489127,
+      "id": 3891836883,
       "teacher": "Marc",
       "subject": "Projectes UF3",
       "group": "GI",
       "room": "",
       "day": "Dimecres",
-      "start": "18:00",
+      "start": "18:30",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 2017603828,
+      "id": 4196111550,
       "teacher": "Bego",
       "subject": "GPP",
       "group": "GI",
       "room": "",
       "day": "Dimecres",
-      "start": "19:30",
+      "start": "20:00",
       "duration": 2,
       "fixed": false
     },
@@ -518,17 +518,6 @@
       "fixed": true
     },
     {
-      "id": 3430507567,
-      "teacher": "Judit",
-      "subject": "PFI M3 Mates",
-      "group": "PFI",
-      "room": "",
-      "day": "Dilluns",
-      "start": "9:30",
-      "duration": 4,
-      "fixed": false
-    },
-    {
       "id": 1608779597,
       "teacher": "Joan Carles",
       "subject": "PFI Taller",
@@ -540,7 +529,7 @@
       "fixed": true
     },
     {
-      "id": 2994924360,
+      "id": 3222235599,
       "teacher": "Bego",
       "subject": "Ll. Tec. Audio UF3 2Q",
       "group": "GI, GP",
@@ -551,7 +540,7 @@
       "fixed": false
     },
     {
-      "id": 3680471684,
+      "id": 4287105728,
       "teacher": "Cristina",
       "subject": "Projectes UF4 1Q",
       "group": "GP",
@@ -562,7 +551,7 @@
       "fixed": false
     },
     {
-      "id": 135322263,
+      "id": 1657900386,
       "teacher": "Bego",
       "subject": "Ll. Tec. Audio UF3 1Q",
       "group": "GI",
@@ -573,7 +562,7 @@
       "fixed": false
     },
     {
-      "id": 3778287030,
+      "id": 3806797735,
       "teacher": "Cristina",
       "subject": "Projecte Integrat",
       "group": "GP",
@@ -584,7 +573,7 @@
       "fixed": false
     },
     {
-      "id": 174069921,
+      "id": 2212712717,
       "teacher": "Bego",
       "subject": "GPP",
       "group": "GI",
@@ -595,7 +584,7 @@
       "fixed": false
     },
     {
-      "id": 3391774878,
+      "id": 1350540016,
       "teacher": "Inno",
       "subject": "FOL UF3",
       "group": "GP",
@@ -606,7 +595,7 @@
       "fixed": false
     },
     {
-      "id": 4219329641,
+      "id": 3781628554,
       "teacher": "Sònia",
       "subject": "Interfícies gràfiques",
       "group": "GI",
@@ -617,7 +606,7 @@
       "fixed": false
     },
     {
-      "id": 3274836633,
+      "id": 1617619230,
       "teacher": "Noëlle",
       "subject": "GPP",
       "group": "GP",
@@ -628,7 +617,7 @@
       "fixed": false
     },
     {
-      "id": 2843466301,
+      "id": 3994322059,
       "teacher": "Alfred",
       "subject": "GPP",
       "group": "2n APGI",
@@ -639,29 +628,29 @@
       "fixed": false
     },
     {
-      "id": 4101330157,
+      "id": 77346316,
       "teacher": "Bego",
       "subject": "Multimèdia UF3 i UF4",
       "group": "2n APGI",
       "room": "",
       "day": "Dilluns",
-      "start": "11:30",
+      "start": "12:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 169180531,
+      "id": 2732755508,
       "teacher": "Bet",
       "subject": "Dx artístic",
       "group": "2n APGI",
       "room": "",
       "day": "Dilluns",
-      "start": "13:00",
+      "start": "13:30",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 1866360549,
+      "id": 778718180,
       "teacher": "Inno",
       "subject": "Projectes UF2",
       "group": "Comú",
@@ -672,29 +661,29 @@
       "fixed": false
     },
     {
-      "id": 658506269,
+      "id": 3558448792,
       "teacher": "Carme",
       "subject": "FOL UF1",
       "group": "Comú",
       "room": "",
       "day": "Dilluns",
-      "start": "17:30",
+      "start": "18:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 964384778,
+      "id": 3321118590,
       "teacher": "Bet",
       "subject": "Fonaments expressió",
       "group": "Comú",
       "room": "",
       "day": "Dilluns",
-      "start": "19:30",
+      "start": "20:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 3089055324,
+      "id": 2543749063,
       "teacher": "Carme",
       "subject": "FOL UF1",
       "group": "1r APGI",
@@ -705,7 +694,7 @@
       "fixed": false
     },
     {
-      "id": 1310379491,
+      "id": 3806479649,
       "teacher": "Bet",
       "subject": "Dx Tècnic",
       "group": "1r APGI",
@@ -716,7 +705,7 @@
       "fixed": false
     },
     {
-      "id": 2152717046,
+      "id": 159047087,
       "teacher": "Alfred",
       "subject": "Mitjans informàtics",
       "group": "1r APGI",
@@ -727,7 +716,7 @@
       "fixed": false
     },
     {
-      "id": 1598925719,
+      "id": 1895825958,
       "teacher": "Bet",
       "subject": "Hª de l'art UF1",
       "group": "1r COM",
@@ -738,29 +727,29 @@
       "fixed": false
     },
     {
-      "id": 1559809037,
+      "id": 1942222756,
       "teacher": "Carme",
       "subject": "FOL UF1",
       "group": "1r COM",
       "room": "",
       "day": "Dilluns",
+      "start": "10:30",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 3704538405,
+      "teacher": "Eulàlia",
+      "subject": "Dx artístic",
+      "group": "1r COM",
+      "room": "",
+      "day": "Dimecres",
       "start": "10:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 2112531148,
-      "teacher": "Eulàlia",
-      "subject": "Dx artístic",
-      "group": "1r COM",
-      "room": "",
-      "day": "Dilluns",
-      "start": "12:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 2695133795,
+      "id": 1633971739,
       "teacher": "Cristina",
       "subject": "Espais 1Q",
       "group": "2n COM",
@@ -771,7 +760,7 @@
       "fixed": false
     },
     {
-      "id": 1212151378,
+      "id": 997322631,
       "teacher": "Cristina",
       "subject": "Impressió 3D 2Q",
       "group": "2n COM",
@@ -782,24 +771,24 @@
       "fixed": false
     },
     {
-      "id": 3248859158,
+      "id": 1605180066,
       "teacher": "Eli",
       "subject": "Obra Final",
       "group": "2n COM",
       "room": "",
       "day": "Dilluns",
-      "start": "10:00",
+      "start": "10:30",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 3550159461,
+      "id": 2280244528,
       "teacher": "Núria",
       "subject": "Render de producte",
       "group": "2n COM",
       "room": "",
       "day": "Dilluns",
-      "start": "11:00",
+      "start": "11:30",
       "duration": 2,
       "fixed": false
     },
@@ -815,51 +804,62 @@
       "fixed": true
     },
     {
-      "id": 1006682845,
+      "id": 1354516092,
+      "teacher": "Sara",
+      "subject": "Projecte",
+      "group": "PFI",
+      "room": "",
+      "day": "Divendres",
+      "start": "11:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2531446726,
       "teacher": "Judit",
       "subject": "PFI M3 Mates",
       "group": "PFI",
       "room": "",
       "day": "Divendres",
-      "start": "10:30",
+      "start": "13:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 1720538454,
+      "id": 3641336542,
       "teacher": "Eulàlia",
       "subject": "Volum UF1 1Q",
       "group": "2n COM",
       "room": "",
       "day": "Divendres",
-      "start": "8:00",
+      "start": "16:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 4027894615,
+      "id": 1384715827,
       "teacher": "Eulàlia",
       "subject": "Dx artístic",
       "group": "2n COM",
       "room": "",
       "day": "Divendres",
-      "start": "10:00",
+      "start": "18:00",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 730436428,
+      "id": 3601978686,
       "teacher": "Bet",
       "subject": "FOL UF3",
       "group": "2n COM",
       "room": "",
       "day": "Divendres",
-      "start": "11:30",
+      "start": "9:30",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 2533989488,
+      "id": 891155601,
       "teacher": "Jordi",
       "subject": "Taller",
       "group": "2n COM",
@@ -870,7 +870,7 @@
       "fixed": false
     },
     {
-      "id": 942731048,
+      "id": 143449232,
       "teacher": "Noëlle",
       "subject": "Fonaments DG",
       "group": "1r APGI",
@@ -881,7 +881,7 @@
       "fixed": false
     },
     {
-      "id": 3187527829,
+      "id": 270759581,
       "teacher": "Roger",
       "subject": "Hª del DG",
       "group": "1r APGI",
@@ -892,7 +892,7 @@
       "fixed": false
     },
     {
-      "id": 2795062936,
+      "id": 1673465051,
       "teacher": "Inno",
       "subject": "Obra Final",
       "group": "2n APGI",
@@ -903,29 +903,29 @@
       "fixed": false
     },
     {
-      "id": 4193094499,
+      "id": 2720599004,
       "teacher": "Inno",
       "subject": "FOL UF3",
       "group": "2n APGI",
       "room": "",
       "day": "Divendres",
-      "start": "10:30",
+      "start": "11:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 827564675,
+      "id": 1850575045,
       "teacher": "Alfred",
       "subject": "Tipografia",
       "group": "2n APGI",
       "room": "",
       "day": "Divendres",
-      "start": "11:30",
+      "start": "12:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 3242877814,
+      "id": 3844757683,
       "teacher": "Alfred",
       "subject": "Art Experience 2Q",
       "group": "Comú",
@@ -936,7 +936,7 @@
       "fixed": false
     },
     {
-      "id": 3824249857,
+      "id": 330607376,
       "teacher": "Alfred",
       "subject": "Proj UF1 1Q",
       "group": "Comú",
@@ -947,7 +947,7 @@
       "fixed": false
     },
     {
-      "id": 3492638582,
+      "id": 2947895181,
       "teacher": "Sònia",
       "subject": "Mitjans informàtics",
       "group": "Comú",
@@ -958,7 +958,7 @@
       "fixed": false
     },
     {
-      "id": 2180688462,
+      "id": 2789447227,
       "teacher": "Noëlle",
       "subject": "Hª de la imatge UF1",
       "group": "Comú",
@@ -969,7 +969,7 @@
       "fixed": false
     },
     {
-      "id": 472380135,
+      "id": 2325373825,
       "teacher": "Noëlle",
       "subject": "Projectes UF3",
       "group": "GP",
@@ -980,7 +980,7 @@
       "fixed": false
     },
     {
-      "id": 3181631585,
+      "id": 2119484924,
       "teacher": "Roger",
       "subject": "Hª del DG",
       "group": "GI",
@@ -991,7 +991,7 @@
       "fixed": false
     },
     {
-      "id": 3888086360,
+      "id": 3009119082,
       "teacher": "Roger",
       "subject": "Hª del DG",
       "group": "GP",
@@ -1002,7 +1002,7 @@
       "fixed": false
     },
     {
-      "id": 2797172430,
+      "id": 1004462034,
       "teacher": "Noëlle",
       "subject": "Foto UF3",
       "group": "GI, GP",
@@ -1013,12 +1013,12 @@
       "fixed": false
     },
     {
-      "id": 2962676373,
+      "id": 3348987890,
       "teacher": "Joan Carles",
       "subject": "Materials UF1",
       "group": "1r COM",
       "room": "",
-      "day": "Divendres",
+      "day": "Dijous",
       "start": "13:00",
       "duration": 2,
       "fixed": false
@@ -1035,40 +1035,40 @@
       "fixed": true
     },
     {
-      "id": 3084887062,
+      "id": 1556989438,
       "teacher": "Sara",
-      "subject": "Projecte",
+      "subject": "MPRL",
       "group": "PFI",
       "room": "",
       "day": "Dijous",
-      "start": "11:00",
+      "start": "11:30",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 32509533,
+      "id": 3422881940,
       "teacher": "Imma",
       "subject": "MFG1 Comunicació",
       "group": "PFI",
       "room": "",
       "day": "Dijous",
-      "start": "13:00",
+      "start": "13:30",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 2587551091,
+      "id": 1861189361,
       "teacher": "Eli",
       "subject": "GPP",
       "group": "2n COM",
       "room": "",
       "day": "Dijous",
-      "start": "8:00",
+      "start": "16:00",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 2839495162,
+      "id": 3728401243,
       "teacher": "Borja",
       "subject": "ANG UF2 Behance my friend 1Q",
       "group": "2n COM",
@@ -1079,18 +1079,18 @@
       "fixed": false
     },
     {
-      "id": 368132364,
+      "id": 2153450220,
       "teacher": "Jordi",
       "subject": "Taller",
       "group": "2n COM",
       "room": "Taller",
       "day": "Dijous",
-      "start": "12:00",
+      "start": "12:30",
       "duration": 7,
       "fixed": false
     },
     {
-      "id": 4085401617,
+      "id": 700427259,
       "teacher": "Cristina",
       "subject": "GPP",
       "group": "GP",
@@ -1101,18 +1101,18 @@
       "fixed": false
     },
     {
-      "id": 1041758073,
+      "id": 4037697388,
       "teacher": "Marc",
       "subject": "Teoria publ i mkt",
       "group": "GP",
       "room": "",
       "day": "Dijous",
-      "start": "18:00",
+      "start": "18:30",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 2840090997,
+      "id": 2437570021,
       "teacher": "Marc",
       "subject": "GPP",
       "group": "GI",
@@ -1123,29 +1123,29 @@
       "fixed": false
     },
     {
-      "id": 3178091126,
+      "id": 159747831,
       "teacher": "Bego",
       "subject": "FOL GPP",
       "group": "GI",
       "room": "",
       "day": "Dijous",
-      "start": "17:30",
+      "start": "18:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 2966383364,
+      "id": 2145391316,
       "teacher": "Cristina",
       "subject": "Projecte Integrat",
       "group": "GI",
       "room": "",
       "day": "Dijous",
-      "start": "18:30",
+      "start": "19:00",
       "duration": 2,
       "fixed": false
     },
     {
-      "id": 3325542268,
+      "id": 2336846511,
       "teacher": "Noëlle",
       "subject": "Tipografia",
       "group": "1r APGI",
@@ -1156,7 +1156,7 @@
       "fixed": false
     },
     {
-      "id": 3407464667,
+      "id": 1902774780,
       "teacher": "Inno",
       "subject": "Edició web",
       "group": "1r APGI",
@@ -1167,29 +1167,29 @@
       "fixed": false
     },
     {
-      "id": 3515566068,
-      "teacher": "Eulàlia",
-      "subject": "Volum UF2",
-      "group": "1r COM",
-      "room": "",
-      "day": "Dijous",
-      "start": "10:00",
-      "duration": 4,
-      "fixed": false
-    },
-    {
-      "id": 2249146292,
+      "id": 2906174265,
       "teacher": "Eli",
       "subject": "Projectes",
       "group": "1r COM",
       "room": "",
       "day": "Dijous",
-      "start": "12:00",
+      "start": "8:30",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 1605052701,
+      "id": 279366233,
+      "teacher": "Núria",
+      "subject": "Mitjans informàtics",
+      "group": "1r COM",
+      "room": "",
+      "day": "Dijous",
+      "start": "11:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 2481300170,
       "teacher": "Eulàlia",
       "subject": "Ll. disp. Taller producció",
       "group": "Comú",
@@ -1200,29 +1200,29 @@
       "fixed": false
     },
     {
-      "id": 3094468594,
+      "id": 3309781313,
       "teacher": "Inno",
       "subject": "Ll. programació",
       "group": "Comú",
       "room": "",
       "day": "Dijous",
-      "start": "17:00",
+      "start": "17:30",
       "duration": 4,
       "fixed": false
     },
     {
-      "id": 3688973464,
+      "id": 227620091,
       "teacher": "Noëlle",
       "subject": "Tipografia",
       "group": "Comú",
       "room": "",
       "day": "Dijous",
-      "start": "19:00",
+      "start": "19:30",
       "duration": 3,
       "fixed": false
     },
     {
-      "id": 990483152,
+      "id": 997198981,
       "teacher": "Bego",
       "subject": "Multimèdia UF3 i UF4",
       "group": "2n APGI",
@@ -1233,13 +1233,992 @@
       "fixed": false
     },
     {
-      "id": 1520234823,
+      "id": 2541631761,
       "teacher": "Bego",
       "subject": "Obra Final",
       "group": "2n APGI",
       "room": "",
       "day": "Dijous",
       "start": "10:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 794980053,
+      "teacher": "Marc F.",
+      "subject": "Taller",
+      "group": "1r COM",
+      "room": "",
+      "day": "Dimarts",
+      "start": "9:00",
+      "duration": 8,
+      "fixed": false
+    },
+    {
+      "id": 4287105729,
+      "teacher": "Sònia",
+      "subject": "Dinar",
+      "group": "",
+      "room": "",
+      "day": "Dimarts",
+      "start": "12:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105730,
+      "teacher": "Eulàlia",
+      "subject": "Dinar",
+      "group": "",
+      "room": "",
+      "day": "Divendres",
+      "start": "12:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105731,
+      "teacher": "Bet",
+      "subject": "Dinar",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "12:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105732,
+      "teacher": "Inno",
+      "subject": "Dinar",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "12:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105733,
+      "teacher": "Cristina",
+      "subject": "Dinar",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "12:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105734,
+      "teacher": "Noëlle",
+      "subject": "Dinar",
+      "group": "",
+      "room": "",
+      "day": "Divendres",
+      "start": "12:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105735,
+      "teacher": "Eli",
+      "subject": "Dinar",
+      "group": "",
+      "room": "",
+      "day": "Dijous",
+      "start": "12:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105736,
+      "teacher": "Bego",
+      "subject": "Dinar",
+      "group": "",
+      "room": "",
+      "day": "Dijous",
+      "start": "12:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105737,
+      "teacher": "Noëlle",
+      "subject": "Dinar",
+      "group": "",
+      "room": "",
+      "day": "Dijous",
+      "start": "12:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105738,
+      "teacher": "Inno",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105739,
+      "teacher": "Inno",
+      "subject": "Tutoria",
+      "group": "1r APGI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105740,
+      "teacher": "Inno",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "8:00",
+      "duration": 12,
+      "fixed": false
+    },
+    {
+      "id": 4287105741,
+      "teacher": "Inno",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "18:00",
+      "duration": 1,
+      "fixed": false
+    },
+    {
+      "id": 4287105742,
+      "teacher": "Inno",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "18:30",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105743,
+      "teacher": "Joan Carles",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105744,
+      "teacher": "Joan Carles",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "14:30",
+      "duration": 13,
+      "fixed": false
+    },
+    {
+      "id": 4287105745,
+      "teacher": "Joan Carles",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "21:00",
+      "duration": 1,
+      "fixed": false
+    },
+    {
+      "id": 4287105746,
+      "teacher": "Judit",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105747,
+      "teacher": "Judit",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105748,
+      "teacher": "Judit",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "9:00",
+      "duration": 6,
+      "fixed": false
+    },
+    {
+      "id": 4287105749,
+      "teacher": "Sara",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105750,
+      "teacher": "Sara",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105751,
+      "teacher": "Marc",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105752,
+      "teacher": "Marc",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105753,
+      "teacher": "Marc",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dimarts",
+      "start": "19:00",
+      "duration": 1,
+      "fixed": false
+    },
+    {
+      "id": 4287105754,
+      "teacher": "Bego",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105755,
+      "teacher": "Bego",
+      "subject": "Tutoria",
+      "group": "GI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "20:30",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105756,
+      "teacher": "Bego",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "11:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105757,
+      "teacher": "Bego",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dimarts",
+      "start": "13:30",
+      "duration": 10,
+      "fixed": false
+    },
+    {
+      "id": 4287105758,
+      "teacher": "Bet",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105759,
+      "teacher": "Bet",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105760,
+      "teacher": "Bet",
+      "subject": "Tutoria",
+      "group": "GP",
+      "room": "",
+      "day": "Dimarts",
+      "start": "18:30",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105761,
+      "teacher": "Bet",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dimarts",
+      "start": "11:30",
+      "duration": 11,
+      "fixed": false
+    },
+    {
+      "id": 4287105762,
+      "teacher": "Cristina",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105763,
+      "teacher": "Cristina",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105764,
+      "teacher": "Cristina",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "16:00",
+      "duration": 11,
+      "fixed": false
+    },
+    {
+      "id": 4287105765,
+      "teacher": "Cristina",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "9:30",
+      "duration": 9,
+      "fixed": false
+    },
+    {
+      "id": 4287105766,
+      "teacher": "Cristina",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dijous",
+      "start": "10:30",
+      "duration": 9,
+      "fixed": false
+    },
+    {
+      "id": 4287105767,
+      "teacher": "Eli",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105768,
+      "teacher": "Eli",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105769,
+      "teacher": "Eli",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "11:30",
+      "duration": 11,
+      "fixed": false
+    },
+    {
+      "id": 4287105770,
+      "teacher": "Eli",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "8:00",
+      "duration": 5,
+      "fixed": false
+    },
+    {
+      "id": 4287105771,
+      "teacher": "Eli",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "8:00",
+      "duration": 10,
+      "fixed": false
+    },
+    {
+      "id": 4287105772,
+      "teacher": "Eli",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dijous",
+      "start": "8:00",
+      "duration": 1,
+      "fixed": false
+    },
+    {
+      "id": 4287105773,
+      "teacher": "Eli",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dijous",
+      "start": "18:00",
+      "duration": 7,
+      "fixed": false
+    },
+    {
+      "id": 4287105774,
+      "teacher": "Eulàlia",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105775,
+      "teacher": "Eulàlia",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105776,
+      "teacher": "Eulàlia",
+      "subject": "Tutoria",
+      "group": "1r COM",
+      "room": "",
+      "day": "Dimecres",
+      "start": "16:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105777,
+      "teacher": "Eulàlia",
+      "subject": "Tutoria",
+      "group": "2n COM",
+      "room": "",
+      "day": "Dimecres",
+      "start": "17:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105778,
+      "teacher": "Eulàlia",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "8:00",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 4287105779,
+      "teacher": "Eulàlia",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dijous",
+      "start": "17:00",
+      "duration": 6,
+      "fixed": false
+    },
+    {
+      "id": 4287105780,
+      "teacher": "Eulàlia",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "18:00",
+      "duration": 7,
+      "fixed": false
+    },
+    {
+      "id": 4287105781,
+      "teacher": "Imma",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105782,
+      "teacher": "Imma",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105783,
+      "teacher": "Imma",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "16:00",
+      "duration": 11,
+      "fixed": false
+    },
+    {
+      "id": 4287105784,
+      "teacher": "Imma",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dijous",
+      "start": "15:00",
+      "duration": 1,
+      "fixed": false
+    },
+    {
+      "id": 4287105785,
+      "teacher": "Jordi",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105786,
+      "teacher": "Jordi",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105787,
+      "teacher": "Jordi",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "8:00",
+      "duration": 1,
+      "fixed": false
+    },
+    {
+      "id": 4287105788,
+      "teacher": "Jordi",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dijous",
+      "start": "16:00",
+      "duration": 7,
+      "fixed": false
+    },
+    {
+      "id": 4287105789,
+      "teacher": "Jordi",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "19:00",
+      "duration": 3,
+      "fixed": false
+    },
+    {
+      "id": 4287105790,
+      "teacher": "Marc F.",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105791,
+      "teacher": "Marc F.",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105792,
+      "teacher": "Marc F.",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dimarts",
+      "start": "13:00",
+      "duration": 11,
+      "fixed": false
+    },
+    {
+      "id": 4287105793,
+      "teacher": "Núria",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105794,
+      "teacher": "Núria",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105795,
+      "teacher": "Núria",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "12:30",
+      "duration": 6,
+      "fixed": false
+    },
+    {
+      "id": 4287105796,
+      "teacher": "Núria",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "8:00",
+      "duration": 7,
+      "fixed": false
+    },
+    {
+      "id": 4287105797,
+      "teacher": "Núria",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "16:00",
+      "duration": 9,
+      "fixed": false
+    },
+    {
+      "id": 4287105798,
+      "teacher": "Sònia",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105799,
+      "teacher": "Sònia",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105800,
+      "teacher": "Sònia",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "15:00",
+      "duration": 11,
+      "fixed": false
+    },
+    {
+      "id": 4287105801,
+      "teacher": "Sònia",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "10:00",
+      "duration": 10,
+      "fixed": false
+    },
+    {
+      "id": 4287105802,
+      "teacher": "Sònia",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "20:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105803,
+      "teacher": "Roger",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105804,
+      "teacher": "Roger",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105805,
+      "teacher": "Alfred",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105806,
+      "teacher": "Alfred",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105807,
+      "teacher": "Alfred",
+      "subject": "Tutoria",
+      "group": "2n APGI",
+      "room": "",
+      "day": "Dilluns",
+      "start": "14:30",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105808,
+      "teacher": "Alfred",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "15:30",
+      "duration": 4,
+      "fixed": false
+    },
+    {
+      "id": 4287105809,
+      "teacher": "Noëlle",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105810,
+      "teacher": "Noëlle",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105811,
+      "teacher": "Noëlle",
+      "subject": "Tutoria",
+      "group": "Comú",
+      "room": "",
+      "day": "Dilluns",
+      "start": "20:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105812,
+      "teacher": "Noëlle",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "14:30",
+      "duration": 11,
+      "fixed": false
+    },
+    {
+      "id": 4287105813,
+      "teacher": "Carme",
+      "subject": "Reunió",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "14:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105814,
+      "teacher": "Carme",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dimecres",
+      "start": "15:00",
+      "duration": 2,
+      "fixed": false
+    },
+    {
+      "id": 4287105815,
+      "teacher": "Carme",
+      "subject": "Hores de centre",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "20:00",
+      "duration": 1,
+      "fixed": false
+    },
+    {
+      "id": 4287105816,
+      "teacher": "Carme",
+      "subject": "Coordinació",
+      "group": "",
+      "room": "",
+      "day": "Dilluns",
+      "start": "20:30",
       "duration": 2,
       "fixed": false
     }
