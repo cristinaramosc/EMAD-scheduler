@@ -46,11 +46,11 @@ def export_schedule():
 @router.get("/export/pdf")
 def export_schedule_pdf():
     """Descarrega un .pdf amb una pàgina per a cada grup, professor i
-    aula de l'horari actiu, amb un aspecte de calendari (graella per
-    mitges hores i blocs blaus per a les activitats)."""
+    aula de l'horari actiu, en format vertical amb l'aspecte de l'horari
+    del professorat d'EMAD (blocs de colors segons el tipus d'activitat)."""
     use_cases = get_live_schedule_use_cases()
     activities = use_cases.export_activities()
-    buffer = build_schedule_pdf(activities)
+    buffer = build_schedule_pdf(activities, teachers=use_cases.export_teachers())
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
