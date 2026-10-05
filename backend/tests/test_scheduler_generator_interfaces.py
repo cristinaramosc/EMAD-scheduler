@@ -568,3 +568,133 @@ def test_scheduler_generator_detects_teacher_conflicts_when_present():
     conflicts = generator._detect_conflicts(proposal)
 
     assert any(conflict.type == "teacher_conflict" for conflict in conflicts)
+
+
+
+def _group_activity(activity_id, period, duration=1, group="g1"):
+    return Activity(
+        id=activity_id,
+        teacher="",
+        subject="",
+        group=group,
+        room="",
+        day="0",
+        start=f"Period {period}",
+        duration=duration,
+    )
+
+
+def test_group_gap_of_30_minutes_is_admissible():
+    from scheduler_engine.proposal_scorer import ProposalScorer
+
+    scorer = ProposalScorer()
+    proposal = ScheduleProposal(
+        id="30-min-gap",
+        activities=[
+            _group_activity(1, 0),
+            _group_activity(2, 2),
+        ],
+    )
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=4),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    breakdown = scorer.calculate(proposal, context)
+
+    assert breakdown.metadata["group_gap_penalty"] == 0.0
+
+
+def test_group_gap_of_one_hour_is_penalized():
+    from scheduler_engine.proposal_scorer import ProposalScorer
+
+    scorer = ProposalScorer()
+    proposal = ScheduleProposal(
+        id="60-min-gap",
+        activities=[
+            _group_activity(1, 0),
+            _group_activity(2, 3),
+        ],
+    )
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=5),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    breakdown = scorer.calculate(proposal, context)
+
+    assert breakdown.metadata["group_gap_penalty"] > 0.0
+
+
+def test_more_than_one_group_gap_same_day_is_penalized():
+    from scheduler_engine.proposal_scorer import ProposalScorer
+
+    scorer = ProposalScorer()
+    proposal = ScheduleProposal(
+        id="two-gaps",
+        activities=[
+            _group_activity(1, 0),
+            _group_activity(2, 2),
+            _group_activity(3, 4),
+        ],
+    )
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=5),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    breakdown = scorer.calculate(proposal, context)
+
+    assert breakdown.metadata["group_gap_penalty"] > 0.0
+
+
+def test_placement_prefers_30_minute_group_gap_over_one_hour_gap():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    first = ScheduledActivity(
+        teaching_block=TeachingBlock(
+            id="existing-1",
+            duration=0.5,
+            duration_blocks=1,
+            order=1,
+            metadata={"group": "g1"},
+        ),
+        day=0,
+        start_timeslot=TimeSlot(day=0, period=0),
+        duration=1,
+        room_id=None,
+        teacher_id=None,
+        group_id="g1",
+    )
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=5),
+        existing_scheduled_activities=(first,),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    candidate = strategy.place(
+        TeachingBlock(
+            id="new-1",
+            duration=0.5,
+            duration_blocks=1,
+            order=2,
+            metadata={"group": "g1"},
+        ),
+        context,
+        (),
+    )
+
+    assert candidate is not None
+    assert candidate.start_timeslot.period == 1
