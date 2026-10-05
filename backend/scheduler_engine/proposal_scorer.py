@@ -1,30 +1,27 @@
 from __future__ import annotations
 
-from typing import Dict
+from typing import Dict, Iterable, List, Tuple
 
 from .constraint_evaluator import ConstraintEvaluator
 from .models import ConstraintReport, GenerationContext, ScheduleProposal, ScoreBreakdown
 
 try:
-    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter
     from backend.scheduler_engine.teacher_utils import teacher_names
 except ModuleNotFoundError:  # pragma: no cover
-    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter
     from scheduler_engine.teacher_utils import teacher_names
 
 
 class ProposalScorer:
-    """A lightweight, domain-only scorer for ScheduleProposal objects."""
+    """Scorer jeràrquic per compactar grups i professorat."""
 
-    # Soft constraint amb màxima prioritat: quan una franja compartida 1Q/2Q
-    # és vàlida (la hard constraint ja n'ha garantit la validesa abans que
-    # arribi aquí), prima que ambdues assignatures les imparteixi el mateix
-    # professor. El pes és deliberadament molt superior a la resta de
-    # components de la puntuació (compactesa, distribució, etc.) perquè
-    # aquesta preferència guanyi sempre que sigui viable entre les
-    # propostes generades, sense que mai arribi a suplantar una hard
-    # constraint (una parella invàlida, p.ex. 1Q+1Q, ja ha estat descartada
-    # abans que la proposta arribi a puntuar-se).
+    _PLACED_WEIGHT = 100000.0
+    _ASSIGNED_ROOM_TEACHER_WEIGHT = 5000.0
+    _GROUP_BALANCE_WEIGHT = 500.0
+    _GROUP_GAP_WEIGHT = 350.0
+    _TEACHER_GAP_WEIGHT = 80.0
+    _TEACHER_DAY_WEIGHT = 30.0
     _QUARTER_PAIR_TEACHER_MATCH_WEIGHT = 1000.0
 
     def __init__(self, constraint_evaluator: ConstraintEvaluator | None = None) -> None:
@@ -32,104 +29,171 @@ class ProposalScorer:
 
     def calculate(self, proposal: ScheduleProposal, context: GenerationContext) -> ScoreBreakdown:
         report = self._constraint_evaluator.evaluate(proposal, context)
-        report.warnings.extend(proposal.warnings)
-        compactness_score = self._compactness_score(report)
-        distribution_score = self._distribution_score(proposal, context)
-        teacher_affinity_score = self._teacher_affinity_score(proposal)
-        quarter_pair_teacher_score = self._quarter_pair_teacher_priority_score(proposal)
-        gap_penalty = self._gap_penalty(report)
-        warning_penalty = self._warning_penalty(report)
+        placed = len(proposal.activities)
+        warnings = len(proposal.warnings)
+
+        assigned_room_teacher = sum(
+            1 for activity in proposal.activities
+            if activity.teacher and activity.room
+        )
+
+        group_balance = self._group_balance_penalty(proposal)
+        group_gaps = self._group_gap_penalty(proposal)
+        teacher_gaps = self._teacher_gap_penalty(proposal, context)
+        teacher_days = self._teacher_day_penalty(proposal)
+        quarter_score = self._quarter_pair_teacher_priority_score(proposal)
+
+        distribution_score = max(
+            0.0,
+            100.0
+            - group_balance * self._GROUP_BALANCE_WEIGHT
+            - group_gaps * self._GROUP_GAP_WEIGHT,
+        )
 
         total_score = (
-            compactness_score
+            placed * self._PLACED_WEIGHT
+            + assigned_room_teacher * self._ASSIGNED_ROOM_TEACHER_WEIGHT
             + distribution_score
-            + teacher_affinity_score
-            + quarter_pair_teacher_score
-            - gap_penalty
-            - warning_penalty
+            + quarter_score
+            - teacher_gaps * self._TEACHER_GAP_WEIGHT
+            - teacher_days * self._TEACHER_DAY_WEIGHT
+            - warnings * 10000.0
+            - len(report.soft_violations) * 25.0
         )
+
         metadata = {
-            "activity_count": len(proposal.activities),
-            "warning_count": len(proposal.warnings),
-            "soft_violation_count": len(report.soft_violations),
-            "teacher_affinity_score": round(teacher_affinity_score, 3),
-            "quarter_pair_teacher_score": round(quarter_pair_teacher_score, 3),
+            "activity_count": placed,
+            "warning_count": warnings,
+            "assigned_room_teacher_count": assigned_room_teacher,
+            "group_balance_penalty": round(group_balance, 3),
+            "group_gap_penalty": round(group_gaps, 3),
+            "teacher_gap_penalty": round(teacher_gaps, 3),
+            "teacher_day_penalty": round(teacher_days, 3),
+            "quarter_pair_teacher_score": round(quarter_score, 3),
+            "teacher_gap_rule": "1h de migdia no compta com a forat",
         }
+
         return ScoreBreakdown(
             total_score=round(total_score, 3),
-            compactness_score=round(compactness_score, 3),
+            compactness_score=round(placed, 3),
             distribution_score=round(distribution_score, 3),
-            gap_penalty=round(gap_penalty, 3),
-            warning_penalty=round(warning_penalty, 3),
+            gap_penalty=round(group_gaps * self._GROUP_GAP_WEIGHT + teacher_gaps * self._TEACHER_GAP_WEIGHT, 3),
+            warning_penalty=round(warnings * 10000.0 + teacher_days * self._TEACHER_DAY_WEIGHT, 3),
             metadata=metadata,
         )
 
-    def _compactness_score(self, report: ConstraintReport) -> float:
-        if not report.statistics.get("activity_count", 0):
-            return 0.0
-
-        return 8.0 + report.statistics["activity_count"] - report.statistics["soft_violation_count"] * 1.5
-
-    def _distribution_score(self, proposal: ScheduleProposal, context: GenerationContext) -> float:
-        if not proposal.activities:
-            return 0.0
-
-        allowed_days = set(context.school_calendar.days)
-        day_counts: Dict[str, int] = {str(day): 0 for day in allowed_days}
+    def _group_balance_penalty(self, proposal: ScheduleProposal) -> float:
+        by_group: Dict[str, Dict[str, int]] = {}
         for activity in proposal.activities:
-            day_key = activity.day
-            if day_key in day_counts:
-                day_counts[day_key] += 1
-
-        counts = [count for count in day_counts.values() if count > 0]
-        if not counts:
-            return 0.0
-
-        return max(0.0, 10.0 - (max(counts) - min(counts)) * 2.0)
-
-    def _teacher_affinity_score(self, proposal: ScheduleProposal) -> float:
-        if len(proposal.activities) < 2:
-            return 0.0
-
-        bonus = 0.0
-        activities = proposal.activities
-
-        for index, first in enumerate(activities):
-            first_teachers = set(teacher_names(first.teacher))
-            if not first_teachers:
+            if not activity.group:
                 continue
+            by_group.setdefault(activity.group, {})
+            by_group[activity.group][activity.day] = (
+                by_group[activity.group].get(activity.day, 0) + (activity.duration or 1)
+            )
 
-            first_quarter = quarter_suffix(first.subject) or quarter_suffix(first.group)
+        penalty = 0.0
+        for loads_by_day in by_group.values():
+            loads = [load for load in loads_by_day.values() if load > 0]
+            if len(loads) > 1:
+                spread = max(loads) - min(loads)
+                penalty += float(spread * spread)
+        return penalty
 
-            for second in activities[index + 1 :]:
-                second_teachers = set(teacher_names(second.teacher))
-                if not second_teachers or first_teachers.isdisjoint(second_teachers):
+    def _group_gap_penalty(self, proposal: ScheduleProposal) -> float:
+        by_group_day: Dict[Tuple[str, str], List[Tuple[int, int]]] = {}
+        for activity in proposal.activities:
+            if not activity.group:
+                continue
+            start = self._period(activity.start)
+            by_group_day.setdefault((activity.group, activity.day), []).append(
+                (start, start + (activity.duration or 1))
+            )
+
+        penalty = 0.0
+        for intervals in by_group_day.values():
+            gaps = self._gaps(intervals)
+            # Un sol buit d'una hora (2 blocs de 30') és admissible.
+            if len(gaps) > 1:
+                penalty += len(gaps) - 1
+            for start, end in gaps:
+                if end - start > 2:
+                    penalty += (end - start - 2) * 2
+        return penalty
+
+    def _teacher_gap_penalty(self, proposal: ScheduleProposal, context: GenerationContext) -> float:
+        by_teacher_day: Dict[Tuple[str, str], List[Tuple[int, int]]] = {}
+        for activity in proposal.activities:
+            for teacher in teacher_names(activity.teacher):
+                start = self._period(activity.start)
+                by_teacher_day.setdefault((teacher, activity.day), []).append(
+                    (start, start + (activity.duration or 1))
+                )
+
+        penalty = 0.0
+        for intervals in by_teacher_day.values():
+            gaps = self._gaps(intervals)
+            lunch_used = False
+            for start, end in gaps:
+                if not lunch_used and self._is_lunch_gap(start, end, context):
+                    lunch_used = True
                     continue
+                penalty += 1.0 + max(0, end - start - 1) * 0.5
+        return penalty
 
-                pair_bonus = 0.1
-                if first.day == second.day:
-                    pair_bonus += 0.15
+    def _teacher_day_penalty(self, proposal: ScheduleProposal) -> float:
+        by_teacher: Dict[str, set] = {}
+        for activity in proposal.activities:
+            for teacher in teacher_names(activity.teacher):
+                by_teacher.setdefault(teacher, set()).add(activity.day)
+        return float(sum(max(0, len(days) - 1) for days in by_teacher.values()))
 
-                second_quarter = quarter_suffix(second.subject) or quarter_suffix(second.group)
-                if first_quarter and second_quarter:
-                    pair_bonus += 0.25
-                    if first_quarter != second_quarter:
-                        pair_bonus += 0.1
+    def _gaps(self, intervals: Iterable[Tuple[int, int]]) -> List[Tuple[int, int]]:
+        ordered = sorted(intervals)
+        return [
+            (previous_end, current_start)
+            for (_, previous_end), (current_start, _) in zip(ordered, ordered[1:])
+            if current_start > previous_end
+        ]
 
-                bonus += pair_bonus
+    def _period(self, start: str) -> int:
+        try:
+            return int(str(start).split()[-1])
+        except (ValueError, IndexError):
+            return 0
 
-        return bonus
+    def _is_lunch_gap(self, start_period: int, end_period: int, context: GenerationContext) -> bool:
+        if end_period - start_period > 2:
+            return False
+        hour_names = context.configuration.get("hour_names") or []
+        if not hour_names:
+            middle = context.school_calendar.periods_per_day // 2
+            return middle - 2 <= start_period <= middle + 2
+
+        def minutes(period: int):
+            if period >= len(hour_names):
+                return None
+            token = str(hour_names[period])
+            if ":" not in token:
+                return None
+            try:
+                hour, minute = token.split(":", 1)
+                return int(hour) * 60 + int(minute)
+            except ValueError:
+                return None
+
+        start = minutes(start_period)
+        end = minutes(end_period)
+        return (
+            start is not None and end is not None
+            and 12 * 60 <= start <= 14 * 60
+            and end <= 15 * 60
+            and end - start <= 60
+        )
 
     def _quarter_pair_teacher_priority_score(self, proposal: ScheduleProposal) -> float:
-        """Puntua, amb el pes més alt de tots els components, les franges
-        on una parella 1Q/2Q vàlida del mateix grup pare comparteix
-        professor. Només mira parelles que ja compleixen la hard
-        constraint (mateix grup pare, una activitat 1Q i l'altra 2Q, cap
-        altra activitat a la mateixa franja): entre diverses propostes on
-        totes són vàlides, aquesta és la que decanta quina es prefereix."""
         if len(proposal.activities) < 2:
             return 0.0
-
         slot_buckets: Dict[tuple, list] = {}
         for activity in proposal.activities:
             if not activity.group or not activity.day or not activity.start:
@@ -146,16 +210,8 @@ class ProposalScorer:
             first, second = bucket
             if not is_valid_quarter_pair(first.group, first.subject, second.group, second.subject):
                 continue
-
             first_teachers = set(teacher_names(first.teacher))
             second_teachers = set(teacher_names(second.teacher))
             if first_teachers and second_teachers and not first_teachers.isdisjoint(second_teachers):
                 score += self._QUARTER_PAIR_TEACHER_MATCH_WEIGHT
-
         return score
-
-    def _gap_penalty(self, report: ConstraintReport) -> float:
-        return len(report.soft_violations) * 0.5
-
-    def _warning_penalty(self, report: ConstraintReport) -> float:
-        return len(report.warnings) * 2.0
