@@ -307,12 +307,25 @@ class SchedulerGenerator:
             requirement_id = (block.metadata or {}).get("requirement_id")
             excluded_days = used_days_by_requirement.get(requirement_id) if requirement_id else None
 
-            placement = self._placement_strategy.place(
-                block,
-                context,
-                scheduled_activities,
-                excluded_days=excluded_days
-            )
+            # Les estratègies externes antigues només acceptaven els
+            # tres arguments originals. La nostra estratègia també admet
+            # excluded_days per repartir blocs germans entre dies.
+            place_method = self._placement_strategy.place
+            try:
+                import inspect
+                supports_excluded_days = "excluded_days" in inspect.signature(place_method).parameters
+            except (TypeError, ValueError):
+                supports_excluded_days = False
+
+            if supports_excluded_days:
+                placement = place_method(
+                    block,
+                    context,
+                    scheduled_activities,
+                    excluded_days=excluded_days,
+                )
+            else:
+                placement = place_method(block, context, scheduled_activities)
 
             if placement is None and excluded_days:
                 # Si no hi ha cap dia lliure diferent dels ja usats pels
