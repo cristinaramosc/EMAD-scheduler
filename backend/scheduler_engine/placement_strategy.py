@@ -104,7 +104,7 @@ class PlacementStrategy(ABC):
 
         group_gaps = self._gaps_for_entity(group_with_candidate)
         group_gap_count = sum(1 for gap in group_gaps if gap > 0)
-        group_excess_gaps = sum(max(0, gap - 2) for gap in group_gaps)
+        group_excess_gaps = sum(max(0, gap - 1) for gap in group_gaps)
 
         teacher_with_candidate = teacher_activities + [candidate]
         teacher_days = len({a.day for a in teacher_with_candidate})
@@ -115,14 +115,14 @@ class PlacementStrategy(ABC):
                 continue
             real_teacher_gaps += 1
 
-        # Primer: màxim una franja buida de 1h al dia per grup.
+        # Primer: màxim una franja buida de 30 min al dia per grup.
         # Després: equilibri entre dies del grup.
         # Després: forats del professor (el dinar no compta) i dies del professor.
         return (
+            group_excess_gaps * 100,
             max(0, group_gap_count - len(self._group_days(group_with_candidate))) * 100,
-            group_excess_gaps,
             group_spread,
-            max(0, group_gap_count - 1),
+            max(0, group_gap_count - 1) * 100,
             real_teacher_gaps,
             teacher_days,
             slot.period,
