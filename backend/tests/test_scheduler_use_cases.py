@@ -220,3 +220,47 @@ def test_unavailable_teacher_slots_accept_hyphenated_format() -> None:
     assert blocked[0].teacher_id == "Carme"
     assert blocked[0].day == 0
     assert blocked[0].start_timeslot.period == 0
+
+
+def _priority_use_cases() -> SchedulerUseCases:
+    return SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=1),
+        academic_data_repo=AcademicDataRepository(),
+    )
+
+
+_BASE_ASSIGNMENT = {
+    "teacher": "Ana",
+    "subject": "Dibuix",
+    "group": "1A",
+    "weekly_hours": 2.0,
+    "min_block_duration": 0.5,
+    "max_consecutive_hours": 2.0,
+}
+
+
+def test_academic_assignment_priority_is_elevated_when_room_is_assigned() -> None:
+    requirement = _priority_use_cases()._build_requirement_from_assignment(
+        1, {**_BASE_ASSIGNMENT, "preferred_room": "Aula 3D"}, set(), set()
+    )
+
+    assert requirement.priority == 1
+
+
+def test_academic_assignment_priority_is_elevated_when_teacher_has_max_days() -> None:
+    requirement = _priority_use_cases()._build_requirement_from_assignment(
+        1, {**_BASE_ASSIGNMENT, "teacher": "Ana, Biel"}, set(), set(), {"biel"}
+    )
+
+    assert requirement.priority == 1
+
+
+def test_academic_assignment_priority_stays_default_without_room_or_max_days() -> None:
+    requirement = _priority_use_cases()._build_requirement_from_assignment(
+        1, dict(_BASE_ASSIGNMENT), set(), set(), {"biel"}
+    )
+
+    assert requirement.priority == 2

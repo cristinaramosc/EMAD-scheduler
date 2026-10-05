@@ -287,8 +287,15 @@ class SchedulerUseCases:
                 or restriction.get("max_days")
             )
         }
+        max_days_teacher_names = set(self._build_teacher_max_days_constraints(teacher_restrictions))
         requirements = [
-            self._build_requirement_from_assignment(index, assignment, restricted_teacher_names, restricted_group_names)
+            self._build_requirement_from_assignment(
+                index,
+                assignment,
+                restricted_teacher_names,
+                restricted_group_names,
+                max_days_teacher_names,
+            )
             for index, assignment in enumerate(flexible_assignments, start=1)
         ]
         blocked_activities = self._build_blocked_activities_from_restrictions(
@@ -1198,6 +1205,7 @@ class SchedulerUseCases:
         assignment: Dict[str, Any],
         restricted_teacher_names: set[str],
         restricted_group_names: set[str],
+        max_days_teacher_names: Optional[set[str]] = None,
     ) -> TeachingRequirement:
         teacher = str(assignment.get("teacher", ""))
         teacher_list = teacher_names(teacher)
@@ -1209,6 +1217,13 @@ class SchedulerUseCases:
 
         has_teacher_restrictions = bool(set(teacher_list).intersection(restricted_teacher_names))
         has_group_restrictions = group in restricted_group_names
+        # Es col·loquen primer (prioritat 1) les assignatures amb aula
+        # assignada i les de professors amb màxim de dies permesos.
+        has_assigned_room = bool(preferred_room.strip())
+        has_teacher_max_days = bool(
+            max_days_teacher_names
+            and {name.casefold() for name in teacher_list} & max_days_teacher_names
+        )
 
         max_days_value = (
             assignment.get("max_days")
@@ -1241,7 +1256,11 @@ class SchedulerUseCases:
             allowed_session_lengths=allowed_session_lengths,
             preferred_rooms=[preferred_room] if preferred_room else [],
             fixed_teacher=has_teacher_restrictions,
-            priority=1 if has_teacher_restrictions or has_group_restrictions else int(assignment.get("priority") or 2),
+            priority=(
+                1
+                if has_teacher_restrictions or has_group_restrictions or has_assigned_room or has_teacher_max_days
+                else int(assignment.get("priority") or 2)
+            ),
             fixed_day=assignment.get("fixed_day") or None,
             fixed_start=assignment.get("fixed_start") or None,
         )
