@@ -1067,3 +1067,97 @@ def test_requirement_priority_is_carried_into_block_metadata():
     assert blocks
     assert all(item.metadata["priority"] == 1 for item in blocks)
 
+
+def _half_hour_names():
+    names = []
+    minutes = 8 * 60
+    while minutes <= 21 * 60:
+        names.append(f"{minutes // 60}:{minutes % 60:02d}")
+        minutes += 30
+    return names
+
+
+def _split_day_fixture():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=27),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={"hour_names": _half_hour_names()},
+    )
+
+    def block(block_id, teacher="Ana"):
+        return TeachingBlock(
+            id=block_id,
+            duration=1.0,
+            order=1,
+            duration_blocks=2,
+            preferred_teacher_id=teacher,
+            metadata={"group": "g1", "teacher": teacher},
+        )
+
+    def placed(teaching_block, day, period):
+        return ScheduledActivity(
+            teaching_block=teaching_block,
+            day=day,
+            start_timeslot=TimeSlot(day=day, period=period),
+            duration=2,
+            teacher_id="Ana",
+            group_id="g1",
+        )
+
+    return strategy, context, block, placed
+
+
+def test_teacher_split_day_penalty_distinguishes_same_half_new_day_and_split_day():
+    strategy, context, block, placed = _split_day_fixture()
+    morning_class = placed(block("morning"), day=0, period=2)  # 9:00
+    candidate = block("candidate")
+    afternoon_slot = TimeSlot(day=0, period=14)  # 15:00
+    morning_slot = TimeSlot(day=0, period=4)  # 10:00
+
+    assert strategy._teacher_split_day_penalty(candidate, 0, afternoon_slot, [morning_class], context) == 2
+    assert strategy._teacher_split_day_penalty(candidate, 0, morning_slot, [morning_class], context) == 0
+    assert strategy._teacher_split_day_penalty(candidate, 1, afternoon_slot, [morning_class], context) == 1
+
+
+def test_teacher_split_day_penalty_ignores_other_teachers_and_missing_hour_names():
+    strategy, context, block, placed = _split_day_fixture()
+    other_teacher_class = placed(block("other", teacher="Biel"), day=0, period=2)
+    other_teacher_class.teacher_id = "Biel"
+    candidate = block("candidate")
+    afternoon_slot = TimeSlot(day=0, period=14)
+
+    assert strategy._teacher_split_day_penalty(candidate, 0, afternoon_slot, [other_teacher_class], context) == 1
+
+    no_hours_context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=27),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+    morning_class = placed(block("morning"), day=0, period=2)
+    assert strategy._teacher_split_day_penalty(candidate, 0, afternoon_slot, [morning_class], no_hours_context) == 0
+
+
+def test_placement_avoids_splitting_teacher_day_between_morning_and_afternoon():
+    strategy, context, block, placed = _split_day_fixture()
+    # Classe de matí d'un ALTRE grup (g2): així els forats del grup g1 no
+    # interfereixen i només decideix l'afinitat matí/tarda del professor.
+    morning_class = placed(block("morning"), day=0, period=2)  # dilluns 9:00
+    morning_class.group_id = "g2"
+    morning_class.teaching_block.metadata["group"] = "g2"
+
+    key_same_day = strategy._slot_preference_key(
+        block("a"), 0, TimeSlot(day=0, period=14), [morning_class], context
+    )
+    key_other_day = strategy._slot_preference_key(
+        block("a"), 1, TimeSlot(day=1, period=14), [morning_class], context
+    )
+
+    assert key_other_day < key_same_day
+

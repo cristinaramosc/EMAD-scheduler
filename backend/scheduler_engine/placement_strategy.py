@@ -162,12 +162,16 @@ class GreedyPlacementStrategy(PlacementStrategy):
         if teaching_block.metadata:
             group_id = teaching_block.metadata.get("group_id") or teaching_block.metadata.get("group")
 
+        # Preferència (no restricció dura): que un professor no tingui, el
+        # mateix dia, classes de matí i de tarda (dia partit).
+        teacher_split = self._teacher_split_day_penalty(teaching_block, day, slot, all_activities, context)
+
         morning_latest = self._morning_group_latest_start_period(group_id, context)
         if morning_latest is not None:
             morning_rank = 0 if slot.period <= morning_latest else 1
             morning_delta = abs(slot.period - morning_latest)
             gap_slots, _ = self._daily_gap_counts(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
-            return (morning_rank, gap_slots, morning_delta, day, slot.period)
+            return (morning_rank, gap_slots, morning_delta, teacher_split, day, slot.period)
 
         preferred_start = self._preferred_group_start_period(group_id, context)
         if preferred_start is not None:
@@ -178,7 +182,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
             delta = 0
 
         gap_slots, _ = self._daily_gap_counts(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
-        return (afternoon_rank, gap_slots, delta, day, slot.period)
+        return (afternoon_rank, gap_slots, delta, teacher_split, day, slot.period)
 
     def _morning_group_latest_start_period(
         self,
@@ -261,6 +265,43 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 gap_windows += 1
 
         return gap_slots, gap_windows
+
+    _AFTERNOON_STARTS_AT = "14:30"
+
+    def _teacher_split_day_penalty(
+        self,
+        teaching_block: TeachingBlock,
+        day: int,
+        slot: TimeSlot,
+        all_activities: Sequence[ScheduledActivity],
+        context: GenerationContext,
+    ) -> int:
+        """1 si col·locar el bloc aquest dia deixaria el professor amb classes
+        de matí i de tarda el mateix dia (un forat gran al mig); 0 si no.
+        Sense noms d'hora al context no fa res."""
+        hour_names = [str(name or "").strip() for name in (context.configuration.get("hour_names") or [])]
+        if self._AFTERNOON_STARTS_AT not in hour_names:
+            return 0
+        boundary = hour_names.index(self._AFTERNOON_STARTS_AT)
+
+        teachers = {name.casefold() for name in teacher_names(teaching_block.preferred_teacher_id)}
+        if not teachers:
+            return 0
+
+        candidate_is_afternoon = slot.period >= boundary
+        same_half = False
+        for activity in all_activities:
+            if activity.day != day:
+                continue
+            if (activity.metadata or {}).get("synthetic") or (activity.teaching_block.metadata or {}).get("synthetic"):
+                continue
+            activity_teachers = {name.casefold() for name in teacher_names(activity.teacher_id)}
+            if teachers.isdisjoint(activity_teachers):
+                continue
+            if (activity.start_timeslot.period >= boundary) != candidate_is_afternoon:
+                return 2
+            same_half = True
+        return 0 if same_half else 1
 
     def _group_daily_gap_limit_conflict_exists(
         self,
