@@ -25,82 +25,170 @@ class PlacementStrategy(ABC):
         current_scheduled_activities: Sequence[ScheduledActivity],
         excluded_days: Optional[set] = None,
     ) -> Optional[ScheduledActivity]:
-        """Return a scheduled activity or None when no placement is possible.
-
-        `excluded_days` lists day indices to skip entirely — used to force
-        the blocks of a single requirement onto distinct days when it has
-        been split to satisfy a "days to spread across" restriction."""
-        raise NotImplementedError
-
-    def explain_failure(
-        self,
-        teaching_block: TeachingBlock,
-        context: GenerationContext,
-        current_scheduled_activities: Sequence[ScheduledActivity],
-    ) -> List[str]:
-        """Return every distinct reason placement failed, in Catalan.
-
-        Optional to override. Strategies that don't implement this simply
-        provide no explanation, keeping the base contract backward compatible.
-        """
-        return []
-
-
-class GreedyPlacementStrategy(PlacementStrategy):
-    """A deterministic first-valid-slot placement strategy."""
-
-    _DAY_NAMES_CA = ["dilluns", "dimarts", "dimecres", "dijous", "divendres", "dissabte", "diumenge"]
-
-    def place(
-        self,
-        teaching_block: TeachingBlock,
-        context: GenerationContext,
-        current_scheduled_activities: Sequence[ScheduledActivity],
-        excluded_days: Optional[set] = None,
-    ) -> Optional[ScheduledActivity]:
+        """Col·loca el bloc a la millor franja disponible, no simplement a la primera."""
         required_slots = teaching_block.duration_blocks or 1
         existing_activities = list(context.existing_scheduled_activities) + list(context.fixed_activities)
         all_activities = list(existing_activities) + list(current_scheduled_activities)
 
+        candidates = []
         for day in context.school_calendar.days:
             if excluded_days and day in excluded_days:
                 continue
-
             for slot in context.school_calendar.periods_for_day(day):
                 if self._is_blocked(slot, context.blocked_time_slots):
                     continue
-
                 if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
                     continue
-
                 if self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
-
                 if self._teacher_conflict_exists(teaching_block, slot, all_activities):
                     continue
-
                 if self._group_time_window_conflict_exists(teaching_block, slot, context):
                     continue
-
                 if self._room_conflict_exists(teaching_block, slot, all_activities, context):
                     continue
+                candidates.append(slot)
 
-                return ScheduledActivity(
-                    teaching_block=teaching_block,
-                    day=day,
-                    start_timeslot=slot,
-                    duration=required_slots,
-                    room_id=teaching_block.preferred_room_id,
-                    teacher_id=teaching_block.preferred_teacher_id,
-                    group_id=(
-                        teaching_block.metadata.get("group_id")
-                        or teaching_block.metadata.get("group")
-                        if teaching_block.metadata
-                        else None
-                    ),
-                )
+        if not candidates:
+            return None
 
-        return None
+        best_slot = min(candidates, key=lambda slot: self._placement_key(teaching_block, slot, all_activities, context))
+
+        return ScheduledActivity(
+            teaching_block=teaching_block,
+            day=best_slot.day,
+            start_timeslot=best_slot,
+            duration=required_slots,
+            room_id=teaching_block.preferred_room_id,
+            teacher_id=teaching_block.preferred_teacher_id,
+            group_id=(
+                teaching_block.metadata.get("group_id")
+                or teaching_block.metadata.get("group")
+                if teaching_block.metadata
+                else None
+            ),
+        )
+
+    def _placement_key(
+        self,
+        teaching_block: TeachingBlock,
+        slot: TimeSlot,
+        activities: Sequence[ScheduledActivity],
+        context: GenerationContext,
+    ) -> tuple:
+        """Clau lexicogràfica: primer grup, després professor."""
+        required_slots = teaching_block.duration_blocks or 1
+        group = self._group_of(teaching_block)
+
+        group_activities = [a for a in activities if group and self._activity_group(a) == group]
+        teacher_ids = set(teacher_names(teaching_block.preferred_teacher_id))
+        teacher_activities = [
+            a for a in activities
+            if teacher_ids and not teacher_ids.isdisjoint(set(teacher_names(a.teacher_id)))
+        ]
+
+        candidate = ScheduledActivity(
+            teaching_block=teaching_block,
+            day=slot.day,
+            start_timeslot=slot,
+            duration=required_slots,
+            room_id=teaching_block.preferred_room_id,
+            teacher_id=teaching_block.preferred_teacher_id,
+            group_id=group,
+        )
+
+        group_with_candidate = group_activities + [candidate]
+        group_day_loads = self._day_loads(group_with_candidate)
+        loads = list(group_day_loads.values())
+        group_spread = max(loads) - min(loads) if len(loads) > 1 else 0
+
+        group_gaps = self._gaps_for_entity(group_with_candidate)
+        group_gap_count = sum(1 for gap in group_gaps if gap > 0)
+        group_excess_gaps = sum(max(0, gap - 2) for gap in group_gaps)
+
+        teacher_with_candidate = teacher_activities + [candidate]
+        teacher_days = len({a.day for a in teacher_with_candidate})
+        teacher_gaps = self._gaps_for_entity(teacher_with_candidate)
+        real_teacher_gaps = 0
+        for day, gap_start, gap_end in teacher_gaps:
+            if self._is_midday_lunch_gap(gap_start, gap_end, context):
+                continue
+            real_teacher_gaps += 1
+
+        # Primer: màxim una franja buida de 1h al dia per grup.
+        # Després: equilibri entre dies del grup.
+        # Després: forats del professor (el dinar no compta) i dies del professor.
+        return (
+            max(0, group_gap_count - len(self._group_days(group_with_candidate))) * 100,
+            group_excess_gaps,
+            group_spread,
+            max(0, group_gap_count - 1),
+            real_teacher_gaps,
+            teacher_days,
+            slot.period,
+        )
+
+    def _group_of(self, teaching_block: TeachingBlock) -> Optional[str]:
+        metadata = teaching_block.metadata or {}
+        return metadata.get("group_id") or metadata.get("group")
+
+    def _activity_group(self, activity: ScheduledActivity) -> Optional[str]:
+        metadata = activity.teaching_block.metadata or {}
+        return activity.group_id or metadata.get("group_id") or metadata.get("group")
+
+    def _group_days(self, activities: Sequence[ScheduledActivity]) -> set:
+        return {a.day for a in activities}
+
+    def _day_loads(self, activities: Sequence[ScheduledActivity]) -> dict:
+        loads = {}
+        for activity in activities:
+            loads[activity.day] = loads.get(activity.day, 0) + (activity.duration or 1)
+        return loads
+
+    def _gaps_for_entity(self, activities: Sequence[ScheduledActivity]) -> List[Tuple[int, int, int]]:
+        by_day = {}
+        for activity in activities:
+            by_day.setdefault(activity.day, []).append(activity)
+
+        gaps = []
+        for day, day_activities in by_day.items():
+            ordered = sorted(day_activities, key=lambda a: a.start_timeslot.period)
+            for previous, current in zip(ordered, ordered[1:]):
+                start = previous.start_timeslot.period + previous.duration
+                end = current.start_timeslot.period
+                if end > start:
+                    gaps.append((day, start, end))
+        return gaps
+
+    def _is_midday_lunch_gap(
+        self,
+        start_period: int,
+        end_period: int,
+        context: GenerationContext,
+    ) -> bool:
+        if end_period - start_period > 2:
+            return False
+
+        hour_names = context.configuration.get("hour_names") or []
+        if not hour_names:
+            middle = context.school_calendar.periods_per_day // 2
+            return middle - 2 <= start_period <= middle + 2
+
+        def minutes(period: int):
+            if period >= len(hour_names):
+                return None
+            token = str(hour_names[period])
+            if ":" not in token:
+                return None
+            try:
+                hour, minute = token.split(":", 1)
+                return int(hour) * 60 + int(minute)
+            except ValueError:
+                return None
+
+        start = minutes(start_period)
+        end = minutes(end_period)
+        return start is not None and end is not None and 12 * 60 <= start and end <= 15 * 60 and end - start <= 60
 
     def _day_name(self, day: int) -> str:
         if 0 <= day < len(self._DAY_NAMES_CA):
