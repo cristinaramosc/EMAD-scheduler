@@ -46,7 +46,7 @@ class ProposalScorer:
         teacher_affinity_score = self._teacher_affinity_score(proposal)
         warning_penalty = self._warning_penalty(report)
 
-        distribution_score = max(
+        distribution_score = 0.0 if placed == 0 else max(
             0.0,
             100.0
             - group_balance * self._GROUP_BALANCE_WEIGHT
