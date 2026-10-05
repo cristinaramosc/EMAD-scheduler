@@ -6,10 +6,10 @@ from .constraint_evaluator import ConstraintEvaluator
 from .models import ConstraintReport, GenerationContext, ScheduleProposal, ScoreBreakdown
 
 try:
-    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter
+    from backend.scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
     from backend.scheduler_engine.teacher_utils import teacher_names
 except ModuleNotFoundError:  # pragma: no cover
-    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter
+    from scheduler_engine.quarter_utils import is_valid_quarter_pair, parent_and_quarter, quarter_suffix
     from scheduler_engine.teacher_utils import teacher_names
 
 
@@ -29,6 +29,7 @@ class ProposalScorer:
 
     def calculate(self, proposal: ScheduleProposal, context: GenerationContext) -> ScoreBreakdown:
         report = self._constraint_evaluator.evaluate(proposal, context)
+        report.warnings.extend(proposal.warnings)
         placed = len(proposal.activities)
         warnings = len(proposal.warnings)
 
@@ -42,6 +43,8 @@ class ProposalScorer:
         teacher_gaps = self._teacher_gap_penalty(proposal, context)
         teacher_days = self._teacher_day_penalty(proposal)
         quarter_score = self._quarter_pair_teacher_priority_score(proposal)
+        teacher_affinity_score = self._teacher_affinity_score(proposal)
+        warning_penalty = self._warning_penalty(report)
 
         distribution_score = max(
             0.0,
@@ -55,9 +58,10 @@ class ProposalScorer:
             + assigned_room_teacher * self._ASSIGNED_ROOM_TEACHER_WEIGHT
             + distribution_score
             + quarter_score
+            + teacher_affinity_score
             - teacher_gaps * self._TEACHER_GAP_WEIGHT
             - teacher_days * self._TEACHER_DAY_WEIGHT
-            - warnings * 10000.0
+            - warning_penalty
             - len(report.soft_violations) * 25.0
         )
 
@@ -70,6 +74,7 @@ class ProposalScorer:
             "teacher_gap_penalty": round(teacher_gaps, 3),
             "teacher_day_penalty": round(teacher_days, 3),
             "quarter_pair_teacher_score": round(quarter_score, 3),
+            "teacher_affinity_score": round(teacher_affinity_score, 3),
             "teacher_gap_rule": "fins a 1h de migdia no compta com a forat",
             "group_gap_rule": "1 únic bloc de 30 min per dia i grup és admissible",
         }
@@ -79,7 +84,7 @@ class ProposalScorer:
             compactness_score=round(placed, 3),
             distribution_score=round(distribution_score, 3),
             gap_penalty=round(group_gaps * self._GROUP_GAP_WEIGHT + teacher_gaps * self._TEACHER_GAP_WEIGHT, 3),
-            warning_penalty=round(warnings * 10000.0 + teacher_days * self._TEACHER_DAY_WEIGHT, 3),
+            warning_penalty=round(warning_penalty + teacher_days * self._TEACHER_DAY_WEIGHT, 3),
             metadata=metadata,
         )
 
@@ -194,6 +199,34 @@ class ProposalScorer:
             and end <= 15 * 60
             and end - start <= 60
         )
+
+    def _teacher_affinity_score(self, proposal: ScheduleProposal) -> float:
+        if len(proposal.activities) < 2:
+            return 0.0
+        bonus = 0.0
+        activities = proposal.activities
+        for index, first in enumerate(activities):
+            first_teachers = set(teacher_names(first.teacher))
+            if not first_teachers:
+                continue
+            first_quarter = quarter_suffix(first.subject) or quarter_suffix(first.group)
+            for second in activities[index + 1:]:
+                second_teachers = set(teacher_names(second.teacher))
+                if not second_teachers or first_teachers.isdisjoint(second_teachers):
+                    continue
+                pair_bonus = 0.1
+                if first.day == second.day:
+                    pair_bonus += 0.15
+                second_quarter = quarter_suffix(second.subject) or quarter_suffix(second.group)
+                if first_quarter and second_quarter:
+                    pair_bonus += 0.25
+                    if first_quarter != second_quarter:
+                        pair_bonus += 0.1
+                bonus += pair_bonus
+        return bonus
+
+    def _warning_penalty(self, report: ConstraintReport) -> float:
+        return len(report.warnings) * 2.0
 
     def _quarter_pair_teacher_priority_score(self, proposal: ScheduleProposal) -> float:
         if len(proposal.activities) < 2:
