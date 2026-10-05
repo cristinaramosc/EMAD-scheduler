@@ -70,7 +70,8 @@ class ProposalScorer:
             "teacher_gap_penalty": round(teacher_gaps, 3),
             "teacher_day_penalty": round(teacher_days, 3),
             "quarter_pair_teacher_score": round(quarter_score, 3),
-            "teacher_gap_rule": "1h de migdia no compta com a forat",
+            "teacher_gap_rule": "fins a 1h de migdia no compta com a forat",
+            "group_gap_rule": "1 únic bloc de 30 min per dia i grup és admissible",
         }
 
         return ScoreBreakdown(
@@ -113,12 +114,15 @@ class ProposalScorer:
         penalty = 0.0
         for intervals in by_group_day.values():
             gaps = self._gaps(intervals)
-            # Un sol buit d'una hora (2 blocs de 30') és admissible.
+            # El calendari treballa en blocs de 30 minuts:
+            # un únic buit d'1 bloc (30 min) és admissible.
+            # Un buit de 2 blocs (1 h) ja és penalitzat.
             if len(gaps) > 1:
-                penalty += len(gaps) - 1
+                penalty += (len(gaps) - 1) * 2
             for start, end in gaps:
-                if end - start > 2:
-                    penalty += (end - start - 2) * 2
+                gap_blocks = end - start
+                if gap_blocks > 1:
+                    penalty += (gap_blocks - 1) * 2
         return penalty
 
     def _teacher_gap_penalty(self, proposal: ScheduleProposal, context: GenerationContext) -> float:
