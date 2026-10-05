@@ -487,4 +487,14 @@ class PlacementStrategy(ABC):
 
         return False
 
-\n\nclass GreedyPlacementStrategy(PlacementStrategy):\n    """Compatibility name used by the scheduler generator.\n\n    The scheduler now uses the full candidate-scoring logic implemented in\n    PlacementStrategy.place(), so this class intentionally inherits it\n    instead of reverting to the old first-valid-slot behaviour.\n    """\n\n    _DAY_NAMES_CA = ["dilluns", "dimarts", "dimecres", "dijous", "divendres", "dissabte", "diumenge"]\n
+
+
+class GreedyPlacementStrategy(PlacementStrategy):
+    """Compatibility name used by the scheduler generator.
+
+    The scheduler now uses the full candidate-scoring logic implemented in
+    PlacementStrategy.place(), so this class intentionally inherits it
+    instead of reverting to the old first-valid-slot behaviour.
+    """
+
+    _DAY_NAMES_CA = ["dilluns", "dimarts", "dimecres", "dijous", "divendres", "dissabte", "diumenge"]
