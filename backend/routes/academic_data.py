@@ -7,8 +7,10 @@ from pydantic import BaseModel, Field
 
 try:
     from backend.dependencies import get_academic_data_repo
+    from backend.services.contract_hours import contract_hours, parse_dedication_pct
 except ModuleNotFoundError:  # pragma: no cover
     from dependencies import get_academic_data_repo
+    from services.contract_hours import contract_hours, parse_dedication_pct
 
 
 router = APIRouter(prefix="/academic-data", tags=["Academic Data"])
@@ -72,6 +74,8 @@ class TeacherDTO(BaseModel):
     coordination_name: Optional[str] = ""
     coordination_hours: Optional[float] = None
     max_days: Optional[int] = None
+    dedication_pct: Optional[float] = None  # % de jornada (0-100); 0 l'esborra
+    dni: Optional[str] = ""
 
 
 class TeacherUpdateDTO(BaseModel):
@@ -82,6 +86,8 @@ class TeacherUpdateDTO(BaseModel):
     coordination_name: Optional[str] = None
     coordination_hours: Optional[float] = None
     max_days: Optional[int] = None
+    dedication_pct: Optional[float] = None  # % de jornada (0-100); 0 l'esborra
+    dni: Optional[str] = None
 
 
 class TeacherRestrictionDTO(BaseModel):
@@ -218,6 +224,20 @@ class AssignmentUpdateDTO(BaseModel):
     consecutive_group: Optional[str] = None
 
 
+def _clean_dedication_pct(value):
+    """Valida el % de jornada: None/0 = sense percentatge; 0-100 altrament."""
+    if value is None or float(value) == 0:
+        return None
+    pct = parse_dedication_pct(value)
+    if pct is None:
+        raise HTTPException(status_code=400, detail="dedication_pct_invalid")
+    return pct
+
+
+def _clean_dni(value) -> str:
+    return str(value or "").strip().upper()
+
+
 @router.get("/teachers")
 def list_teachers():
     repo = get_academic_data_repo()
@@ -229,6 +249,8 @@ def list_teachers():
         # `tutor_of` = grups on aquest professor consta com a tutor/a (vegeu
         # `_tutor_groups_by_teacher`): informació de la fitxa, no un camp propi.
         teacher["tutor_of"] = tutor_groups.get(_normalized_name(teacher["name"]), "")
+        # Hores de contracte derivades del % de jornada (només lectura).
+        teacher["contract_hours"] = contract_hours(teacher.get("dedication_pct"))
     return teachers
 
 
@@ -239,6 +261,8 @@ def create_teacher(payload: TeacherDTO):
         record = payload.model_dump()
         active = record.pop("active", True)
         max_days = _normalized_max_days(record.pop("max_days", None))
+        record["dedication_pct"] = _clean_dedication_pct(record.get("dedication_pct"))
+        record["dni"] = _clean_dni(record.get("dni"))
         repo.create_teacher(record)
         if not active:
             repo.delete_teacher(record["name"])
@@ -268,6 +292,10 @@ def update_teacher(name: str, payload: TeacherUpdateDTO):
     # perquè `update_teacher` no els pot escriure.
     max_days = _normalized_max_days(values.pop("max_days", None))
     updated = {**current, **{k: v for k, v in values.items() if v is not None and k != "active"}}
+    if payload.dedication_pct is not None:
+        updated["dedication_pct"] = _clean_dedication_pct(payload.dedication_pct)
+    if payload.dni is not None:
+        updated["dni"] = _clean_dni(payload.dni)
     try:
         repo.update_teacher(name, updated)
         if payload.unavailable_slots is not None:

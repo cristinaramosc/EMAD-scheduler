@@ -17,8 +17,10 @@ from openpyxl.utils import get_column_letter
 
 try:
     from backend.repositories.academic_data_repository import AcademicDataRepository
+    from backend.services.contract_hours import parse_dedication_pct
 except ModuleNotFoundError:  # pragma: no cover
     from repositories.academic_data_repository import AcademicDataRepository
+    from services.contract_hours import parse_dedication_pct
 
 try:
     from backend.dependencies import get_academic_data_repo
@@ -39,6 +41,8 @@ NOTE_FONT = Font(italic=True, color="667085")
 TEACHER_COLUMNS = [
     ("name", "Nom"),
     ("active", "Actiu (Sí/No)"),
+    ("dedication_pct", "Dedicació (% de jornada)"),
+    ("dni", "DNI"),
     ("center_hours", "Hores de centre"),
     ("coordination_name", "Coordinació (nom)"),
     ("coordination_hours", "Coordinació (hores)"),
@@ -218,6 +222,8 @@ def _teacher_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
         rows.append({
             "name": teacher.get("name", ""),
             "active": _bool_to_text(teacher.get("active", True)),
+            "dedication_pct": _format_hours(teacher.get("dedication_pct")),
+            "dni": teacher.get("dni", ""),
             "center_hours": _format_hours(teacher.get("center_hours")),
             "coordination_name": teacher.get("coordination_name", ""),
             "coordination_hours": _format_hours(teacher.get("coordination_hours")),
@@ -382,6 +388,8 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
             "center_hours": _text_to_optional_float(row.get("center_hours")),
             "coordination_name": str(row.get("coordination_name") or "").strip(),
             "coordination_hours": _text_to_optional_float(row.get("coordination_hours")),
+            "dedication_pct": parse_dedication_pct(row.get("dedication_pct")),
+            "dni": str(row.get("dni") or "").strip().upper(),
         })
         teachers_created += 1
         max_days = _text_to_optional_int(row.get("max_days"))
