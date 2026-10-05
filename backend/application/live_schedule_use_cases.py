@@ -119,6 +119,13 @@ class LiveScheduleUseCases:
             enriched.append({**activity, "tutor_name": tutor} if tutor else activity)
         return enriched
 
+    def export_teachers(self) -> List[Dict[str, Any]]:
+        """Professors de les dades acadèmiques (nom i nom de la coordinació),
+        per pintar el bloc de coordinació a l'exportació en PDF."""
+        if self._academic_data_repo is None:
+            return []
+        return list(self._academic_data_repo.list_teachers())
+
     def _group_tutors_by_individual_name(self) -> Dict[str, str]:
         """Mapa {nom de grup individual normalitzat: tutor/a} a partir de les
         dades acadèmiques. Els grups combinats ('GI, GP') compten per a cada

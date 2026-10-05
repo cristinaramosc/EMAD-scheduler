@@ -1,98 +1,134 @@
-"""Exporta l'horari actiu a un únic PDF amb una pàgina per a cada grup,
-professor i aula, amb un aspecte visual proper al calendari del frontend:
-graella per mitges hores i blocs blaus per a les activitats (text blanc a
-dins). La resta d'informació del document (títol, capçaleres, hores) es
-mostra en negre.
+"""Exporta l'horari actiu a un únic PDF vertical (A4) amb una pàgina per a
+cada grup, professor i aula, amb l'aspecte de l'horari de professorat d'EMAD:
+graella setmanal (dilluns-divendres) de 8:00 a 21:30 i blocs de colors segons
+el tipus d'activitat.
+
+Colors:
+  - blau Pantone Reflex Blue ... assignatures
+  - Reflex Blue al 70 % ........ Tutoria (només a la pàgina del professor; al
+                                 grup no ocupa franja, surt a la capçalera
+                                 sota el tutor/a)
+  - Reflex Blue al 35 % ........ hores de centre (sense text)
+  - negre ....................... reunió de claustre
+  - gris ........................ coordinació (bloc fix setmanal)
+  - taronja ..................... altres hores de coordinació
 
 Reutilitza la lògica d'agrupació (grups combinats per coma, Tutoria) del
-mateix mòdul que genera l'Excel, per no duplicar-la.
+mòdul que genera l'Excel, per no duplicar-la.
 """
 
 from __future__ import annotations
 
 from io import BytesIO
-from typing import Any, Dict, List, Sequence, Tuple
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
-from reportlab.platypus import (
-    Image,
-    PageBreak,
-    Paragraph,
-    SimpleDocTemplate,
-    Spacer,
-    Table,
-    TableStyle,
-)
+from reportlab.lib.utils import ImageReader, simpleSplit
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfgen import canvas
 
 if __package__ and __package__.startswith("backend"):
+    from backend.scheduler_engine.quarter_utils import parent_and_quarter, strip_quarter_suffix
     from backend.services.schedule_exporter import (
         _LOGO_PATH,
-        _day_sort_key,
         _hour_sort_key,
         _is_tutoria,
         _split_group_names,
         _tutoria_note,
     )
 else:  # pragma: no cover
+    from scheduler_engine.quarter_utils import parent_and_quarter, strip_quarter_suffix
     from services.schedule_exporter import (
         _LOGO_PATH,
-        _day_sort_key,
         _hour_sort_key,
         _is_tutoria,
         _split_group_names,
         _tutoria_note,
     )
 
-_HEADER_LABELS = {"group": "Grup", "teacher": "Professor", "room": "Aula"}
+_FONT_DIR = Path(__file__).resolve().parent.parent / "assets" / "fonts"
+_FONT = "Montserrat"
+_FONT_BOLD = "Montserrat-Bold"
+
+
+def _register_fonts() -> None:
+    """Registra Montserrat (Regular i Bold). Si els fitxers no hi són,
+    es torna a Helvetica per no fer fallar l'exportació."""
+    global _FONT, _FONT_BOLD
+    try:
+        if _FONT == "Montserrat" and "Montserrat" not in pdfmetrics.getRegisteredFontNames():
+            pdfmetrics.registerFont(TTFont("Montserrat", str(_FONT_DIR / "Montserrat-Regular.ttf")))
+            pdfmetrics.registerFont(TTFont("Montserrat-Bold", str(_FONT_DIR / "Montserrat-Bold.ttf")))
+    except Exception:  # pragma: no cover - fitxers de tipografia absents
+        _FONT, _FONT_BOLD = "Helvetica", "Helvetica-Bold"
+
+
+_register_fonts()
+
 _WEEKDAYS = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+_COURSE_LABEL = "Curs 26/27"
 
-_PAGE_SIZE = A4
-_MARGIN = 14 * mm
-_LOGO_WIDTH = 28 * mm
-_ROW_HEIGHT = 14 * mm
-_HEADER_ROW_HEIGHT = 9 * mm
-_HOUR_COL_WIDTH = 18 * mm
+# Franja horària fixa de la graella (igual que el calendari de l'app).
+_GRID_START_MIN = 8 * 60
+_GRID_END_MIN = 21 * 60 + 30
 
-_NAVY = colors.HexColor("#2D3561")
-_TITLE_LILAC = colors.HexColor("#9AA0C8")
-_TEXT = colors.HexColor("#1A1A2E")
-_GRID_LINE = colors.HexColor("#D9DCE8")
-_GRID_BACKGROUND = colors.HexColor("#FCFCFE")
+# Bloc fix setmanal de Coordinació (vegeu live_schedule_use_cases).
+_FIXED_COORDINATION_DAY = "dimecres"
+_FIXED_COORDINATION_START = "15:00"
 
-_TITLE_STYLE = ParagraphStyle(
-    "Title", fontName="Helvetica-Bold", fontSize=28, textColor=_TITLE_LILAC, alignment=TA_LEFT, leading=30
-)
-_YEAR_STYLE = ParagraphStyle(
-    "Year", fontName="Helvetica-Bold", fontSize=13, textColor=_TITLE_LILAC, alignment=TA_LEFT, leading=15
-)
-_HEADER_CELL_STYLE = ParagraphStyle(
-    "HeaderCell", fontName="Helvetica-Bold", fontSize=9, textColor=_TEXT, alignment=TA_CENTER, leading=11
-)
-_HOUR_CELL_STYLE = ParagraphStyle(
-    "HourCell", fontName="Helvetica", fontSize=8.5, textColor=_TEXT, alignment=TA_RIGHT, leading=10
-)
-_EMPTY_MESSAGE_STYLE = ParagraphStyle(
-    "Empty", fontName="Helvetica-Oblique", fontSize=10, textColor=_TEXT, alignment=TA_LEFT
-)
-_ACTIVITY_SUBJECT_STYLE = ParagraphStyle(
-    "ActivitySubject", fontName="Helvetica-Bold", fontSize=8.5, textColor=colors.white, alignment=TA_LEFT, leading=10
-)
-_ACTIVITY_TEACHER_STYLE = ParagraphStyle(
-    "ActivityTeacher", fontName="Helvetica", fontSize=7.5, textColor=colors.white, alignment=TA_RIGHT, leading=9
-)
-_META_STYLE = ParagraphStyle(
-    "Meta", fontName="Helvetica", fontSize=9, textColor=_TEXT, alignment=TA_LEFT, leading=12
-)
+_PAGE_W, _PAGE_H = A4
+_MARGIN_X = 26 * mm  # vora esquerra/dreta de la graella (logo i capçalera hi queden alineats)
+_MARGIN_Y = 20 * mm
+_HOUR_LABEL_W = 9 * mm
+_DAY_HEADER_H = 7 * mm
+_MAX_ROW_H = 8 * mm  # alçada d'una mitja hora
+
+_INK = colors.HexColor("#1A1A1A")
+_HEADER_BG = colors.HexColor("#4D4F4C")
+_GRID_FULL = colors.HexColor("#B9BBB6")
+_GRID_HALF = colors.HexColor("#DEDFDB")
+_FRAME = colors.HexColor("#4D4F4C")
+
+# Pantone Reflex Blue C (valor RGB aproximat; els valors en pantalla varien
+# segons la font). Per canviar-lo, només cal tocar aquesta constant.
+_REFLEX_BLUE = colors.HexColor("#001489")
 
 
-def _clean_text(value: Any) -> str:
-    from xml.sax.saxutils import escape
+def _tint(color, amount: float):
+    """Barreja `color` amb blanc: amount=1 és el color pur, 0 és blanc."""
+    return colors.Color(
+        1 - (1 - color.red) * amount,
+        1 - (1 - color.green) * amount,
+        1 - (1 - color.blue) * amount,
+    )
 
-    return escape(str(value or "").strip())
+
+_KIND_STYLE = {
+    # tipus: (color de fons, color del text)
+    "subject": (_REFLEX_BLUE, colors.white),
+    "tutoria": (_tint(_REFLEX_BLUE, 0.70), colors.white),
+    "centre": (_tint(_REFLEX_BLUE, 0.35), colors.white),
+    "claustre": (colors.HexColor("#111111"), colors.white),
+    "coordination_fixed": (colors.HexColor("#4D4F4C"), colors.white),
+    "coordination": (colors.HexColor("#E0903F"), colors.white),
+}
+_BLOCK_OUTLINE = colors.HexColor("#000A5C")
+_INSET = 1.0            # pt, perfil blanc dins de cada bloc (dos blocs que es toquen: 2 pt)
+_HALO = 1.0             # pt, perfil blanc fora del bloc (tapa les línies de la graella)
+_THIN_SEPARATOR = 0.5   # pt, entre 1Q i 2Q
+
+
+# ---------------------------------------------------------------------------
+# Utilitats
+# ---------------------------------------------------------------------------
+
+
+def _norm(value: Any) -> str:
+    return str(value or "").strip().casefold()
 
 
 def _is_tutor_activity(activity: Dict[str, Any]) -> bool:
@@ -118,167 +154,449 @@ def _page_metadata(sheet_kind: str, display_name: str, activities: Sequence[Dict
     return ", ".join(rooms) or "—", group or "—", tutor or "—", "; ".join(notes)
 
 
-def _minutes(hour_label: str) -> int | None:
+def _minutes(hour_label: Any) -> Optional[int]:
     key = _hour_sort_key(hour_label)
     return key[1] if key[0] == 0 else None
 
 
-def _minutes_to_label(total_minutes: int) -> str:
+def _hhmm(total_minutes: int) -> str:
     hours, minutes = divmod(total_minutes, 60)
     return f"{hours}:{minutes:02d}"
 
 
-def _insert_logo_flowable():
-    if not _LOGO_PATH.exists():
-        return Spacer(_LOGO_WIDTH, 1)
+def _duration_blocks(activity: Dict[str, Any]) -> int:
     try:
-        from PIL import Image as PILImage
-
-        with PILImage.open(_LOGO_PATH) as im:
-            original_width, original_height = im.size
-        logo_height = _LOGO_WIDTH * original_height / original_width
-        return Image(str(_LOGO_PATH), width=_LOGO_WIDTH, height=logo_height)
-    except Exception:
-        return Spacer(_LOGO_WIDTH, 1)
+        return max(int(activity.get("duration") or 1), 1)
+    except (TypeError, ValueError):
+        return 1
 
 
-def _build_page_header(sheet_kind: str, display_name: str, activities: Sequence[Dict[str, Any]], notes: List[str], available_width: float):
-    room, group, tutor, notes_text = _page_metadata(sheet_kind, display_name, activities, notes)
-    title_table = Table(
-        [[Paragraph(_clean_text(display_name), _TITLE_STYLE)], [Paragraph("Curs acadèmic 26 / 27", _YEAR_STYLE)]],
-        colWidths=[available_width],
-    )
-    metadata = Table(
-        [[Paragraph(f"<b>Aula:</b> {_clean_text(room)}", _META_STYLE), Paragraph(f"<b>Grup:</b> {_clean_text(group)}", _META_STYLE), Paragraph(f"<b>Tutor/a del grup:</b> {_clean_text(tutor)}", _META_STYLE)]],
-        colWidths=[available_width / 3] * 3,
-    )
-    rows = [[title_table], [metadata]]
-    if notes_text:
-        rows.append([Paragraph(_clean_text(notes_text), _META_STYLE)])
-    header_table = Table(rows, colWidths=[available_width])
-    style_commands = [
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-    ]
-    header_table.setStyle(TableStyle(style_commands))
-    return header_table
+def _format_hours(value: float) -> str:
+    text = f"{value:.1f}".rstrip("0").rstrip(".")
+    return text.replace(".", ",")
 
 
-def _build_grid_table(activities: List[Dict[str, Any]], sheet_kind: str, available_width: float):
-    starts = [_minutes(a.get("start")) for a in activities if _minutes(a.get("start")) is not None]
-    if not starts:
+def activity_quarter(activity: Dict[str, Any]) -> Optional[str]:
+    """'1Q', '2Q' o None (anual), segons el sufix del grup o de l'assignatura."""
+    marker = parent_and_quarter(activity.get("group"), activity.get("subject"))[1]
+    return marker.upper() if marker else None
+
+
+def classify_activity(activity: Dict[str, Any]) -> Optional[str]:
+    """Retorna el tipus visual d'una activitat, o None si no s'ha de dibuixar."""
+    subject = _norm(activity.get("subject"))
+    if subject in {"descans"}:
         return None
+    if subject in {"reunió", "reunio"} or "claustre" in subject:
+        return "claustre"
+    if subject in {"hores de centre", "hora de centre"}:
+        return "centre"
+    if subject in {"coordinació", "coordinacio"}:
+        is_fixed = _norm(activity.get("day")) == _FIXED_COORDINATION_DAY and str(activity.get("start") or "").strip().lstrip("0") == _FIXED_COORDINATION_START
+        return "coordination_fixed" if is_fixed else "coordination"
+    if _is_tutoria(activity):
+        return "tutoria"
+    return "subject"
 
-    ends: List[int] = []
+
+# ---------------------------------------------------------------------------
+# Dibuix
+# ---------------------------------------------------------------------------
+
+
+# Marges interns (en px) del PNG del logo respecte de la tinta real.
+_LOGO_PX = (1134, 454)
+_LOGO_INK = (21, 25, 1107, 418)  # esquerra, dalt, dreta, baix
+
+
+def _draw_logo(c: canvas.Canvas, x: float, y_top: float, ink_height: float) -> float:
+    """Dibuixa el logotip amb la tinta començant a (x, y_top) i amb una
+    alçada de tinta `ink_height`; creix cap avall i cap a la dreta. Retorna
+    la y de la vora inferior de la tinta."""
+    if not _LOGO_PATH.exists():
+        return y_top - ink_height
+    try:
+        image = ImageReader(str(_LOGO_PATH))
+        px_w, px_h = _LOGO_PX
+        ink_l, ink_t, _ink_r, ink_b = _LOGO_INK
+        scale = ink_height / (ink_b - ink_t)
+        width, height = px_w * scale, px_h * scale
+        c.drawImage(image, x - ink_l * scale, y_top + ink_t * scale - height, width=width, height=height, mask="auto")
+    except Exception:
+        pass
+    return y_top - ink_height
+
+
+def _draw_dot(c: canvas.Canvas, x: float, y: float, color) -> None:
+    c.setFillColor(color)
+    c.circle(x, y, 1.6 * mm, stroke=0, fill=1)
+
+
+_HEADER_LINE_GAP = 15 * mm  # entre la línia del curs/nom i la segona línia
+_HEADER_ROW_STEP = 6.5 * mm
+_HEADER_TO_GRID_GAP = 13 * mm
+_TITLE_SIZE = 14
+
+
+def _draw_page_header(
+    c: canvas.Canvas,
+    sheet_kind: str,
+    display_name: str,
+    activities: Sequence[Dict[str, Any]],
+    notes: List[str],
+    tutoria_slots: List[str],
+) -> float:
+    """Dibuixa la capçalera i retorna la y on comença la graella.
+
+    El logo té l'alçada de les dues primeres línies de la dreta: la tinta
+    comença a l'alçada de la línia "Curs 26/27 … nom" i acaba a la línia de
+    base de la segona línia."""
+    top = _PAGE_H - _MARGIN_Y
+    left = _MARGIN_X
+    right = _PAGE_W - _MARGIN_X
+
+    # Dreta: línia "Curs 26/27 ........ nom" amb subratllat.
+    block_left = right - 74 * mm
+    cap_height = _TITLE_SIZE * 0.70  # alçada de les majúscules de Montserrat
+    line_y = top - cap_height
+    second_y = line_y - _HEADER_LINE_GAP
+
+    logo_bottom = _draw_logo(c, left, top, top - second_y)
+
+    c.setFillColor(_INK)
+    c.setFont(_FONT, 12)
+    c.drawString(block_left, line_y, _COURSE_LABEL)
+    c.setFont(_FONT_BOLD, _TITLE_SIZE)
+    title = f"Aula {display_name}" if sheet_kind == "room" else display_name
+    c.drawRightString(right, line_y, title)
+    c.setStrokeColor(_INK)
+    c.setLineWidth(0.8)
+    c.line(block_left, line_y - 2 * mm, right, line_y - 2 * mm)
+
+    # La informació puja un renglò: l'última línia queda a la base del logo.
+    y = second_y + _HEADER_ROW_STEP
+    if sheet_kind == "group":
+        _room, _group, tutor, _notes = _page_metadata("group", display_name, activities, notes)
+        c.setFont(_FONT, 11)
+        c.setFillColor(_INK)
+        c.drawString(block_left, y, "Tutor/a: ")
+        c.setFont(_FONT_BOLD, 11)
+        c.drawString(block_left + c.stringWidth("Tutor/a: ", _FONT, 11), y, tutor)
+        y -= _HEADER_ROW_STEP
+        c.setFont(_FONT, 11)
+        c.drawString(block_left, y, "Tutoria: ")
+        c.setFont(_FONT_BOLD, 11)
+        c.drawString(block_left + c.stringWidth("Tutoria: ", _FONT, 11), y, "; ".join(tutoria_slots) if tutoria_slots else "—")
+    elif sheet_kind == "teacher":
+        totals = {"lective": 0.0, "coordination": 0.0, "centre": 0.0}
+        for activity in activities:
+            kind = classify_activity(activity)
+            hours = _duration_blocks(activity) / 2
+            if kind in {"subject", "tutoria"}:
+                totals["lective"] += hours
+            elif kind == "coordination":
+                totals["coordination"] += hours
+            elif kind in {"centre", "claustre", "coordination_fixed"}:
+                totals["centre"] += hours
+        lectives = _format_hours(totals["lective"])
+        if totals["coordination"]:
+            lectives += f" + {_format_hours(totals['coordination'])}"
+        legend = [
+            ([_KIND_STYLE["coordination"][0], _KIND_STYLE["subject"][0]] if totals["coordination"] else [_KIND_STYLE["subject"][0]], f"Hores Lectives: {lectives}"),
+            ([_KIND_STYLE["centre"][0]], f"Hores de Centre: {_format_hours(totals['centre'])}"),
+        ]
+        # El text s'alinea a l'esquerra, tot a la mateixa x; els punts de
+        # color s'alineen a la dreta, enganxats al text.
+        text_x = block_left + 4 * mm * max(len(dots) for dots, _ in legend) + 1 * mm
+        for dots, text in legend:
+            for index, dot in enumerate(dots):
+                _draw_dot(c, text_x - 3.4 * mm - 4 * mm * (len(dots) - 1 - index), y + 1 * mm, dot)
+            c.setFillColor(_INK)
+            c.setFont(_FONT, 11)
+            c.drawString(text_x, y, text)
+            y -= _HEADER_ROW_STEP
+
+    header_bottom = min(logo_bottom, y + _HEADER_ROW_STEP - 3 * mm)  # y ja és sota l'última línia
+    return header_bottom - _HEADER_TO_GRID_GAP
+
+
+def _layout_columns(items: List[Dict[str, Any]]) -> None:
+    """Assigna `_col` i `_ncols` perquè les activitats solapades es dibuixin
+    una al costat de l'altra dins del mateix dia."""
+    items.sort(key=lambda it: (it["_start"], it["_end"], it.get("_qorder", 2)))
+    cluster: List[Dict[str, Any]] = []
+    cluster_end = -1
+    columns_end: List[int] = []
+
+    def flush() -> None:
+        for it in cluster:
+            it["_ncols"] = max(len(columns_end), 1)
+
+    for it in items:
+        if cluster and it["_start"] >= cluster_end:
+            flush()
+            cluster = []
+            columns_end = []
+            cluster_end = -1
+        placed = False
+        for index, end in enumerate(columns_end):
+            if end <= it["_start"]:
+                it["_col"] = index
+                columns_end[index] = it["_end"]
+                placed = True
+                break
+        if not placed:
+            it["_col"] = len(columns_end)
+            columns_end.append(it["_end"])
+        cluster.append(it)
+        cluster_end = max(cluster_end, it["_end"])
+    flush()
+
+
+def _block_texts(sheet_kind: str, kind: str, activity: Dict[str, Any], coordination_names: Dict[str, str]) -> Tuple[str, str]:
+    subject = str(activity.get("subject") or "").strip()
+    if kind == "subject":
+        subject = strip_quarter_suffix(subject) or subject
+    group = str(activity.get("group") or "").strip()
+    teacher = str(activity.get("teacher") or "").strip()
+    room = str(activity.get("room") or "").strip()
+    if kind == "centre":
+        return "", ""
+    if kind == "claustre":
+        return "Reunions Claustre", ""
+    if kind == "coordination_fixed":
+        return "Coordinació", ""
+    if kind == "coordination":
+        name = coordination_names.get(_norm(teacher), "")
+        return name or "Coordinació", ""
+    if kind == "tutoria":
+        return "TUTORIA", group
+    if sheet_kind == "group":
+        return subject, teacher
+    if sheet_kind == "room":
+        return subject, ", ".join(part for part in [group, teacher] if part)
+    return subject, group or room
+
+
+def _draw_block_text(c: canvas.Canvas, x: float, y: float, w: float, h: float, title: str, subtitle: str, text_color) -> None:
+    if not title and not subtitle:
+        return
+    pad = 1.5 * mm
+    avail_w = max(w - 2 * pad, 4 * mm)
+    title_size = 9 if h >= 9 * mm and w >= 22 * mm else 7
+    sub_size = 7 if title_size == 9 else 6
+    # Si una sola paraula no hi cap (p.ex. blocs de mitja amplada 1Q/2Q),
+    # es redueix la lletra fins que hi càpiga, amb un mínim de 5 pt.
+    longest = max((pdfmetrics.stringWidth(word, _FONT_BOLD, title_size) for word in title.split()), default=0)
+    if longest > avail_w:
+        title_size = max(5, title_size * avail_w / longest)
+        sub_size = min(sub_size, title_size)
+    title_lines = simpleSplit(title, _FONT_BOLD, title_size, avail_w) if title else []
+    sub_lines = simpleSplit(subtitle, _FONT, sub_size, avail_w) if subtitle else []
+    lead_t, lead_s = title_size * 1.15, sub_size * 1.2
+    # Si no hi cap tot, es retalla primer el subtítol i després el títol.
+    max_h = h - 1 * mm
+    while sub_lines and len(title_lines) * lead_t + len(sub_lines) * lead_s > max_h:
+        sub_lines = sub_lines[:-1]
+    while len(title_lines) > 1 and len(title_lines) * lead_t > max_h:
+        title_lines = title_lines[:-1]
+    total = len(title_lines) * lead_t + len(sub_lines) * lead_s
+    cursor = y + h / 2 + total / 2
+    c.setFillColor(text_color)
+    c.setFont(_FONT_BOLD, title_size)
+    for line in title_lines:
+        cursor -= lead_t
+        c.drawCentredString(x + w / 2, cursor + lead_t * 0.22, line)
+    c.setFont(_FONT, sub_size)
+    for line in sub_lines:
+        cursor -= lead_s
+        c.drawCentredString(x + w / 2, cursor + lead_s * 0.22, line)
+
+
+def _draw_quarter_tag(c: canvas.Canvas, x: float, y_top: float, quarter: str, block_color) -> None:
+    """Petita etiqueta '1Q'/'2Q' blanca a l'angle superior esquerre del bloc."""
+    w, h = 6.2 * mm, 3.3 * mm
+    tx, ty = x + 1.2 * mm, y_top - 1.2 * mm - h
+    c.setFillColor(colors.white)
+    c.roundRect(tx, ty, w, h, 0.9 * mm, stroke=0, fill=1)
+    c.setFillColor(block_color)
+    c.setFont(_FONT_BOLD, 6)
+    c.drawCentredString(tx + w / 2, ty + 0.95 * mm, quarter)
+
+
+def _draw_grid(
+    c: canvas.Canvas,
+    sheet_kind: str,
+    activities: Sequence[Dict[str, Any]],
+    grid_top: float,
+    coordination_names: Dict[str, str],
+) -> None:
+    items: List[Dict[str, Any]] = []
     for activity in activities:
-        start_minutes = _minutes(activity.get("start"))
-        if start_minutes is None:
+        kind = classify_activity(activity)
+        start = _minutes(activity.get("start"))
+        if kind is None or start is None or activity.get("day") not in _WEEKDAYS:
             continue
-        try:
-            duration_blocks = max(int(activity.get("duration") or 1), 1)
-        except (TypeError, ValueError):
-            duration_blocks = 1
-        ends.append(start_minutes + duration_blocks * 30)
-
-    first_hour = (min(starts) // 60) * 60
-    last_hour = ((max(ends) + 59) // 60) * 60
-    hour_labels = [_minutes_to_label(m) for m in range(first_hour, max(last_hour, first_hour + 60), 60)]
-    hour_row_index = {label: index for index, label in enumerate(hour_labels)}
-    by_slot: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
-    for activity in activities:
-        start_minutes = _minutes(activity.get("start"))
-        if start_minutes is None:
+        if sheet_kind == "group" and kind == "tutoria":
             continue
-        key = (activity.get("day"), _minutes_to_label((start_minutes // 60) * 60))
-        by_slot.setdefault(key, []).append(activity)
+        quarter = activity_quarter(activity) if kind == "subject" else None
+        items.append({
+            "a": activity, "kind": kind, "quarter": quarter,
+            "_qorder": {"1Q": 0, "2Q": 1}.get(quarter, 2),
+            "_start": start, "_end": start + _duration_blocks(activity) * 30, "_col": 0, "_ncols": 1,
+        })
 
-    header_row = [Paragraph("Hora", _HEADER_CELL_STYLE)] + [Paragraph(day, _HEADER_CELL_STYLE) for day in _WEEKDAYS]
-    data: List[List[Any]] = [header_row]
-    for label in hour_labels:
-        data.append([Paragraph(label, _HOUR_CELL_STYLE)] + ["" for _ in _WEEKDAYS])
+    start_min = min([_GRID_START_MIN] + [it["_start"] for it in items])
+    end_min = max([_GRID_END_MIN] + [it["_end"] for it in items])
+    start_min = (start_min // 60) * 60
+    n_rows = (end_min - start_min + 29) // 30
 
-    hour_col_width = _HOUR_COL_WIDTH
-    day_col_width = (available_width - hour_col_width) / len(_WEEKDAYS)
-    col_widths = [hour_col_width] + [day_col_width] * len(_WEEKDAYS)
+    left = _MARGIN_X
+    right = _PAGE_W - _MARGIN_X
+    col_w = (right - left) / len(_WEEKDAYS)
+    avail_h = grid_top - _MARGIN_Y - _DAY_HEADER_H
+    row_h = min(_MAX_ROW_H, avail_h / n_rows)
+    body_top = grid_top - _DAY_HEADER_H
+    body_bottom = body_top - n_rows * row_h
 
-    style_commands = [
-        ("BACKGROUND", (0, 1), (-1, -1), _GRID_BACKGROUND),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.7, _GRID_LINE),
-        ("LINEBELOW", (0, 1), (-1, -1), 0.35, _GRID_LINE),
-        ("LINEAFTER", (0, 0), (-1, -1), 0.35, _GRID_LINE),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 2),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-    ]
+    # Capçalera dels dies.
+    c.setFillColor(_HEADER_BG)
+    c.rect(left, body_top, right - left, _DAY_HEADER_H, stroke=0, fill=1)
+    c.setFillColor(colors.white)
+    c.setFont(_FONT_BOLD, 7.5)
+    for index, day in enumerate(_WEEKDAYS):
+        c.drawCentredString(left + col_w * (index + 0.5), body_top + 2.4 * mm, day.upper())
 
+    # Línies horitzontals i etiquetes d'hora.
+    for row in range(n_rows + 1):
+        minute = start_min + row * 30
+        y = body_top - row * row_h
+        is_full = minute % 60 == 0
+        c.setStrokeColor(_GRID_FULL if is_full else _GRID_HALF)
+        c.setLineWidth(0.6 if is_full else 0.4)
+        c.line(left, y, right, y)
+        if is_full:
+            c.setStrokeColor(_FRAME)
+            c.setLineWidth(0.8)
+            c.line(left - _HOUR_LABEL_W, y, left, y)
+            c.line(right, y, right + _HOUR_LABEL_W, y)
+            c.setFillColor(_INK)
+            c.setFont(_FONT, 7.5)
+            c.drawString(left - _HOUR_LABEL_W + 0.5 * mm, y + 0.8 * mm, str(minute // 60))
+            c.drawRightString(right + _HOUR_LABEL_W - 0.5 * mm, y + 0.8 * mm, str(minute // 60))
+
+    # Línies verticals.
+    c.setStrokeColor(_GRID_FULL)
+    c.setLineWidth(0.4)
+    for index in range(1, len(_WEEKDAYS)):
+        x = left + col_w * index
+        c.line(x, body_top, x, body_bottom)
+    c.setStrokeColor(_FRAME)
+    c.setLineWidth(1)
+    c.line(left, body_top, left, body_bottom)
+    c.line(right, body_top, right, body_bottom)
+
+    # Blocs: primer es calcula la geometria de tots, després es dibuixen en
+    # passes perquè el perfil blanc sigui igual a tot el contorn.
+    drawn: List[Dict[str, Any]] = []
     for day_index, day in enumerate(_WEEKDAYS):
-        col = day_index + 1
-        for (slot_day, start_label), slot_activities in by_slot.items():
-            if slot_day != day or start_label not in hour_row_index:
+        day_items = [it for it in items if it["a"].get("day") == day]
+        if not day_items:
+            continue
+        _layout_columns(day_items)
+        for it in day_items:
+            first = max(it["_start"], start_min)
+            last = min(it["_end"], start_min + n_rows * 30)
+            if last <= first:
                 continue
-            row_start = 1 + hour_row_index[start_label]
-            duration_rows = 1
-            for activity in slot_activities:
-                try:
-                    duration_rows = max(duration_rows, (int(activity.get("duration") or 1) + 1) // 2)
-                except (TypeError, ValueError):
-                    pass
-            row_end = min(row_start + duration_rows - 1, len(data) - 1)
+            width = col_w / it["_ncols"]
+            x = left + col_w * day_index + width * it["_col"]
+            y_top = body_top - (first - start_min) / 30 * row_h
+            height = (last - first) / 30 * row_h
+            drawn.append({"x": x, "y": y_top - height, "w": width, "h": height, "quarter": it["quarter"], "day": day, "it": it})
 
-            cell_content = _build_activity_cell(slot_activities, sheet_kind)
-            data[row_start][col] = cell_content
-            if row_end > row_start:
-                style_commands.append(("SPAN", (col, row_start), (col, row_end)))
-            style_commands.append(("BACKGROUND", (col, row_start), (col, row_end), _NAVY))
-            style_commands.append(("LINEBELOW", (col, row_end), (col, row_end), 2.5, colors.white))
+    # Passada 1: halo blanc al voltant de cada bloc (tapa les línies de la
+    # graella perquè el contorn es vegi), sense sortir de la graella.
+    c.setFillColor(colors.white)
+    for r in drawn:
+        pair_left = any(_quarter_pair(o, r) for o in drawn if o is not r)
+        pair_right = any(_quarter_pair(r, o) for o in drawn if o is not r)
+        r["pair_left"], r["pair_right"] = pair_left, pair_right
+        x0 = max(r["x"] - (0 if pair_left else _HALO), left)
+        x1 = min(r["x"] + r["w"] + (0 if pair_right else _HALO), right)
+        y0 = max(r["y"] - _HALO, body_bottom)
+        y1 = min(r["y"] + r["h"] + _HALO, body_top)
+        c.rect(x0, y0, x1 - x0, y1 - y0, stroke=0, fill=1)
 
-    table = Table(data, colWidths=col_widths, rowHeights=[_HEADER_ROW_HEIGHT] + [_ROW_HEIGHT] * len(hour_labels))
-    table.setStyle(TableStyle(style_commands))
-    return table
+    # Passada 2: el color, replegat cap a dins el mateix gruix a tot el
+    # voltant. Entre dues assignatures que es toquen sumen dos perfils
+    # (més gruixut); entre 1Q i 2Q que comparteixen franja, només un de fi.
+    for r in drawn:
+        it = r["it"]
+        inset_l = _THIN_SEPARATOR / 2 if r["pair_left"] else _INSET
+        inset_r = _THIN_SEPARATOR / 2 if r["pair_right"] else _INSET
+        bx, by = r["x"] + inset_l, r["y"] + _INSET
+        bw, bh = r["w"] - inset_l - inset_r, r["h"] - 2 * _INSET
+        fill, text_color = _KIND_STYLE[it["kind"]]
+        c.setFillColor(fill)
+        c.rect(bx, by, bw, bh, stroke=0, fill=1)
+        title, subtitle = _block_texts(sheet_kind, it["kind"], it["a"], coordination_names)
+        quarter = it["quarter"]
+        if quarter and bh < 12 * mm:
+            title = f"{title} ({quarter})"  # bloc massa baix per a l'etiqueta
+        _draw_block_text(c, bx, by, bw, bh, title, subtitle, text_color)
+        if quarter and bh >= 12 * mm:
+            _draw_quarter_tag(c, bx, by + bh, quarter, fill)
+
+    # El marc vertical es torna a dibuixar al damunt dels halos.
+    c.setStrokeColor(_FRAME)
+    c.setLineWidth(1)
+    c.line(left, body_top, left, body_bottom)
+    c.line(right, body_top, right, body_bottom)
 
 
-def _build_activity_cell(activities: List[Dict[str, Any]], sheet_kind: str):
-    columns = []
-    for activity in activities:
-        subject = _clean_text(activity.get("subject"))
-        teacher = _clean_text(activity.get("teacher"))
-        tutor_tag = "<font backColor='#FFFFFF' color='#2D3561' size='6'><b>TUTOR/A</b></font><br/>" if _is_tutor_activity(activity) else ""
-        columns.append([Paragraph(f"{tutor_tag}{subject}", _ACTIVITY_SUBJECT_STYLE), Paragraph(teacher, _ACTIVITY_TEACHER_STYLE)])
-
-    nested = Table([columns], colWidths=[None] * len(columns))
-    nested.setStyle(
-        TableStyle(
-            [
-                ("BACKGROUND", (0, 0), (-1, -1), _NAVY),
-                ("LINEAFTER", (0, 0), (-2, -1), 2, colors.white),
-                ("LEFTPADDING", (0, 0), (-1, -1), 4),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-                ("TOPPADDING", (0, 0), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ]
-        )
+def _quarter_pair(left: Dict[str, Any], right: Dict[str, Any]) -> bool:
+    """True si `left` (1Q) i `right` (2Q) són dues meitats d'una mateixa
+    franja: el mateix dia, una al costat de l'altra, quadrimestres diferents."""
+    return bool(
+        left["day"] == right["day"]
+        and left["quarter"]
+        and right["quarter"]
+        and left["quarter"] != right["quarter"]
+        and abs((left["x"] + left["w"]) - right["x"]) <= 0.5
     )
-    return nested
 
 
-def build_schedule_pdf(activities: Sequence[Dict[str, Any]]) -> BytesIO:
-    """Retorna un .pdf (com a BytesIO) amb una pàgina per a cada grup
-    pare, professor i aula que apareguin a `activities`, en un format
-    visual de calendari (graella per mitges hores, blocs blaus per a les
-    activitats). Els grups combinats (p.ex. 'GI, GP') generen una pàgina
-    per a cada grup individual. La Tutoria es tracta igual que a
-    l'exportació Excel: nota informativa al grup, bloc real al professor.
+def _tutoria_slot_text(activity: Dict[str, Any]) -> str:
+    day = str(activity.get("day") or "").strip()
+    start = _minutes(activity.get("start"))
+    if start is None:
+        return day
+    end = start + _duration_blocks(activity) * 30
+    return f"{day} {_hhmm(start)}–{_hhmm(end)}".strip()
+
+
+def build_schedule_pdf(activities: Sequence[Dict[str, Any]], teachers: Optional[Sequence[Dict[str, Any]]] = None) -> BytesIO:
+    """Retorna un .pdf (com a BytesIO) vertical amb una pàgina per a cada
+    grup pare, professor i aula que apareguin a `activities`. Els grups
+    combinats (p.ex. 'GI, GP') generen una pàgina per a cada grup
+    individual. La Tutoria no ocupa franja a la pàgina del grup (surt a la
+    capçalera, amb dia i hora) i és un bloc real a la del professor.
+
+    `teachers` (opcional) aporta el nom de la coordinació de cada professor,
+    que s'escriu al bloc taronja de coordinació.
     """
+    coordination_names = {
+        _norm(t.get("name")): str(t.get("coordination_name") or "").strip()
+        for t in (teachers or [])
+        if t.get("name")
+    }
+
     by_group: Dict[str, List[Dict[str, Any]]] = {}
     by_teacher: Dict[str, List[Dict[str, Any]]] = {}
     by_room: Dict[str, List[Dict[str, Any]]] = {}
     group_notes: Dict[str, List[str]] = {}
+    group_tutoria_slots: Dict[str, List[str]] = {}
 
     for activity in activities:
         is_tutoria = _is_tutoria(activity)
@@ -287,6 +605,7 @@ def build_schedule_pdf(activities: Sequence[Dict[str, Any]]) -> BytesIO:
         if is_tutoria:
             for name in group_field_names:
                 group_notes.setdefault(name, []).append(_tutoria_note(activity))
+                group_tutoria_slots.setdefault(name, []).append(_tutoria_slot_text(activity))
         else:
             for name in group_field_names:
                 by_group.setdefault(name, []).append(activity)
@@ -299,43 +618,30 @@ def build_schedule_pdf(activities: Sequence[Dict[str, Any]]) -> BytesIO:
         if room_text:
             by_room.setdefault(room_text, []).append(activity)
 
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=_PAGE_SIZE,
-        leftMargin=_MARGIN,
-        rightMargin=_MARGIN,
-        topMargin=_MARGIN,
-        bottomMargin=_MARGIN,
-        title="Horaris EMAD",
-    )
-    available_width = _PAGE_SIZE[0] - 2 * _MARGIN
-
-    sections: List[Tuple[str, str, List[Dict[str, Any]], List[str]]] = []
-    all_group_names = sorted(set(by_group) | set(group_notes))
-    for group_name in all_group_names:
-        sections.append(("group", group_name, by_group.get(group_name, []), group_notes.get(group_name, [])))
+    sections: List[Tuple[str, str, List[Dict[str, Any]], List[str], List[str]]] = []
+    for group_name in sorted(set(by_group) | set(group_notes)):
+        sections.append(("group", group_name, by_group.get(group_name, []), group_notes.get(group_name, []), group_tutoria_slots.get(group_name, [])))
     for teacher_name in sorted(by_teacher):
-        sections.append(("teacher", teacher_name, by_teacher[teacher_name], []))
+        sections.append(("teacher", teacher_name, by_teacher[teacher_name], [], []))
     for room_name in sorted(by_room):
-        sections.append(("room", room_name, by_room[room_name], []))
+        sections.append(("room", room_name, by_room[room_name], [], []))
 
-    story: List[Any] = []
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=A4)
+    c.setTitle("Horaris EMAD")
+
     if not sections:
-        story.append(_insert_logo_flowable())
-        story.append(Spacer(1, 8 * mm))
-        story.append(Paragraph("No hi ha cap activitat programada.", _EMPTY_MESSAGE_STYLE))
-    for index, (sheet_kind, display_name, sheet_activities, notes) in enumerate(sections):
-        story.append(_build_page_header(sheet_kind, display_name, sheet_activities, notes, available_width))
-        story.append(Spacer(1, 4 * mm))
-        grid_table = _build_grid_table(sheet_activities, sheet_kind, available_width)
-        if grid_table is not None:
-            story.append(grid_table)
-        else:
-            story.append(Paragraph("Sense activitats programades.", _EMPTY_MESSAGE_STYLE))
-        if index < len(sections) - 1:
-            story.append(PageBreak())
+        _draw_logo(c, _MARGIN_X, _PAGE_H - _MARGIN_Y, 48 * mm)
+        c.setFillColor(_INK)
+        c.setFont(_FONT, 10)
+        c.drawString(_MARGIN_X, _PAGE_H - _MARGIN_Y - 30 * mm, "No hi ha cap activitat programada.")
+        c.showPage()
 
-    doc.build(story)
+    for sheet_kind, display_name, sheet_activities, notes, tutoria_slots in sections:
+        grid_top = _draw_page_header(c, sheet_kind, display_name, sheet_activities, notes, tutoria_slots)
+        _draw_grid(c, sheet_kind, sheet_activities, grid_top, coordination_names)
+        c.showPage()
+
+    c.save()
     buffer.seek(0)
     return buffer
