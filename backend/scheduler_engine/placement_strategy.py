@@ -17,7 +17,6 @@ from .teacher_utils import teacher_label, teacher_names
 class PlacementStrategy(ABC):
     """Decides where a TeachingBlock should be placed in a generation pass."""
 
-    @abstractmethod
     def place(
         self,
         teaching_block: TeachingBlock,
