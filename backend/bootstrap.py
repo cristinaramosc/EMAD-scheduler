@@ -154,6 +154,8 @@ def build_dependencies() -> AppDependencies:
     assistant_use_cases = AssistantUseCases(
         proposal_store=proposal_store,
         academic_data_repo=academic_data_repo,
+        live_schedule_use_cases=live_schedule_use_cases,
+        scheduler_use_cases=scheduler_use_cases,
     )
 
     return AppDependencies(

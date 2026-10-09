@@ -17,7 +17,7 @@ class AssistantHistoryTurnDTO(BaseModel):
 
 
 class AssistantChatDTO(BaseModel):
-    proposal_id: str
+    proposal_id: Optional[str] = None
     message: str
     history: Optional[List[AssistantHistoryTurnDTO]] = None
 
@@ -30,3 +30,26 @@ def assistant_chat(payload: AssistantChatDTO):
         return use_cases.ask(payload.proposal_id, payload.message, history=history)
     except LookupError:
         raise HTTPException(status_code=404, detail="proposal_not_found")
+
+
+@router.get("/status")
+def assistant_status():
+    return get_assistant_use_cases().status()
+
+
+@router.post("/actions/{action_id}/apply")
+def assistant_apply_action(action_id: str):
+    """Aplica una acció que l'assistent havia proposat. Només la persona
+    usuària hi arriba (botó 'Aplica'): l'assistent no pot executar-la sola."""
+    try:
+        return get_assistant_use_cases().apply_action(action_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="action_not_found")
+
+
+@router.post("/actions/{action_id}/discard")
+def assistant_discard_action(action_id: str):
+    try:
+        return get_assistant_use_cases().discard_action(action_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="action_not_found")

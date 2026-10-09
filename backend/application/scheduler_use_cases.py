@@ -7,10 +7,12 @@ from typing import Any, Dict, List, Optional, Tuple
 try:
     from backend.scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter
     from backend.scheduler_engine.teacher_utils import teacher_label, teacher_names
+    from backend.time_units import hours_to_blocks
     from backend.scheduler_engine.subject_utils import is_non_lective_tutoria
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter
     from scheduler_engine.teacher_utils import teacher_label, teacher_names
+    from time_units import hours_to_blocks
     from scheduler_engine.subject_utils import is_non_lective_tutoria
 
 try:
@@ -301,6 +303,9 @@ class SchedulerUseCases:
         blocked_activities = self._build_blocked_activities_from_restrictions(
             teacher_restrictions,
             group_restrictions,
+        )
+        requirements = self._order_requirements_by_scarce_days(
+            requirements, blocked_activities, max_days_teacher_names
         )
         blocked_activities += fixed_scheduled_activities
 
@@ -1137,6 +1142,63 @@ class SchedulerUseCases:
             constraints[group_name.upper()] = max_days
 
         return constraints
+
+    def _order_requirements_by_scarce_days(
+        self,
+        requirements: List[TeachingRequirement],
+        blocked_activities: List[ScheduledActivity],
+        max_days_teacher_names: set,
+    ) -> List[TeachingRequirement]:
+        """Dins de cada prioritat, col·loca primer les assignatures de
+        professors amb màxim de dies que només poden anar pocs dies (segons la
+        seva disponibilitat i la del grup). Així, per exemple, la classe de
+        tarda d'un professor que només pot venir el divendres a la tarda es
+        col·loca abans que les de matí i no es queda sense dia. La resta
+        conserva l'ordre original (ordenació estable)."""
+        if not max_days_teacher_names:
+            return requirements
+
+        teacher_blocked: Dict[str, set] = {}
+        group_blocked: Dict[str, set] = {}
+        for activity in blocked_activities:
+            if not (activity.metadata or {}).get("synthetic"):
+                continue
+            slot = (activity.day, activity.start_timeslot.period)
+            for teacher in teacher_names(activity.teacher_id):
+                teacher_blocked.setdefault(teacher.casefold(), set()).add(slot)
+            for group in group_names(activity.group_id):
+                group_blocked.setdefault(group.casefold(), set()).add(slot)
+
+        periods_per_day = self._school_calendar.periods_per_day
+
+        def available_days(requirement: TeachingRequirement) -> int:
+            teachers = [name.casefold() for name in teacher_names(requirement.teacher_id)]
+            if not any(name in max_days_teacher_names for name in teachers):
+                return 99
+            groups = [name.casefold() for name in (group_names(requirement.group_id) or [requirement.group_id])]
+            blocked: set = set()
+            for name in teachers:
+                blocked |= teacher_blocked.get(name, set())
+            for name in groups:
+                blocked |= group_blocked.get(name, set())
+
+            lengths = [length for length in (requirement.allowed_session_lengths or []) if length and length > 0]
+            needed = max(1, hours_to_blocks(min(lengths or [requirement.min_block_duration])))
+            days = 0
+            for day in self._school_calendar.days:
+                free_run = 0
+                for period in range(periods_per_day):
+                    free_run = 0 if (day, period) in blocked else free_run + 1
+                    if free_run >= needed:
+                        days += 1
+                        break
+            return days
+
+        keyed = [
+            ((requirement.priority, available_days(requirement), position), requirement)
+            for position, requirement in enumerate(requirements)
+        ]
+        return [requirement for _, requirement in sorted(keyed, key=lambda item: item[0])]
 
     def _build_teacher_max_days_constraints(
         self,

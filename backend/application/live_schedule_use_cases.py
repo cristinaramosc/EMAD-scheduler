@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+
 from typing import Any, Dict, List, Optional
 
 try:
@@ -431,6 +433,64 @@ class LiveScheduleUseCases:
             return
         self._academic_data_repo.upsert_group_restriction(restriction)
 
+    def _clear_stale_group_breaks(self, only_group: Optional[str] = None) -> int:
+        """Elimina els descansos desats (`break_days`/`break_slots`) que ja no
+        són un forat real: si l'horari s'ha regenerat o mogut i la franja del
+        descans queda ocupada per una classe del grup (o d'un grup compartit,
+        p.ex. "GI, GP"), el descans és obsolet. Es desa només el marcador;
+        després, activar-lo de nou obre el forat desplaçant les classes, de
+        manera que un descans mai no comparteix franja amb una assignatura.
+        Retorna quants descansos obsolets s'han eliminat."""
+        if self._academic_data_repo is None:
+            return 0
+
+        _, hour_index = self._half_hour_grid()
+        activities = [
+            item for item in self._engine.state.all()
+            if (item.subject or "").strip().lower() != "descans"
+        ]
+        removed = 0
+
+        for restriction in self._academic_data_repo.list_group_restrictions():
+            group = restriction.get("group") or ""
+            if only_group is not None and self._norm_name(group) != self._norm_name(only_group):
+                continue
+            break_slots = list(restriction.get("break_slots") or [])
+            if not break_slots:
+                continue
+
+            restriction_groups = {name.casefold() for name in (group_names(group) or [group])}
+            kept_slots: List[str] = []
+            stale_days: List[str] = []
+            for slot in break_slots:
+                slot_day, _, slot_start = str(slot).partition(" ")
+                break_idx = hour_index.get(slot_start, None)
+                overlapped = break_idx is not None and any(
+                    self._same_day(item.day, slot_day)
+                    and restriction_groups & {name.casefold() for name in (group_names(item.group) or [item.group or ""])}
+                    and 0 <= hour_index.get(item.start, -1) <= break_idx
+                    < hour_index.get(item.start, -1) + max(int(getattr(item, "duration", 1) or 1), 1)
+                    for item in activities
+                )
+                if overlapped:
+                    stale_days.append(slot_day)
+                else:
+                    kept_slots.append(slot)
+
+            if not stale_days:
+                continue
+
+            updated = dict(restriction)
+            updated["break_slots"] = kept_slots
+            updated["break_days"] = [
+                day for day in (restriction.get("break_days") or [])
+                if not any(self._same_day(day, stale_day) for stale_day in stale_days)
+            ]
+            self._save_group_restriction(updated)
+            removed += len(stale_days)
+
+        return removed
+
     def auto_place_breaks(self) -> Dict[str, Any]:
         """Afegeix automàticament un descans de 30 min a cada dia amb classes
         de cada grup, si encara no en té cap. Pensat per cridar-se just
@@ -439,6 +499,7 @@ class LiveScheduleUseCases:
         finestra permesa, simplement no s'hi afegeix (sense avisar d'error:
         es limita a informar-ho al resultat)."""
         self._ensure_active_schedule_from_proposal()
+        self._clear_stale_group_breaks()
 
         groups_and_days: set = set()
         for activity in self._engine.state.all():
@@ -473,6 +534,7 @@ class LiveScheduleUseCases:
         El dia actiu i la franja s'emmagatzemen a la restricció del grup
         (`break_days` i `break_slots`)."""
         self._ensure_active_schedule_from_proposal()
+        self._clear_stale_group_breaks(only_group=group)
         hour_names, hour_index = self._half_hour_grid()
         target_group = self._norm_name(group)
 
@@ -723,7 +785,7 @@ class LiveScheduleUseCases:
         if overlaps_break:
             for item in to_shift:
                 if item.id in original_positions:
-                    item.start = original_positions[item.id]
+                    item.day, item.start = original_positions[item.id]
             return {
                 "ok": False,
                 "error": "no_free_slot",
@@ -921,6 +983,7 @@ class LiveScheduleUseCases:
     _DAY_ORDER = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
     _FIXED_MEETING_DAY = "Dimecres"
     _FIXED_MEETING_BLOCKS = [("Reunió", "14:00"), ("Coordinació", "15:00")]  # 1h cadascun
+    _FIXED_BLOCK_START = "14:00"
     _MAX_DAILY_BLOCKS = 24  # 12h * 2 blocs de 30 min
 
     @staticmethod
@@ -1024,6 +1087,146 @@ class LiveScheduleUseCases:
 
         return blocks_needed, added, exceeded
 
+    @staticmethod
+    def _unavailable_labels(restriction: Dict[str, Any]) -> set:
+        raw = restriction.get("unavailable_slots") if restriction else None
+        if isinstance(raw, str):
+            try:
+                raw = ast.literal_eval(raw)
+            except (ValueError, SyntaxError):
+                raw = [raw]
+        return {" ".join(str(item).split()).casefold() for item in (raw or [])}
+
+    def _shared_coordination_groups(self) -> Dict[str, Dict[str, Any]]:
+        """{clau: {name, members}} per a les coordinacions que comparteixen
+        dos o més professors actius (mateix nom de coordinació i hores > 0)."""
+        found: Dict[str, Dict[str, Any]] = {}
+        for teacher in self._academic_data_repo.list_teachers():
+            name = teacher.get("name")
+            coordination = str(teacher.get("coordination_name") or "").strip()
+            if not name or not coordination or not teacher.get("active", True):
+                continue
+            if self._to_hours(teacher.get("coordination_hours")) <= 0:
+                continue
+            entry = found.setdefault(coordination.casefold(), {"name": coordination, "members": []})
+            entry["members"].append(teacher)
+        return {key: entry for key, entry in found.items() if len(entry["members"]) >= 2}
+
+    def _find_common_slot(
+        self,
+        members: List[str],
+        blocks: int,
+        hour_names: List[str],
+        hour_index: Dict[str, int],
+        restrictions: Dict[str, Dict[str, Any]],
+        keep_free_wednesday: bool,
+    ) -> Optional[tuple]:
+        """Millor (dia, hora d'inici) on TOTS els membres són lliures, sense
+        franges no disponibles, sense xocar amb el bloc fix de dimecres i
+        sense superar el màxim d'hores diàries. Es prefereix enganxar-lo a
+        les classes que ja tenen (cost = franges de distància) i, si un
+        membre no hi té res aquell dia, es penalitza una mica."""
+        activities = list(self._engine.state.all())
+        unavailable = {name: self._unavailable_labels(restrictions.get(name, {})) for name in members}
+        meeting_start = hour_index.get(self._FIXED_BLOCK_START, 0)
+        meeting_end = meeting_start + 2 * len(self._FIXED_MEETING_BLOCKS)
+
+        best = None
+        for day_position, day in enumerate(self._DAY_ORDER):
+            per_member: Dict[str, List[tuple]] = {}
+            for member in members:
+                per_member[member] = [
+                    (hour_index.get(a.start, -1), hour_index.get(a.start, -1) + a.duration)
+                    for a in activities
+                    if member in teacher_names(a.teacher) and a.day == day and a.start in hour_index
+                ]
+            for start in range(0, len(hour_names) - blocks + 1):
+                end = start + blocks
+                if keep_free_wednesday and day == self._FIXED_MEETING_DAY and start < meeting_end and end > meeting_start:
+                    continue
+                labels = {f"{day} {hour_names[index]}".casefold() for index in range(start, end)}
+                cost = 0
+                valid = True
+                for member in members:
+                    intervals = per_member[member]
+                    if labels & unavailable[member]:
+                        valid = False
+                        break
+                    if any(a_start < end and start < a_end for a_start, a_end in intervals):
+                        valid = False
+                        break
+                    if sum(a_end - a_start for a_start, a_end in intervals) + blocks > self._MAX_DAILY_BLOCKS:
+                        valid = False
+                        break
+                    if intervals:
+                        cost += min(abs(start - a_end) if a_end <= start else abs(a_start - end) for a_start, a_end in intervals)
+                    else:
+                        cost += 30
+                if not valid:
+                    continue
+                key = (cost, day_position, start)
+                if best is None or key < best[0]:
+                    best = (key, day, hour_names[start])
+        return (best[1], best[2]) if best else None
+
+    def _place_shared_coordinations(
+        self,
+        hour_names: List[str],
+        hour_index: Dict[str, int],
+        restrictions: Dict[str, Dict[str, Any]],
+    ) -> tuple:
+        """Una coordinació amb el mateix nom a diversos professors (p.ex. ED)
+        és UNA sola reunió: es col·loca a la mateixa franja per a tots, en
+        lloc d'un bloc separat per a cadascú. La durada és la menor de les
+        hores que li queden a cada membre. Retorna (afegides, hores ja
+        cobertes per professor, no col·locades)."""
+        added: List[Dict[str, Any]] = []
+        covered: Dict[str, float] = {}
+        skipped: List[Dict[str, Any]] = []
+
+        for entry in self._shared_coordination_groups().values():
+            subject = f"Coordinació {entry['name']}"
+            member_names = [teacher["name"] for teacher in entry["members"]]
+
+            existing = [a for a in self._engine.state.all() if (a.subject or "").strip().casefold() == subject.casefold()]
+            if existing:
+                hours = max(a.duration for a in existing) / 2
+                for member in member_names:
+                    covered[member.casefold()] = covered.get(member.casefold(), 0.0) + hours
+                continue
+
+            remaining = []
+            for teacher in entry["members"]:
+                restriction = restrictions.get(teacher["name"], {})
+                fixed = 1.0 if restriction.get("weekly_coordination_active", True) else 0.0
+                remaining.append(max(0.0, self._to_hours(teacher.get("coordination_hours")) - fixed))
+            blocks = round(min(remaining) * 2)
+            if blocks <= 0:
+                continue
+
+            keep_wednesday = any(
+                restrictions.get(name, {}).get("weekly_meeting_active", True)
+                or restrictions.get(name, {}).get("weekly_coordination_active", True)
+                for name in member_names
+            )
+            slot = self._find_common_slot(member_names, blocks, hour_names, hour_index, restrictions, keep_wednesday)
+            if slot is None:
+                skipped.append({"subject": subject, "teachers": member_names, "reason": "no_common_slot"})
+                continue
+
+            day, start = slot
+            result = self.add_manual_activity(
+                subject=subject, day=day, start=start, duration=blocks, teacher=", ".join(member_names),
+            )
+            if not result.get("ok"):
+                skipped.append({"subject": subject, "teachers": member_names, "reason": "conflict"})
+                continue
+            added.append({"subject": subject, "teachers": member_names, "day": day, "start": start, "duration": blocks})
+            for member in member_names:
+                covered[member.casefold()] = covered.get(member.casefold(), 0.0) + blocks / 2
+
+        return added, covered, skipped
+
     def assign_center_and_coordination_hours(self) -> Dict[str, Any]:
         """Per a cada professor: si té el bloc fix de dimecres (Reunió
         14-15h + Coordinació 15-16h) activat, l'assigna i en resta 1h de
@@ -1050,6 +1253,13 @@ class LiveScheduleUseCases:
         daily_hours_exceeded: List[Dict[str, Any]] = []
         skipped_no_slot: List[Dict[str, Any]] = []
 
+        # Coordinacions compartides (mateix nom a diversos professors): una
+        # sola franja comuna. Les hores que cobreix es resten de cada membre.
+        shared_added, shared_covered, shared_skipped = self._place_shared_coordinations(
+            hour_names, hour_index, restrictions
+        )
+        skipped_no_slot.extend(shared_skipped)
+
         for teacher in self._academic_data_repo.list_teachers():
             name = teacher.get("name")
             if not name:
@@ -1074,7 +1284,9 @@ class LiveScheduleUseCases:
             # el camp manual `center_hours` com sempre.
             contract = contract_hours(teacher.get("dedication_pct"))
             remaining_center = contract["centre"] if contract else self._to_hours(teacher.get("center_hours"))
-            remaining_coordination = self._to_hours(teacher.get("coordination_hours"))
+            remaining_coordination = max(
+                0.0, self._to_hours(teacher.get("coordination_hours")) - shared_covered.get(str(name).casefold(), 0.0)
+            )
 
             existing_day_activities = [
                 a for a in self._engine.state.all()
@@ -1134,6 +1346,7 @@ class LiveScheduleUseCases:
         return {
             "ok": True,
             "added_meetings": added_meetings,
+            "added_shared_coordinations": shared_added,
             "added_hours": added_hours,
             "daily_hours_exceeded": daily_hours_exceeded,
             "skipped_no_slot": skipped_no_slot,

@@ -14,7 +14,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from models.teaching_block import TeachingBlock
     from models.teaching_requirement import TeachingRequirement
     from services.block_generator import BlockGenerator
-from .models import Activity, Conflict, GenerationContext, GenerationResult, ScheduleProposal, ScheduledActivity
+from .models import Activity, Conflict, GenerationContext, GenerationResult, ScheduleProposal, ScheduledActivity, TimeSlot
 from .placement_strategy import GreedyPlacementStrategy, PlacementStrategy
 from .quarter_utils import group_names, parent_and_quarter, quarter_suffix
 from .teacher_utils import teacher_label, teacher_names
@@ -65,6 +65,8 @@ class SchedulerGenerator:
         orderings = self._build_orderings(teaching_blocks, context)
         for ordering in orderings[:max_proposals]:
             scheduled_activities, placement_warnings = self._generate_for_ordering(ordering, context)
+            scheduled_activities = self._balance_group_days(scheduled_activities, context)
+            scheduled_activities = self._arrange_quarter_activities(scheduled_activities, context)
             if not scheduled_activities and placement_warnings:
                 warnings.extend(placement_warnings)
                 continue
@@ -406,6 +408,406 @@ class SchedulerGenerator:
                 unique_orderings.append(ordering)
 
         return unique_orderings
+
+    _BALANCE_MAX_MOVES = 40
+    _BALANCE_MIN_DIFFERENCE_SLOTS = 2  # no toquem grups amb menys d'1 h de diferència
+
+    @staticmethod
+    def _group_day_intervals(activities: Sequence[ScheduledActivity]) -> dict:
+        """{grup: {dia: [(inici, fi), ...]}} (els grups combinats compten per a
+        cadascun dels grups implicats)."""
+        by_group: dict = {}
+        for activity in activities:
+            interval = (activity.start_timeslot.period, activity.start_timeslot.period + activity.duration)
+            for group in group_names(activity.group_id):
+                by_group.setdefault(group, {}).setdefault(activity.day, []).append(interval)
+        return by_group
+
+    @staticmethod
+    def _occupied_slots(intervals: Sequence[tuple]) -> int:
+        occupied = set()
+        for start, end in intervals:
+            occupied.update(range(start, end))
+        return len(occupied)
+
+    def _group_imbalance(self, activities: Sequence[ScheduledActivity]) -> int:
+        """Suma, per grup, de la diferència (en franges) entre el dia més
+        carregat i el menys carregat. Les parelles 1Q/2Q a la mateixa franja
+        compten un sol cop."""
+        total = 0
+        for per_day in self._group_day_intervals(activities).values():
+            loads = [self._occupied_slots(intervals) for intervals in per_day.values()]
+            if len(loads) > 1:
+                total += max(loads) - min(loads)
+        return total
+
+    @staticmethod
+    def _teacher_gap_slots_total(activities: Sequence[ScheduledActivity]) -> int:
+        by_teacher_day: dict = {}
+        for activity in activities:
+            interval = (activity.start_timeslot.period, activity.start_timeslot.period + activity.duration)
+            for teacher in teacher_names(activity.teacher_id):
+                by_teacher_day.setdefault((teacher.casefold(), activity.day), []).append(interval)
+        total = 0
+        for intervals in by_teacher_day.values():
+            merged: list = []
+            for start, end in sorted(intervals):
+                if merged and start <= merged[-1][1]:
+                    merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+                else:
+                    merged.append((start, end))
+            total += sum(merged[i][0] - merged[i - 1][1] for i in range(1, len(merged)))
+        return total
+
+    def _group_gap_slots_total(self, activities: Sequence[ScheduledActivity]) -> int:
+        """Franges buides dins de l'horari dels grups (entre primera i última
+        classe de cada dia)."""
+        total = 0
+        for per_day in self._group_day_intervals(activities).values():
+            for intervals in per_day.values():
+                merged: list = []
+                for start, end in sorted(intervals):
+                    if merged and start <= merged[-1][1]:
+                        merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+                    else:
+                        merged.append((start, end))
+                total += sum(merged[i][0] - merged[i - 1][1] for i in range(1, len(merged)))
+        return total
+
+    def _is_balance_movable(self, activity: ScheduledActivity, group: str, activities: Sequence[ScheduledActivity]) -> bool:
+        block = activity.teaching_block
+        if getattr(block, "fixed", False) or getattr(block, "fixed_day", None):
+            return False
+        subject = (block.metadata or {}).get("subject")
+        _, quarter = parent_and_quarter(activity.group_id, subject)
+        if quarter is not None:
+            return False  # les parelles 1Q/2Q no es toquen
+        start = activity.start_timeslot.period
+        end = start + activity.duration
+        same_group_day = [
+            other for other in activities
+            if other is not activity
+            and other.day == activity.day
+            and group in group_names(other.group_id)
+        ]
+        # Cap altra activitat del grup a la mateixa franja (parella alineada).
+        if any(
+            other.start_timeslot.period < end and start < other.start_timeslot.period + other.duration
+            for other in same_group_day
+        ):
+            return False
+        # Només es mouen classes de l'extrem del dia, perquè no hi quedi un forat.
+        day_start = min([start] + [other.start_timeslot.period for other in same_group_day])
+        day_end = max([end] + [other.start_timeslot.period + other.duration for other in same_group_day])
+        return start == day_start or end == day_end
+
+    def _balance_group_days(
+        self,
+        activities: List[ScheduledActivity],
+        context: GenerationContext,
+    ) -> List[ScheduledActivity]:
+        """Millora, després de col·locar, l'equilibri d'hores entre els dies de
+        cada grup: prova de moure classes soltes del dia més carregat a un
+        altre dia, però només si la col·locació passa per les MATEIXES
+        restriccions que la col·locació normal (`place`) i el resultat no
+        empitjora els forats dels professors. Cada moviment redueix
+        estrictament el desequilibri, per tant sempre acaba."""
+        if not context.configuration.get("balance_group_days", True) or not activities:
+            return activities
+
+        days = list(context.school_calendar.days)
+        activities = list(activities)
+
+        for _ in range(self._BALANCE_MAX_MOVES):
+            imbalance_before = self._group_imbalance(activities)
+            teacher_gaps_before = self._teacher_gap_slots_total(activities)
+            group_gaps_before = self._group_gap_slots_total(activities)
+            moved = False
+
+            loads = {
+                group: {day: self._occupied_slots(intervals) for day, intervals in per_day.items()}
+                for group, per_day in self._group_day_intervals(activities).items()
+            }
+            ordered_groups = sorted(
+                (group for group, per_day in loads.items() if len(per_day) > 1),
+                key=lambda group: -(max(loads[group].values()) - min(loads[group].values())),
+            )
+
+            for group in ordered_groups:
+                per_day = loads[group]
+                if max(per_day.values()) - min(per_day.values()) < self._BALANCE_MIN_DIFFERENCE_SLOTS:
+                    break
+                heavy_day = max(per_day, key=per_day.get)
+                candidates = [
+                    activity for activity in activities
+                    if activity.day == heavy_day
+                    and group in group_names(activity.group_id)
+                    and self._is_balance_movable(activity, group, activities)
+                ]
+                candidates.sort(key=lambda activity: activity.duration)
+
+                for activity in candidates:
+                    others = [other for other in activities if other is not activity]
+                    requirement_id = (activity.teaching_block.metadata or {}).get("requirement_id")
+                    sibling_days = {
+                        other.day for other in others
+                        if requirement_id and (other.teaching_block.metadata or {}).get("requirement_id") == requirement_id
+                    }
+                    for target_day in sorted(days, key=lambda day: per_day.get(day, 0)):
+                        if target_day == heavy_day or target_day in sibling_days:
+                            continue
+                        if per_day.get(target_day, 0) + activity.duration >= per_day[heavy_day]:
+                            continue  # no milloraria l'equilibri d'aquest grup
+                        placement = self._placement_strategy.place(
+                            activity.teaching_block,
+                            context,
+                            others,
+                            excluded_days=set(days) - {target_day},
+                        )
+                        if placement is None or placement.day != target_day:
+                            continue
+                        trial = others + [placement]
+                        if (
+                            self._group_imbalance(trial) < imbalance_before
+                            and self._teacher_gap_slots_total(trial) <= teacher_gaps_before
+                            and self._group_gap_slots_total(trial) <= group_gaps_before
+                        ):
+                            activities = trial
+                            moved = True
+                            break
+                    if moved:
+                        break
+                if moved:
+                    break
+
+            if not moved:
+                break
+
+        return activities
+
+    _QUARTER_MAX_MOVES = 30
+
+    @staticmethod
+    def _quarter_of(activity: ScheduledActivity) -> Optional[str]:
+        subject = (activity.teaching_block.metadata or {}).get("subject")
+        return parent_and_quarter(activity.group_id, subject)[1]
+
+    @staticmethod
+    def _parent_group_set(activity: ScheduledActivity) -> set:
+        subject = (activity.teaching_block.metadata or {}).get("subject")
+        parent = parent_and_quarter(activity.group_id, subject)[0]
+        return set(group_names(parent)) or {parent}
+
+    def _is_lone_quarter(self, activity: ScheduledActivity, activities: Sequence[ScheduledActivity]) -> bool:
+        quarter = self._quarter_of(activity)
+        if quarter is None:
+            return False
+        start = activity.start_timeslot.period
+        end = start + activity.duration
+        parents = self._parent_group_set(activity)
+        for other in activities:
+            if other is activity or other.day != activity.day:
+                continue
+            other_quarter = self._quarter_of(other)
+            if other_quarter is None or other_quarter == quarter:
+                continue
+            if not parents & self._parent_group_set(other):
+                continue
+            if other.start_timeslot.period < end and start < other.start_timeslot.period + other.duration:
+                return False
+        return True
+
+    def _is_off_group_edge(self, activity: ScheduledActivity, activities: Sequence[ScheduledActivity]) -> bool:
+        """Cert si l'activitat no és ni la primera ni l'última de l'horari del
+        seu grup aquell dia."""
+        groups = set(group_names(activity.group_id))
+        same_day = [
+            other for other in activities
+            if other.day == activity.day and groups & set(group_names(other.group_id))
+        ]
+        if not same_day:
+            return False
+        start = activity.start_timeslot.period
+        end = start + activity.duration
+        first = min(other.start_timeslot.period for other in same_day)
+        last = max(other.start_timeslot.period + other.duration for other in same_day)
+        return start > first and end < last
+
+    def _misplaced_lone_quarters(self, activities: Sequence[ScheduledActivity]) -> List[ScheduledActivity]:
+        return [
+            activity for activity in activities
+            if self._is_lone_quarter(activity, activities) and self._is_off_group_edge(activity, activities)
+        ]
+
+    @staticmethod
+    def _is_quarter_movable(activity: ScheduledActivity) -> bool:
+        block = activity.teaching_block
+        return not (getattr(block, "fixed", False) or getattr(block, "fixed_day", None))
+
+    def _same_day_edge_options(
+        self,
+        activity: ScheduledActivity,
+        activities: Sequence[ScheduledActivity],
+        context: GenerationContext,
+    ) -> List[List[ScheduledActivity]]:
+        """Reordena el dia del grup perquè `activity` quedi a primera o a
+        última hora: les classes que hi havia abans (o després) es desplacen
+        tantes franges com dura, sense deixar cap forat nou. Cada classe
+        moguda passa per les mateixes restriccions que `place()`."""
+        groups = set(group_names(activity.group_id))
+        day_items = [
+            other for other in activities
+            if other is not activity and other.day == activity.day and groups & set(group_names(other.group_id))
+        ]
+        start = activity.start_timeslot.period
+        end = start + activity.duration
+        duration = activity.duration
+        options: List[List[ScheduledActivity]] = []
+
+        before = [other for other in day_items if other.start_timeslot.period + other.duration <= start]
+        after = [other for other in day_items if other.start_timeslot.period >= end]
+        if len(before) + len(after) != len(day_items):
+            return options  # alguna classe se solapa amb aquesta: no es toca
+
+        first_start = min([item.start_timeslot.period for item in before] + [start])
+        last_end = max([item.start_timeslot.period + item.duration for item in after] + [end])
+        plans = []
+        if before:
+            plans.append((first_start, [(item, item.start_timeslot.period + duration) for item in before]))
+        if after:
+            plans.append((last_end - duration, [(item, item.start_timeslot.period - duration) for item in after]))
+
+        for new_start, shifted in plans:
+            movers = [activity] + [item for item, _ in shifted]
+            if not all(self._is_quarter_movable(item) for item in movers):
+                continue
+            rest = [other for other in activities if all(other is not mover for mover in movers)]
+            placed: List[ScheduledActivity] = []
+            valid = True
+            for item, new_period in [(activity, new_start)] + shifted:
+                placement = self._placement_strategy.place_at_slot(
+                    item.teaching_block,
+                    context,
+                    rest + placed,
+                    TimeSlot(day=activity.day, period=new_period),
+                )
+                if placement is None:
+                    valid = False
+                    break
+                placed.append(placement)
+            if valid:
+                options.append(rest + placed)
+        return options
+
+    def _arrange_quarter_activities(
+        self,
+        activities: List[ScheduledActivity],
+        context: GenerationContext,
+    ) -> List[ScheduledActivity]:
+        """Dues passades sobre les activitats 1Q/2Q, sempre amb les MATEIXES
+        restriccions que la col·locació normal i sense empitjorar els forats
+        dels professors:
+        1. Un 1Q o 2Q que queda sol (sense parella al seu grup) no pot quedar
+           enmig de l'horari del grup: s'ha de moure a primera o última hora.
+        2. Un 1Q i un 2Q del mateix professor, encara que siguin de grups
+           diferents, comparteixen franja quan és possible."""
+        if not context.configuration.get("arrange_quarter_activities", True) or not activities:
+            return activities
+
+        days = list(context.school_calendar.days)
+        activities = list(activities)
+
+        strategy = self._placement_strategy
+        all_slots = [
+            TimeSlot(day=day, period=period)
+            for day in days
+            for period in range(context.school_calendar.periods_per_day)
+        ]
+
+        def metrics(items: Sequence[ScheduledActivity]) -> tuple:
+            return (
+                len(self._misplaced_lone_quarters(items)),
+                self._group_gap_slots_total(items),
+                self._teacher_gap_slots_total(items),
+            )
+
+        # --- 1. Els 1Q/2Q sols, a primera o última hora.
+        for _ in range(self._QUARTER_MAX_MOVES):
+            misplaced = [a for a in self._misplaced_lone_quarters(activities) if self._is_quarter_movable(a)]
+            if not misplaced:
+                break
+            before = metrics(activities)
+            best = None
+            for activity in misplaced:
+                for trial in self._same_day_edge_options(activity, activities, context):
+                    after = metrics(trial)
+                    if after[0] < before[0] and after[1] <= before[1] and after[2] <= before[2]:
+                        key = (after[2], after[1], False, activity.day, 0)
+                        if best is None or key < best[0]:
+                            best = (key, trial)
+                others = [other for other in activities if other is not activity]
+                for slot in all_slots:
+                    if slot.day == activity.day and slot.period == activity.start_timeslot.period:
+                        continue
+                    placement = strategy.place_at_slot(activity.teaching_block, context, others, slot)
+                    if placement is None or not strategy._is_group_day_edge(
+                        activity.group_id, slot.day, slot, placement.duration, others
+                    ):
+                        continue
+                    trial = others + [placement]
+                    after = metrics(trial)
+                    if after[0] < before[0] and after[1] <= before[1] and after[2] <= before[2]:
+                        key = (after[2], after[1], slot.day != activity.day, slot.day, slot.period)
+                        if best is None or key < best[0]:
+                            best = (key, trial)
+                if best is not None:
+                    break
+            if best is None:
+                break
+            activities = best[1]
+
+        # --- 2. 1Q i 2Q del mateix professor (grups diferents) a la mateixa franja.
+        for _ in range(self._QUARTER_MAX_MOVES):
+            before = metrics(activities)
+            firsts = [a for a in activities if self._quarter_of(a) == "1q" and self._is_quarter_movable(a)]
+            seconds = [a for a in activities if self._quarter_of(a) == "2q" and self._is_quarter_movable(a)]
+            best = None
+            for first in firsts:
+                for second in seconds:
+                    if first.duration != second.duration:
+                        continue
+                    if first.day == second.day and first.start_timeslot.period == second.start_timeslot.period:
+                        continue
+                    if not {name.casefold() for name in teacher_names(first.teacher_id)} & {
+                        name.casefold() for name in teacher_names(second.teacher_id)
+                    }:
+                        continue
+                    if self._parent_group_set(first) & self._parent_group_set(second):
+                        continue  # el mateix grup ja s'aparella per grup
+                    rest = [a for a in activities if a is not first and a is not second]
+                    for slot in all_slots:
+                        moved_first = strategy.place_at_slot(first.teaching_block, context, rest, slot)
+                        if moved_first is None:
+                            continue
+                        moved_second = strategy.place_at_slot(second.teaching_block, context, rest + [moved_first], slot)
+                        if moved_second is None:
+                            continue
+                        if not strategy._is_group_day_edge(first.group_id, slot.day, slot, first.duration, rest) or not (
+                            strategy._is_group_day_edge(second.group_id, slot.day, slot, second.duration, rest)
+                        ):
+                            continue
+                        trial = rest + [moved_first, moved_second]
+                        after = metrics(trial)
+                        if after[0] <= before[0] and after[1] <= before[1] and after[2] <= before[2]:
+                            moved_distance = (slot.day != first.day) + (slot.day != second.day)
+                            key = (after[2], after[1], after[0], moved_distance, slot.day, slot.period)
+                            if best is None or key < best[0]:
+                                best = (key, trial)
+            if best is None:
+                break
+            activities = best[1]
+
+        return activities
 
     def _generate_for_ordering(
         self,

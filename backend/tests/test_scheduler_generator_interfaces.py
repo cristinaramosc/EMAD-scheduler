@@ -1161,3 +1161,256 @@ def test_placement_avoids_splitting_teacher_day_between_morning_and_afternoon():
 
     assert key_other_day < key_same_day
 
+
+def _max_days_fixture(constraints_key, constraints):
+    strategy, _, block, placed = _split_day_fixture()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1, 2, 3, 4], periods_per_day=27),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={constraints_key: constraints},
+    )
+
+    def blocked(day, teacher_id="Ana", group_id="g1"):
+        # Franja bloquejada per no disponibilitat: activitat sintètica.
+        activity = placed(block(f"blocked-{day}"), day=day, period=20)
+        activity.teacher_id = teacher_id
+        activity.group_id = group_id
+        activity.metadata = {"synthetic": True, "constraint": "not_available"}
+        activity.teaching_block.metadata = {"synthetic": True}
+        return activity
+
+    return strategy, context, block, placed, blocked
+
+
+def test_group_max_days_ignores_blocked_unavailability_slots():
+    strategy, context, block, placed, blocked = _max_days_fixture("group_max_days_constraints", {"G1": 2})
+    activities = [
+        placed(block("a"), day=0, period=2),
+        placed(block("b"), day=1, period=2),
+        blocked(2),  # dimecres bloquejat, però NO és un dia de classe
+    ]
+
+    # Ja hi ha 2 dies de classe (màxim 2): un tercer dia s'ha de rebutjar.
+    assert strategy._group_max_days_conflict_exists(block("c"), TimeSlot(day=2, period=2), activities, context)
+    # Un dia ja utilitzat continua permès.
+    assert not strategy._group_max_days_conflict_exists(block("c"), TimeSlot(day=1, period=6), activities, context)
+
+
+def test_teacher_max_days_ignores_blocked_unavailability_slots():
+    strategy, context, block, placed, blocked = _max_days_fixture("teacher_max_days_constraints", {"ana": 2})
+    activities = [
+        placed(block("a"), day=0, period=2),
+        placed(block("b"), day=1, period=2),
+        blocked(2),
+    ]
+
+    assert strategy._teacher_max_days_conflict_exists(block("c"), TimeSlot(day=2, period=2), activities, context)
+    assert not strategy._teacher_max_days_conflict_exists(block("c"), TimeSlot(day=1, period=6), activities, context)
+
+
+def _balance_fixture():
+    strategy, context, block, placed = _split_day_fixture()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=27),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    def activity(index, day, period, fixed=False):
+        teaching_block = block(f"c{index}", teacher=f"T{index}")
+        teaching_block.fixed = fixed
+        item = placed(teaching_block, day=day, period=period)
+        item.teacher_id = f"T{index}"
+        return item
+
+    return SchedulerGenerator(), context, activity
+
+
+def _group_load_by_day(activities):
+    loads = {}
+    for item in activities:
+        loads[item.day] = loads.get(item.day, 0) + item.duration
+    return loads
+
+
+def test_balance_group_days_moves_an_edge_class_to_the_lighter_day():
+    generator, context, activity = _balance_fixture()
+    activities = [
+        activity(1, 0, 0),
+        activity(2, 0, 2),
+        activity(3, 0, 4),
+        activity(4, 1, 0),
+    ]
+    assert _group_load_by_day(activities) == {0: 6, 1: 2}
+
+    balanced = generator._balance_group_days(activities, context)
+
+    assert len(balanced) == 4
+    assert _group_load_by_day(balanced) == {0: 4, 1: 4}
+    # Cap solapament dins del grup després de moure.
+    for day in (0, 1):
+        spans = sorted(
+            (item.start_timeslot.period, item.start_timeslot.period + item.duration)
+            for item in balanced
+            if item.day == day
+        )
+        assert all(spans[i][1] <= spans[i + 1][0] for i in range(len(spans) - 1))
+
+
+def test_balance_group_days_never_moves_fixed_activities():
+    generator, context, activity = _balance_fixture()
+    activities = [
+        activity(1, 0, 0, fixed=True),
+        activity(2, 0, 2, fixed=True),
+        activity(3, 0, 4, fixed=True),
+        activity(4, 1, 0),
+    ]
+
+    balanced = generator._balance_group_days(activities, context)
+
+    assert {(item.day, item.start_timeslot.period) for item in balanced if item.teaching_block.fixed} == {
+        (0, 0),
+        (0, 2),
+        (0, 4),
+    }
+
+
+def test_balance_group_days_can_be_disabled_from_the_configuration():
+    generator, context, activity = _balance_fixture()
+    disabled = GenerationContext(
+        school_calendar=context.school_calendar,
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={"balance_group_days": False},
+    )
+    activities = [activity(1, 0, 0), activity(2, 0, 2), activity(3, 0, 4), activity(4, 1, 0)]
+
+    balanced = generator._balance_group_days(activities, disabled)
+
+    assert _group_load_by_day(balanced) == {0: 6, 1: 2}
+
+
+def _quarter_fixture():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1, 2], periods_per_day=27),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={},
+    )
+
+    def block(block_id, subject, group, teacher, duration_blocks=2):
+        return TeachingBlock(
+            id=block_id,
+            duration=duration_blocks / 2,
+            order=1,
+            duration_blocks=duration_blocks,
+            preferred_teacher_id=teacher,
+            metadata={"subject": subject, "group": group, "group_id": group, "teacher": teacher},
+        )
+
+    def placed(teaching_block, day, period, duration=2):
+        return ScheduledActivity(
+            teaching_block=teaching_block,
+            day=day,
+            start_timeslot=TimeSlot(day=day, period=period),
+            duration=duration,
+            teacher_id=teaching_block.preferred_teacher_id,
+            group_id=(teaching_block.metadata or {}).get("group"),
+        )
+
+    return strategy, context, block, placed
+
+
+def test_place_at_slot_applies_the_same_constraints_as_place():
+    strategy, context, block, placed = _quarter_fixture()
+    busy = placed(block("busy", "Mat", "g1", "Ana"), day=0, period=4)
+
+    assert strategy.place_at_slot(block("x", "Dib", "g2", "Ana"), context, [busy], TimeSlot(day=0, period=4)) is None
+    free = strategy.place_at_slot(block("x", "Dib", "g2", "Ana"), context, [busy], TimeSlot(day=0, period=8))
+    assert free is not None and (free.day, free.start_timeslot.period) == (0, 8)
+
+
+def test_quarter_block_pairs_with_same_teacher_even_in_a_different_group():
+    strategy, context, block, placed = _quarter_fixture()
+    first = placed(block("a", "Anglès 1Q", "g1", "Borja"), day=1, period=6)
+
+    same_teacher = strategy.place(block("b", "Foto 2Q", "g2", "Borja"), context, [first])
+    assert (same_teacher.day, same_teacher.start_timeslot.period) == (1, 6)
+
+
+def test_arrange_quarters_moves_a_lone_quarter_from_the_middle_to_the_first_hour():
+    generator = SchedulerGenerator()
+    _, context, block, placed = _quarter_fixture()
+    activities = [
+        placed(block("a", "Mat", "g1", "T1"), day=0, period=0),
+        placed(block("q", "Anglès 1Q", "g1", "T2"), day=0, period=2),
+        placed(block("b", "Dib", "g1", "T3"), day=0, period=4),
+    ]
+
+    arranged = generator._arrange_quarter_activities(activities, context)
+
+    positions = {item.teaching_block.id: item.start_timeslot.period for item in arranged}
+    assert positions == {"q": 0, "a": 2, "b": 4}
+
+
+def test_arrange_quarters_leaves_aligned_pairs_and_edge_quarters_alone():
+    generator = SchedulerGenerator()
+    _, context, block, placed = _quarter_fixture()
+    activities = [
+        placed(block("a", "Mat", "g1", "T1"), day=0, period=0),
+        placed(block("q1", "Anglès 1Q", "g1", "T2"), day=0, period=2),
+        placed(block("q2", "Foto 2Q", "g1", "T3"), day=0, period=2),
+        placed(block("b", "Dib", "g1", "T4"), day=0, period=4),
+        placed(block("e", "Hist 1Q", "g1", "T5"), day=1, period=0),
+    ]
+
+    arranged = generator._arrange_quarter_activities(activities, context)
+
+    assert {(item.teaching_block.id, item.day, item.start_timeslot.period) for item in arranged} == {
+        (item.teaching_block.id, item.day, item.start_timeslot.period) for item in activities
+    }
+
+
+def test_arrange_quarters_shares_a_slot_between_groups_for_the_same_teacher():
+    generator = SchedulerGenerator()
+    _, context, block, placed = _quarter_fixture()
+    activities = [
+        placed(block("x", "Anglès 1Q", "g1", "Borja"), day=0, period=0),
+        placed(block("y", "Foto 2Q", "g2", "Borja"), day=1, period=0),
+    ]
+
+    arranged = generator._arrange_quarter_activities(activities, context)
+
+    slots = {(item.day, item.start_timeslot.period) for item in arranged}
+    assert len(slots) == 1
+
+
+def test_arrange_quarters_can_be_disabled_from_the_configuration():
+    generator = SchedulerGenerator()
+    _, context, block, placed = _quarter_fixture()
+    disabled = GenerationContext(
+        school_calendar=context.school_calendar,
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={"arrange_quarter_activities": False},
+    )
+    activities = [
+        placed(block("a", "Mat", "g1", "T1"), day=0, period=0),
+        placed(block("q", "Anglès 1Q", "g1", "T2"), day=0, period=2),
+        placed(block("b", "Dib", "g1", "T3"), day=0, period=4),
+    ]
+
+    arranged = generator._arrange_quarter_activities(activities, disabled)
+
+    assert {item.teaching_block.id: item.start_timeslot.period for item in arranged} == {"a": 0, "q": 2, "b": 4}
+

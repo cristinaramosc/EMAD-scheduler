@@ -5,10 +5,12 @@ from typing import Any, Dict, List, Optional
 try:
     from backend.scheduler_engine.constraints.base import Constraint
     from backend.scheduler_engine.models import Conflict
+    from backend.scheduler_engine.subject_utils import is_non_class_subject
     from backend.scheduler_engine.teacher_utils import teacher_names
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.models import Conflict
+    from scheduler_engine.subject_utils import is_non_class_subject
     from scheduler_engine.teacher_utils import teacher_names
 
 
@@ -51,6 +53,10 @@ class TeacherMaxDaysConstraint(Constraint):
         activities_by_teacher: Dict[str, List[Any]] = {}
         for activity in schedule.all():
             if not activity.teacher or not activity.day:
+                continue
+            # Coordinacions, reunions, hores de centre i descansos no són
+            # dies de classe: un professor pot tenir-hi presència un altre dia.
+            if is_non_class_subject(activity.subject):
                 continue
             for teacher_name in teacher_names(activity.teacher):
                 activities_by_teacher.setdefault(teacher_name.casefold(), []).append(activity)

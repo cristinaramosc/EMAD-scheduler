@@ -41,3 +41,20 @@ def is_non_lective_tutoria(subject: Optional[str], group: Optional[str]) -> bool
     if not is_tutoria_subject(subject):
         return False
     return "pfi" not in _subject_tokens(group)
+
+
+#: Paraules d'activitats del professor que NO són classes amb alumnes: no
+#: compten com a "dia de classe" per al màxim de dies d'un professor.
+_NON_CLASS_TOKENS = {"coordinació", "coordinacio", "reunió", "reunio", "claustre", "descans"}
+
+
+def is_non_class_subject(subject: Optional[str]) -> bool:
+    """Cert si l'activitat és una coordinació (qualsevol, p.ex. `Coordinació
+    ED`), una reunió/claustre, hores de centre o un descans: presència del
+    professor al centre sense classe. La Tutoria sí que compta com a classe
+    (és lectiva per al professor)."""
+    tokens = _subject_tokens(subject)
+    if any(token in _NON_CLASS_TOKENS for token in tokens):
+        return True
+    text = " ".join(tokens)
+    return "hores de centre" in text or "hora de centre" in text

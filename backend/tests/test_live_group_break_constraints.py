@@ -200,3 +200,81 @@ def test_toggle_group_break_shifts_two_consecutive_rounds_atomically():
     assert activated.get("ok") is True
     starts = {activity["id"]: activity["start"] for activity in activated["activities"]}
     assert starts == {1: "8:00", 2: "9:30", 3: "10:30", 4: "11:30"}
+
+
+def _class(activity_id, start, duration, subject="Mat", group="1A", teacher=None, room=None):
+    return {
+        "id": activity_id,
+        "teacher": teacher or f"T{activity_id}",
+        "subject": subject,
+        "group": group,
+        "room": room or f"R{activity_id}",
+        "day": "Monday",
+        "start": start,
+        "duration": duration,
+    }
+
+
+def _break_overlaps_a_class(use_cases, group="1A", day="Monday"):
+    _, hour_index = use_cases._half_hour_grid()
+    restriction = next(
+        item for item in use_cases._academic_data_repo.list_group_restrictions() if item.get("group") == group
+    )
+    slot = next(slot for slot in restriction.get("break_slots") or [] if str(slot).startswith(day))
+    break_idx = hour_index[str(slot).split(" ", 1)[1]]
+    return any(
+        item.group == group
+        and item.day == day
+        and hour_index[item.start] <= break_idx < hour_index[item.start] + item.duration
+        for item in use_cases._engine.state.all()
+    )
+
+
+def _regenerated_schedule():
+    # Horari nou: la franja del descans anterior (10:00) ara és dins d'una classe.
+    return [_class(11, "8:00", 3), _class(12, "9:30", 3), _class(13, "11:00", 3)]
+
+
+def test_auto_place_breaks_replaces_stale_break_and_displaces_classes():
+    use_cases = _build_use_cases()
+    use_cases.load([_class(1, "8:00", 2), _class(2, "10:00", 2)])
+    assert use_cases.toggle_group_break("1A", "Monday").get("active") is True
+
+    use_cases.load(_regenerated_schedule())
+    result = use_cases.auto_place_breaks()
+
+    assert result["ok"] is True
+    assert {"group": "1A", "day": "Monday"} in result["added"]
+    assert _break_overlaps_a_class(use_cases) is False
+
+
+def test_toggle_group_break_on_stale_break_opens_a_real_gap_instead_of_deactivating():
+    use_cases = _build_use_cases()
+    use_cases.load([_class(1, "8:00", 2), _class(2, "10:00", 2)])
+    use_cases.toggle_group_break("1A", "Monday")
+
+    use_cases.load(_regenerated_schedule())
+    result = use_cases.toggle_group_break("1A", "Monday")
+
+    assert result.get("ok") is True
+    assert result.get("active") is True
+    assert _break_overlaps_a_class(use_cases) is False
+
+
+def test_auto_place_breaks_keeps_a_valid_break_untouched():
+    use_cases = _build_use_cases()
+    use_cases.load([_class(1, "8:00", 2), _class(2, "10:00", 2)])
+    use_cases.toggle_group_break("1A", "Monday")
+    before = next(
+        item for item in use_cases._academic_data_repo.list_group_restrictions() if item.get("group") == "1A"
+    )["break_slots"]
+    positions_before = sorted((item.id, item.start) for item in use_cases._engine.state.all())
+
+    use_cases.auto_place_breaks()
+
+    after = next(
+        item for item in use_cases._academic_data_repo.list_group_restrictions() if item.get("group") == "1A"
+    )["break_slots"]
+    assert after == before
+    assert sorted((item.id, item.start) for item in use_cases._engine.state.all()) == positions_before
+
