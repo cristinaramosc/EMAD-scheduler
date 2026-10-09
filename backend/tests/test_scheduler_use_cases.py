@@ -264,3 +264,89 @@ def test_academic_assignment_priority_stays_default_without_room_or_max_days() -
     )
 
     assert requirement.priority == 2
+
+
+def _scarce_days_fixture():
+    from backend.models.teaching_block import TeachingBlock
+    from backend.models.teaching_requirement import TeachingRequirement
+    from backend.scheduler_engine.models import ScheduledActivity, TimeSlot
+
+    use_cases = SchedulerUseCases(
+        requirement_repo=RequirementRepository(),
+        scheduler_engine=SchedulerEngine(),
+        proposal_store={},
+        school_calendar=SchoolCalendar(days=[0, 1, 2, 3, 4], periods_per_day=8),
+        academic_data_repo=AcademicDataRepository(),
+    )
+
+    def requirement(req_id, teacher, group, priority=1):
+        return TeachingRequirement(
+            id=req_id,
+            group_id=group,
+            subject_id=req_id,
+            teacher_id=teacher,
+            weekly_hours=1.0,
+            min_days=1,
+            max_days=1,
+            min_block_duration=1.0,
+            max_consecutive_hours=1.0,
+            allow_half_hour_blocks=False,
+            priority=priority,
+        )
+
+    def blocked(group_id=None, teacher_id=None, days=(), periods=range(8)):
+        activities = []
+        for day in days:
+            for period in periods:
+                activities.append(
+                    ScheduledActivity(
+                        teaching_block=TeachingBlock(
+                            id=f"b-{group_id}-{teacher_id}-{day}-{period}",
+                            duration=0.5,
+                            order=0,
+                            duration_blocks=1,
+                            metadata={"synthetic": True},
+                        ),
+                        day=day,
+                        start_timeslot=TimeSlot(day=day, period=period),
+                        duration=1,
+                        room_id="",
+                        teacher_id=teacher_id,
+                        group_id=group_id,
+                        metadata={"synthetic": True},
+                    )
+                )
+        return activities
+
+    return use_cases, requirement, blocked
+
+
+def test_scarce_days_requirement_goes_first_for_teacher_with_max_days() -> None:
+    use_cases, requirement, blocked = _scarce_days_fixture()
+    free_group = requirement("lliure", "Alfred", "G1")
+    only_friday = requirement("nomes-divendres", "Alfred", "Tarda")
+    other_teacher = requirement("altre-professor", "Berta", "G1")
+    # El grup "Tarda" només és disponible el divendres (dies 0-3 bloquejats).
+    blocked_activities = blocked(group_id="Tarda", days=(0, 1, 2, 3))
+
+    ordered = use_cases._order_requirements_by_scarce_days(
+        [free_group, other_teacher, only_friday], blocked_activities, {"alfred"}
+    )
+
+    assert [item.id for item in ordered] == ["nomes-divendres", "lliure", "altre-professor"]
+
+
+def test_scarce_days_ordering_is_noop_without_max_days_teachers_and_respects_priority() -> None:
+    use_cases, requirement, blocked = _scarce_days_fixture()
+    first = requirement("primer", "Alfred", "G1", priority=2)
+    scarce = requirement("escas", "Alfred", "Tarda", priority=2)
+    urgent = requirement("urgent", "Berta", "G1", priority=1)
+    blocked_activities = blocked(group_id="Tarda", days=(0, 1, 2, 3))
+
+    assert use_cases._order_requirements_by_scarce_days([first, scarce], blocked_activities, set()) == [first, scarce]
+
+    ordered = use_cases._order_requirements_by_scarce_days(
+        [first, scarce, urgent], blocked_activities, {"alfred"}
+    )
+    assert [item.id for item in ordered] == ["urgent", "escas", "primer"]
+

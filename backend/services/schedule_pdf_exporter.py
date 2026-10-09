@@ -193,8 +193,12 @@ def classify_activity(activity: Dict[str, Any]) -> Optional[str]:
         return "claustre"
     if subject in {"hores de centre", "hora de centre"}:
         return "centre"
-    if subject in {"coordinació", "coordinacio"}:
-        is_fixed = _norm(activity.get("day")) == _FIXED_COORDINATION_DAY and str(activity.get("start") or "").strip().lstrip("0") == _FIXED_COORDINATION_START
+    if subject in {"coordinació", "coordinacio"} or subject.startswith(("coordinació ", "coordinacio ")):
+        is_fixed = (
+            subject in {"coordinació", "coordinacio"}
+            and _norm(activity.get("day")) == _FIXED_COORDINATION_DAY
+            and str(activity.get("start") or "").strip().lstrip("0") == _FIXED_COORDINATION_START
+        )
         return "coordination_fixed" if is_fixed else "coordination"
     if _is_tutoria(activity):
         return "tutoria"

@@ -12,6 +12,7 @@ except ModuleNotFoundError:  # pragma: no cover
 from .constraints.group_time_window import get_group_time_window
 from .constraints.group_max_days import get_group_max_days
 from .constraints.teacher_max_days import get_teacher_max_days
+from .subject_utils import is_non_class_subject
 from .models import GenerationContext, ScheduledActivity, TimeSlot
 from .quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter, quarter_suffix
 from .teacher_utils import teacher_label, teacher_names
@@ -293,7 +294,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
         for activity in all_activities:
             if activity.day != day:
                 continue
-            if (activity.metadata or {}).get("synthetic") or (activity.teaching_block.metadata or {}).get("synthetic"):
+            if self._is_synthetic_activity(activity):
                 continue
             activity_teachers = {name.casefold() for name in teacher_names(activity.teacher_id)}
             if teachers.isdisjoint(activity_teachers):
@@ -328,6 +329,16 @@ class GreedyPlacementStrategy(PlacementStrategy):
         if group_names_normalized.intersection(strict_gap_groups):
             return gap_slots > 1
         return gap_windows > 1
+
+    @staticmethod
+    def _is_synthetic_activity(activity: ScheduledActivity) -> bool:
+        """Les franges bloquejades per no disponibilitat (de grup o de
+        professor) es modelen com a activitats sintètiques: no són classes i
+        no han de comptar com a dia utilitzat en els màxims de dies."""
+        return bool(
+            (activity.metadata or {}).get("synthetic")
+            or (activity.teaching_block.metadata or {}).get("synthetic")
+        )
 
     @lru_cache(maxsize=4096)
     def _groups_overlap(self, parent_a: str, parent_b: str) -> bool:
@@ -429,25 +440,45 @@ class GreedyPlacementStrategy(PlacementStrategy):
         for activity in all_activities:
             existing_subject = (activity.teaching_block.metadata or {}).get("subject")
             activity_parent, activity_quarter = _parent_and_quarter(activity.group_id, existing_subject)
-            if not self._groups_overlap(activity_parent, candidate_parent) or activity_quarter is None:
+            if activity_quarter is None or activity_quarter == candidate_quarter:
                 continue
-            if activity_quarter == candidate_quarter:
+            if self._is_synthetic_activity(activity):
                 continue
 
-            slot_key = (activity.day, activity.start_timeslot.period)
+            activity_teacher_ids = set(teacher_names(activity.teacher_id))
+            teacher_matches = bool(candidate_teacher_ids) and not candidate_teacher_ids.isdisjoint(activity_teacher_ids)
+            same_group = self._groups_overlap(activity_parent, candidate_parent)
+            if not same_group and not teacher_matches:
+                continue
+
+            slot_key = (activity.day, activity.start_timeslot.period, same_group)
             if slot_key in seen_slots:
                 continue
             seen_slots.add(slot_key)
 
-            activity_teacher_ids = set(teacher_names(activity.teacher_id))
-            teacher_matches = bool(candidate_teacher_ids) and not candidate_teacher_ids.isdisjoint(activity_teacher_ids)
-            priority = 0 if teacher_matches else 1
-            candidates.append((priority, activity.day, activity.start_timeslot.period, activity.start_timeslot))
+            # Prioritat: mateix grup i mateix professor; mateix professor
+            # encara que sigui d'un altre grup (el professor ve menys hores);
+            # i, per últim, mateix grup amb un altre professor.
+            if same_group and teacher_matches:
+                priority = 0
+            elif teacher_matches:
+                priority = 1
+            else:
+                priority = 2
+            candidates.append(
+                (priority, activity.day, activity.start_timeslot.period, activity.start_timeslot, same_group)
+            )
 
         candidates.sort(key=lambda item: (item[0], item[1], item[2]))
 
-        for _, day, _period, slot in candidates:
+        for _, day, _period, slot, same_group in candidates:
             if excluded_days and day in excluded_days:
+                continue
+            if not same_group and not self._is_group_day_edge(
+                group_id, day, slot, required_slots, all_activities
+            ):
+                # Una parella entre grups diferents només val si no deixa
+                # aquesta classe sola enmig de l'horari del seu grup.
                 continue
             if teaching_block.fixed_day and not teaching_block.fixed_start and self._day_name(day) != teaching_block.fixed_day.strip().lower():
                 continue
@@ -483,6 +514,78 @@ class GreedyPlacementStrategy(PlacementStrategy):
             )
 
         return None
+
+    def place_at_slot(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        current_scheduled_activities: Sequence[ScheduledActivity],
+        slot: TimeSlot,
+    ) -> Optional[ScheduledActivity]:
+        """Col·loca el bloc exactament en aquesta franja si compleix TOTES les
+        mateixes restriccions que `place()`; si no, retorna None."""
+        required_slots = teaching_block.duration_blocks or 1
+        existing_activities = list(context.existing_scheduled_activities) + list(context.fixed_activities)
+        all_activities = list(existing_activities) + list(current_scheduled_activities)
+
+        if teaching_block.fixed_day and not teaching_block.fixed_start and self._day_name(slot.day) != teaching_block.fixed_day.strip().lower():
+            return None
+        if self._is_blocked(slot, context.blocked_time_slots):
+            return None
+        if not self._fits_in_day(slot, required_slots, context.school_calendar.periods_per_day):
+            return None
+        if self._group_conflict_exists(teaching_block, slot, all_activities, context):
+            return None
+        if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, all_activities, context):
+            return None
+        if self._teacher_conflict_exists(teaching_block, slot, all_activities):
+            return None
+        if self._group_time_window_conflict_exists(teaching_block, slot, context):
+            return None
+        if self._group_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+            return None
+        if self._assignment_max_days_conflict_exists(teaching_block, slot, all_activities):
+            return None
+        if self._teacher_max_days_conflict_exists(teaching_block, slot, all_activities, context):
+            return None
+        if self._room_conflict_exists(teaching_block, slot, all_activities, context):
+            return None
+
+        metadata = teaching_block.metadata or {}
+        return ScheduledActivity(
+            teaching_block=teaching_block,
+            day=slot.day,
+            start_timeslot=slot,
+            duration=required_slots,
+            room_id=teaching_block.preferred_room_id,
+            teacher_id=teaching_block.preferred_teacher_id,
+            group_id=metadata.get("group_id") or metadata.get("group"),
+        )
+
+    def _is_group_day_edge(
+        self,
+        group_id: Optional[str],
+        day: int,
+        slot: TimeSlot,
+        required_slots: int,
+        all_activities: Sequence[ScheduledActivity],
+    ) -> bool:
+        """Cert si col·locar el bloc en aquesta franja el deixa a la primera o
+        a l'última hora de l'horari del seu grup aquell dia (o si el grup no
+        té cap altra classe aquell dia)."""
+        target = {normalize_group_name(name) for name in group_names(group_id)}
+        starts: List[int] = []
+        ends: List[int] = []
+        for activity in all_activities:
+            if activity.day != day or self._is_synthetic_activity(activity):
+                continue
+            if not target & {normalize_group_name(name) for name in group_names(activity.group_id)}:
+                continue
+            starts.append(activity.start_timeslot.period)
+            ends.append(activity.start_timeslot.period + activity.duration)
+        if not starts:
+            return True
+        return slot.period <= min(starts) or slot.period + required_slots >= max(ends)
 
     def _day_name(self, day: int) -> str:
         if 0 <= day < len(self._DAY_NAMES_CA):
@@ -763,6 +866,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         used_days = set()
         for activity in activities:
+            if self._is_synthetic_activity(activity):
+                continue
             existing_subject = (activity.teaching_block.metadata or {}).get("subject")
             activity_parent, _ = _parent_and_quarter(activity.group_id, existing_subject)
             if not self._groups_overlap(activity_parent, candidate_parent):
@@ -798,7 +903,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
             used_days = {
                 activity.day
                 for activity in activities
-                if teacher_name.casefold() in {
+                if not self._is_synthetic_activity(activity)
+                and not is_non_class_subject((activity.teaching_block.metadata or {}).get("subject"))
+                and teacher_name.casefold() in {
                     name.casefold() for name in teacher_names(activity.teacher_id)
                 }
             }

@@ -569,15 +569,71 @@ function assistantErrorMessage(data) {
   return ASSISTANT_GENERIC_ERROR;
 }
 
+// Selector de professors amb caselles: serveix per posar-ne dos (o més) a la
+// mateixa assignatura (es desa com "A, B").
+function TeacherMultiPicker({ teachers, value, onChange }) {
+  const selected = value ? value.split(",").map((name) => name.trim()).filter(Boolean) : [];
+  const knownNames = teachers.map((teacher) => teacher.name);
+  const names = [...selected.filter((name) => !knownNames.includes(name)), ...knownNames];
+  const toggle = (name) =>
+    onChange((selected.includes(name) ? selected.filter((item) => item !== name) : [...selected, name]).join(", "));
+  return (
+    <details>
+      <summary style={{ cursor: "pointer" }}>{selected.length ? selected.join(", ") : "Professor/s"}</summary>
+      <div
+        style={{
+          maxHeight: 190,
+          overflowY: "auto",
+          padding: 6,
+          border: "1px solid #c9d3e0",
+          borderRadius: 6,
+          background: "white",
+        }}
+      >
+        {names.map((name) => (
+          <label key={name} style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "0.85rem" }}>
+            <input type="checkbox" checked={selected.includes(name)} onChange={() => toggle(name)} />
+            {name}
+          </label>
+        ))}
+      </div>
+      <div className="muted" style={{ fontSize: 11 }}>Marca'n més d'un si l'assignatura la fan dos professors</div>
+    </details>
+  );
+}
+
+const isManagementTeam = (teacher) => String(teacher?.coordination_name || "").trim().toLowerCase() === "ed";
+
 async function requestAssistantReply(proposalId, text, history) {
   const response = await fetch(`${API_URL}/assistant/chat`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ proposal_id: proposalId, message: text, history }),
+    body: JSON.stringify({ proposal_id: proposalId || null, message: text, history }),
   });
   const data = await response.json().catch(() => ({}));
   return { ok: response.ok && data.ok === true, data };
 }
+
+async function requestAssistantStatus() {
+  try {
+    const response = await fetch(`${API_URL}/assistant/status`);
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+async function requestAssistantAction(actionId, verb) {
+  const response = await fetch(`${API_URL}/assistant/actions/${actionId}/${verb}`, { method: "POST" });
+  const data = await response.json().catch(() => ({}));
+  return { ok: response.ok && data.ok === true, data };
+}
+
+const ASSISTANT_SUGGESTIONS = [
+  "Revisa l'horari i digues-me què milloraries primer",
+  "Quins grups tenen més d'una franja buida?",
+  "Quins professors tenen més forats?",
+];
 
 
 function canShareSlotWithQuarter(existingActivity, candidateActivity) {
@@ -644,6 +700,7 @@ export default function App() {
   const [assistantMessages, setAssistantMessages] = useState([]);
   const [assistantInput, setAssistantInput] = useState("");
   const [isAssistantThinking, setIsAssistantThinking] = useState(false);
+  const [assistantStatus, setAssistantStatus] = useState(null);
   const [suggestionsByActivity, setSuggestionsByActivity] = useState({});
   const [isTogglingBreak, setIsTogglingBreak] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
@@ -2398,8 +2455,12 @@ export default function App() {
   }
 
   async function sendAssistantMessage() {
-    const text = assistantInput.trim();
-    if (!text || !proposal?.id || isAssistantThinking) return;
+    await sendAssistantText(assistantInput);
+  }
+
+  async function sendAssistantText(rawText) {
+    const text = String(rawText || "").trim();
+    if (!text || isAssistantThinking) return;
 
     const userMessage = { role: "user", text };
     const historyForRequest = assistantMessages
@@ -2410,7 +2471,7 @@ export default function App() {
     setIsAssistantThinking(true);
 
     try {
-      let result = await requestAssistantReply(proposal.id, text, historyForRequest);
+      let result = await requestAssistantReply(proposal?.id || null, text, historyForRequest);
 
       const isStaleProposal =
         result.data.detail === "proposal_not_found" || result.data.error === "proposal_not_found";
@@ -2421,9 +2482,13 @@ export default function App() {
         const stateResponse = await fetch(`${API_URL}/scheduler/state`);
         const state = stateResponse.ok ? await stateResponse.json() : {};
         const currentProposal = state.proposal || null;
-        if (currentProposal?.id && currentProposal.id !== proposal.id) {
+        if (currentProposal?.id && currentProposal.id !== proposal?.id) {
           setProposal(currentProposal);
           result = await requestAssistantReply(currentProposal.id, text, historyForRequest);
+        } else if (!currentProposal?.id) {
+          // La proposta ja no existeix: l'assistent treballa amb l'horari actiu.
+          setProposal(null);
+          result = await requestAssistantReply(null, text, historyForRequest);
         }
       }
 
@@ -2435,7 +2500,14 @@ export default function App() {
         return;
       }
 
-      setAssistantMessages((prev) => [...prev, { role: "assistant", text: result.data.reply }]);
+      setAssistantMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          text: result.data.reply,
+          actions: (result.data.actions || []).map((action) => ({ ...action, status: "pending" })),
+        },
+      ]);
     } catch (err) {
       setAssistantMessages((prev) => [
         ...prev,
@@ -2447,6 +2519,47 @@ export default function App() {
       ]);
     } finally {
       setIsAssistantThinking(false);
+    }
+  }
+
+  function updateAssistantAction(actionId, patch) {
+    setAssistantMessages((prev) =>
+      prev.map((msg) =>
+        msg.actions
+          ? { ...msg, actions: msg.actions.map((action) => (action.id === actionId ? { ...action, ...patch } : action)) }
+          : msg
+      )
+    );
+  }
+
+  async function applyAssistantAction(actionId) {
+    updateAssistantAction(actionId, { status: "applying" });
+    try {
+      const result = await requestAssistantAction(actionId, "apply");
+      if (!result.ok) {
+        const detail = result.data?.detail || result.data?.error || "";
+        updateAssistantAction(actionId, {
+          status: "failed",
+          message:
+            result.data?.error === "validation_failed"
+              ? "Ja no es pot aplicar: l'horari ha canviat i ara hi hauria un conflicte."
+              : `No s'ha pogut aplicar. ${typeof detail === "string" ? detail : ""}`.trim(),
+        });
+        return;
+      }
+      updateAssistantAction(actionId, { status: "applied" });
+      await loadData();
+    } catch {
+      updateAssistantAction(actionId, { status: "failed", message: "No s'ha pogut contactar amb el backend." });
+    }
+  }
+
+  async function discardAssistantAction(actionId) {
+    updateAssistantAction(actionId, { status: "discarded" });
+    try {
+      await requestAssistantAction(actionId, "discard");
+    } catch {
+      /* la proposta ja s'ha amagat a la interfície; no cal avisar */
     }
   }
 
@@ -3367,9 +3480,12 @@ export default function App() {
 
           <button
             type="button"
-            onClick={() => setShowAssistantChat((prev) => !prev)}
-            disabled={!proposal?.id}
-            title="Assistent de resolució: pregunta sobre les incidències de la proposta actual"
+            onClick={() => {
+              setShowAssistantChat((prev) => !prev);
+              requestAssistantStatus().then(setAssistantStatus);
+            }}
+            disabled={!proposal?.id && activities.length === 0}
+            title="Assistent: consulta l'horari, analitza'l i proposa canvis que només s'apliquen si els confirmes"
           >
             🤖 Assistent
           </button>
@@ -3541,6 +3657,66 @@ export default function App() {
                   </div>
                 ) : (
                 <>
+                {(() => {
+                  const management = teachers.filter(isManagementTeam);
+                  const sharedCoordinations = Object.values(
+                    teachers
+                      .filter((t) => String(t.coordination_name || "").trim() && Number(t.coordination_hours) > 0)
+                      .reduce((acc, t) => {
+                        const key = String(t.coordination_name).trim().toLowerCase();
+                        (acc[key] = acc[key] || { name: String(t.coordination_name).trim(), members: [] }).members.push(t.name);
+                        return acc;
+                      }, {})
+                  ).filter((entry) => entry.members.length >= 2);
+                  if (management.length === 0 && sharedCoordinations.length === 0) return null;
+                  return (
+                    <div style={{ border: "1px solid #c9d3e0", borderRadius: 8, padding: 10, marginBottom: 12, fontSize: "0.85rem" }}>
+                      {management.length > 0 && (
+                        <>
+                          <strong>Equip directiu (hores de coordinació ED)</strong>
+                          <div className="muted" style={{ margin: "4px 0 8px" }}>
+                            Tria quants dies de classe (amb alumnes) pot tenir cada membre per setmana. Les hores de
+                            coordinació, reunions i hores de centre no compten com a dia de classe.
+                          </div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                            {management.map((t) => (
+                              <label key={t.name} style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                {t.name}
+                                <select
+                                  value={t.max_days || ""}
+                                  onChange={async (event) => {
+                                    const value = event.target.value;
+                                    const res = await updateTeacher(t.name, { max_days: value === "" ? 0 : Number(value) });
+                                    if (res.ok) {
+                                      await refreshAcademicLists();
+                                    } else {
+                                      alert("No s'ha pogut desar el màxim de dies.");
+                                    }
+                                  }}
+                                >
+                                  <option value="">Sense límit</option>
+                                  {[1, 2, 3, 4, 5].map((days) => (
+                                    <option key={days} value={days}>{days} {days === 1 ? "dia" : "dies"}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {sharedCoordinations.length > 0 && (
+                        <div style={{ marginTop: management.length > 0 ? 10 : 0 }}>
+                          <strong>Coordinacions compartides</strong>
+                          <div className="muted" style={{ marginTop: 4 }}>
+                            {sharedCoordinations.map((entry) => `${entry.name}: ${entry.members.join(", ")}`).join(" · ")}.
+                            {" "}Cada una es col·loca com una sola reunió a la mateixa hora per a tots els membres
+                            (en repartir les hores de centre i coordinació).
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 <input
                   type="text"
                   placeholder="Cerca professors..."
@@ -4540,27 +4716,11 @@ export default function App() {
                         <td>
                           {assignmentEdit === a.id ? (
                             <>
-                              <select
-                                multiple
-                                size={4}
-                                value={assignmentEditValues.teacher ? assignmentEditValues.teacher.split(",").map((t) => t.trim()).filter(Boolean) : []}
-                                onChange={(event) => {
-                                  const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
-                                  setAssignmentEditValues({ ...assignmentEditValues, teacher: selected.join(", ") });
-                                }}
-                              >
-                                {[
-                                  ...assignmentEditValues.teacher
-                                    .split(",")
-                                    .map((teacherName) => teacherName.trim())
-                                    .filter((teacherName) => teacherName && !teachers.some((t) => t.name === teacherName))
-                                    .map((name) => ({ name })),
-                                  ...teachers,
-                                ].map((t) => (
-                                  <option key={t.name} value={t.name}>{t.name}</option>
-                                ))}
-                              </select>
-                              <div className="muted" style={{ fontSize: 11 }}>Ctrl/Cmd + clic per triar-ne més d'un</div>
+                              <TeacherMultiPicker
+                                teachers={teachers}
+                                value={assignmentEditValues.teacher}
+                                onChange={(next) => setAssignmentEditValues({ ...assignmentEditValues, teacher: next })}
+                              />
                             </>
                           ) : (
                             a.teacher
@@ -4781,19 +4941,11 @@ export default function App() {
                     <tr>
                       <td></td>
                       <td>
-                        <select
-                          multiple
-                          size={4}
-                          value={assignmentDraft.teacher ? assignmentDraft.teacher.split(",").map((t) => t.trim()).filter(Boolean) : []}
-                          onChange={(event) => {
-                            const selected = Array.from(event.target.selectedOptions).map((option) => option.value);
-                            setAssignmentDraft({ ...assignmentDraft, teacher: selected.join(", ") });
-                          }}
-                        >
-                          {teachers.map((t) => (
-                            <option key={t.name} value={t.name}>{t.name}</option>
-                          ))}
-                        </select>
+                        <TeacherMultiPicker
+                          teachers={teachers}
+                          value={assignmentDraft.teacher}
+                          onChange={(next) => setAssignmentDraft({ ...assignmentDraft, teacher: next })}
+                        />
                       </td>
                       <td>
                         <select
@@ -5908,8 +6060,9 @@ export default function App() {
             position: "fixed",
             bottom: 20,
             right: 20,
-            width: 340,
-            maxHeight: "70vh",
+            width: 440,
+            maxWidth: "calc(100vw - 40px)",
+            maxHeight: "80vh",
             display: "flex",
             flexDirection: "column",
             background: "white",
@@ -5929,7 +6082,7 @@ export default function App() {
               alignItems: "center",
             }}
           >
-            <strong>🤖 Assistent de resolució</strong>
+            <strong>🤖 Assistent</strong>
             <button
               type="button"
               onClick={() => setShowAssistantChat(false)}
@@ -5939,28 +6092,87 @@ export default function App() {
             </button>
           </div>
 
+          {assistantStatus && assistantStatus.configured === false && (
+            <div
+              style={{ background: "#fff4e5", color: "#8a4b00", padding: "8px 12px", fontSize: "0.8rem" }}
+            >
+              {ASSISTANT_ERROR_MESSAGES[assistantStatus.error] || assistantStatus.detail}
+            </div>
+          )}
+
           <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             {assistantMessages.length === 0 && (
-              <p className="muted" style={{ fontSize: "0.85rem" }}>
-                Pregunta'm sobre les incidències o conflictes d'aquesta proposta. Per exemple: "Per què no s'ha
-                pogut col·locar X?" o "Com puc millorar aquest horari?"
-              </p>
+              <>
+                <p className="muted" style={{ fontSize: "0.85rem" }}>
+                  Puc consultar l'horari, analitzar-lo i proposar canvis. Els canvis només s'apliquen si prems
+                  "Aplica". Per exemple: "Per què 2n COM acaba tan tard el divendres?" o "Mou Mitjans de 1r APGI a
+                  un dia amb menys hores".
+                </p>
+                {ASSISTANT_SUGGESTIONS.map((suggestion) => (
+                  <button
+                    key={suggestion}
+                    type="button"
+                    disabled={isAssistantThinking}
+                    onClick={() => sendAssistantText(suggestion)}
+                    style={{ textAlign: "left", fontSize: "0.8rem", padding: "6px 8px" }}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </>
             )}
             {assistantMessages.map((msg, index) => (
               <div
                 key={index}
                 style={{
                   alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                  background: msg.role === "user" ? "#263447" : msg.isError ? "#fdecea" : "#f0f0f0",
-                  color: msg.role === "user" ? "white" : msg.isError ? "#b71c1c" : "black",
-                  borderRadius: 8,
-                  padding: "8px 12px",
-                  maxWidth: "85%",
-                  fontSize: "0.85rem",
-                  whiteSpace: "pre-wrap",
+                  maxWidth: "92%",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
                 }}
               >
-                {msg.text}
+                <div
+                  style={{
+                    background: msg.role === "user" ? "#263447" : msg.isError ? "#fdecea" : "#f0f0f0",
+                    color: msg.role === "user" ? "white" : msg.isError ? "#b71c1c" : "black",
+                    borderRadius: 8,
+                    padding: "8px 12px",
+                    fontSize: "0.85rem",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {msg.text}
+                </div>
+                {(msg.actions || []).map((action) => (
+                  <div
+                    key={action.id}
+                    style={{
+                      border: "1px solid #c9d3e0",
+                      borderRadius: 8,
+                      padding: "8px 10px",
+                      fontSize: "0.8rem",
+                      background:
+                        action.status === "applied" ? "#e8f5e9" : action.status === "failed" ? "#fdecea" : "#f7f9fc",
+                    }}
+                  >
+                    <div style={{ marginBottom: 6 }}>{action.description}</div>
+                    {action.status === "pending" && (
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button type="button" onClick={() => applyAssistantAction(action.id)}>
+                          ✅ Aplica
+                        </button>
+                        <button type="button" onClick={() => discardAssistantAction(action.id)}>
+                          Descarta
+                        </button>
+                      </div>
+                    )}
+                    {action.status === "applying" && <span className="muted">Aplicant...</span>}
+                    {action.status === "applied" && <strong style={{ color: "#2e7d32" }}>Aplicat ✔</strong>}
+                    {action.status === "discarded" && <span className="muted">Descartat</span>}
+                    {action.status === "failed" && <span style={{ color: "#b71c1c" }}>{action.message}</span>}
+                  </div>
+                ))}
               </div>
             ))}
             {isAssistantThinking && (
@@ -5978,7 +6190,7 @@ export default function App() {
               onKeyDown={(event) => {
                 if (event.key === "Enter") sendAssistantMessage();
               }}
-              placeholder="Escriu la teva pregunta..."
+              placeholder="Pregunta o demana un canvi..."
               disabled={isAssistantThinking}
               style={{ flex: 1, padding: "6px 8px" }}
             />
