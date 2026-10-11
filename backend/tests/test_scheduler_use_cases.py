@@ -350,3 +350,16 @@ def test_scarce_days_ordering_is_noop_without_max_days_teachers_and_respects_pri
     )
     assert [item.id for item in ordered] == ["urgent", "escas", "primer"]
 
+
+def test_joint_group_classes_are_placed_before_single_group_ones_within_the_same_priority() -> None:
+    use_cases, requirement, _ = _scarce_days_fixture()
+    single = requirement("un-grup", "Ana", "GI", priority=2)
+    joint = requirement("conjunta", "Berta", "GI, GP", priority=2)
+    urgent = requirement("urgent", "Carla", "GP", priority=1)
+
+    ordered = use_cases._order_requirements_by_scarce_days([single, joint, urgent], [], set())
+
+    assert [item.id for item in ordered] == ["urgent", "conjunta", "un-grup"]
+    # Sense classes conjuntes l'ordre original no canvia.
+    assert use_cases._order_requirements_by_scarce_days([single, urgent], [], set()) == [urgent, single]
+

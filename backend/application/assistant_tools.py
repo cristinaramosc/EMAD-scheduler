@@ -30,8 +30,14 @@ except ModuleNotFoundError:  # pragma: no cover
 
 
 MAX_ROWS = 80
-PERIODS_PER_DAY = 28  # 8:00 ... 21:30 (franges de 30 min)
+PERIODS_PER_DAY = 27  # franges de 30 min de 8:00 a 21:00: les classes acaben com a màxim a les 21:30
 DAY_NAMES = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+
+
+def label_for_index(index: int) -> str:
+    """Hora (p.ex. 21:30) que correspon al límit de la franja `index`."""
+    minutes = 8 * 60 + index * 30
+    return f"{minutes // 60}:{minutes % 60:02d}"
 
 
 def hour_grid() -> List[str]:
@@ -264,7 +270,7 @@ class AssistantToolbox:
         index = self._hours.index(item["start"]) + int(item["duration"]) if item["start"] in self._hours else None
         if index is None:
             return "?"
-        return self._hours[index] if index < len(self._hours) else "22:00"
+        return self._hours[index] if index < len(self._hours) else label_for_index(index)
 
     def _row(self, item: Dict[str, Any]) -> str:
         hours = int(item["duration"]) / 2
@@ -433,7 +439,7 @@ class AssistantToolbox:
             gaps = sum(merged[i][0] - merged[i - 1][1] for i in range(1, len(merged)))
             total_hours += hours
             first, last = merged[0][0], merged[-1][1]
-            last_label = self._hours[last] if last < len(self._hours) else "22:00"
+            last_label = self._hours[last] if last < len(self._hours) else label_for_index(last)
             summary[day] = f"{self._hours[first]}-{last_label} | {hours:g} h de classe | {gaps} franges buides"
         return {
             "activitats": len(items),

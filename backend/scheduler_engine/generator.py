@@ -65,8 +65,10 @@ class SchedulerGenerator:
         orderings = self._build_orderings(teaching_blocks, context)
         for ordering in orderings[:max_proposals]:
             scheduled_activities, placement_warnings = self._generate_for_ordering(ordering, context)
+            scheduled_activities = self._repair_group_gaps(scheduled_activities, context)
             scheduled_activities = self._balance_group_days(scheduled_activities, context)
             scheduled_activities = self._arrange_quarter_activities(scheduled_activities, context)
+            scheduled_activities = self._repair_group_gaps(scheduled_activities, context)
             if not scheduled_activities and placement_warnings:
                 warnings.extend(placement_warnings)
                 continue
@@ -316,6 +318,62 @@ class SchedulerGenerator:
             scheduled_activities[:] = remaining + [displaced_replacement]
             return replacement
 
+        return None
+
+    _EJECTION_MAX_BLOCKERS = 4
+
+    def _try_window_ejection(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        scheduled_activities: List[ScheduledActivity],
+    ) -> Optional[ScheduledActivity]:
+        """Últim recurs per a un bloc que no cap enlloc: busca una finestra
+        (dia i hora) on el bloc encabiria si se'n treuen les poques activitats
+        flexibles que hi xoquen (fins a 4), el col·loca allà i torna a
+        col·locar les activitats desplaçades en altres franges, sempre amb
+        les mateixes restriccions que `place()`. Si alguna de les desplaçades
+        no troba lloc, es descarta aquella finestra i no es canvia res."""
+        required = teaching_block.duration_blocks or 1
+        strategy = self._placement_strategy
+        place_at_slot = getattr(strategy, "place_at_slot", None)
+        if not callable(place_at_slot):
+            return None
+
+        candidates = []
+        for day in context.school_calendar.days:
+            for period in range(0, context.school_calendar.periods_per_day - required + 1):
+                end = period + required
+                blockers = [
+                    activity for activity in scheduled_activities
+                    if activity.day == day
+                    and activity.start_timeslot.period < end
+                    and period < activity.start_timeslot.period + activity.duration
+                    and self._blocks_share_scheduling_resource(teaching_block, activity, context)
+                ]
+                if len(blockers) > self._EJECTION_MAX_BLOCKERS:
+                    continue
+                if any(getattr(item.teaching_block, "fixed", False) or getattr(item.teaching_block, "fixed_day", None) for item in blockers):
+                    continue
+                candidates.append((len(blockers), sum(item.duration for item in blockers), day, period, blockers))
+
+        candidates.sort(key=lambda entry: (entry[0], entry[1], entry[2], entry[3]))
+        for _, _, day, period, blockers in candidates:
+            remaining = [activity for activity in scheduled_activities if all(activity is not blocker for blocker in blockers)]
+            placement = place_at_slot(teaching_block, context, remaining, TimeSlot(day=day, period=period))
+            if placement is None:
+                continue
+            replaced: List[ScheduledActivity] = []
+            valid = True
+            for blocker in sorted(blockers, key=lambda item: -item.duration):
+                moved = strategy.place(blocker.teaching_block, context, remaining + [placement] + replaced)
+                if moved is None:
+                    valid = False
+                    break
+                replaced.append(moved)
+            if valid:
+                scheduled_activities[:] = remaining + replaced
+                return placement
         return None
 
     @staticmethod
@@ -644,6 +702,163 @@ class SchedulerGenerator:
         block = activity.teaching_block
         return not (getattr(block, "fixed", False) or getattr(block, "fixed_day", None))
 
+    _REPAIR_MAX_MOVES = 40
+    _LUNCH_START = "12:00"
+    _LUNCH_END = "16:00"
+    _LUNCH_SLOTS = 2
+
+    def _group_day_gaps(self, activities: Sequence[ScheduledActivity], context: GenerationContext) -> dict:
+        """{(grup, dia): franges buides netes}. En cada dia es descompta, un
+        sol cop, fins a 1 hora de dinar (2 franges) dins la finestra 12:00-16:00."""
+        hour_names = [str(name or "").strip() for name in (context.configuration.get("hour_names") or [])]
+        lunch = None
+        if self._LUNCH_START in hour_names and self._LUNCH_END in hour_names:
+            lunch = (hour_names.index(self._LUNCH_START), hour_names.index(self._LUNCH_END))
+
+        result = {}
+        for group, per_day in self._group_day_intervals(activities).items():
+            for day, intervals in per_day.items():
+                merged: list = []
+                for start, end in sorted(intervals):
+                    if merged and start <= merged[-1][1]:
+                        merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+                    else:
+                        merged.append((start, end))
+                holes = [(merged[i - 1][1], merged[i][0]) for i in range(1, len(merged))]
+                total = sum(end - start for start, end in holes)
+                if holes and lunch is not None:
+                    overlap = max(max(0, min(end, lunch[1]) - max(start, lunch[0])) for start, end in holes)
+                    total -= min(self._LUNCH_SLOTS, overlap)
+                result[(group, day)] = total
+        return result
+
+    def _gap_score(self, activities: Sequence[ScheduledActivity], context: GenerationContext) -> tuple:
+        gaps = self._group_day_gaps(activities, context)
+        return (sum(1 for value in gaps.values() if value > 1), sum(gaps.values()))
+
+    def _repair_group_gaps(
+        self,
+        activities: List[ScheduledActivity],
+        context: GenerationContext,
+    ) -> List[ScheduledActivity]:
+        """Tanca els forats de l'horari dels grups (màxim una franja buida,
+        descomptant 1 h de dinar): desplaça cap al forat les classes que hi ha
+        a un costat. Cada classe moguda passa per les MATEIXES restriccions que
+        `place()`, i el resultat no pot empitjorar els forats dels professors
+        ni deixar 1Q/2Q sols enmig de l'horari del grup."""
+        if not context.configuration.get("repair_group_gaps", True) or not activities:
+            return activities
+
+        activities = list(activities)
+        strategy = self._placement_strategy
+
+        for _ in range(self._REPAIR_MAX_MOVES):
+            gap_before = self._gap_score(activities, context)
+            if gap_before[0] == 0:
+                break
+            teacher_before = self._teacher_gap_slots_total(activities)
+            lone_before = len(self._misplaced_lone_quarters(activities))
+            gaps = self._group_day_gaps(activities, context)
+            targets = sorted((key for key, value in gaps.items() if value > 1), key=lambda key: -gaps[key])
+
+            best = None
+            for group, day in targets:
+                day_items = [
+                    item for item in activities
+                    if item.day == day and group in group_names(item.group_id)
+                ]
+                intervals = sorted(
+                    {(item.start_timeslot.period, item.start_timeslot.period + item.duration) for item in day_items}
+                )
+                merged: list = []
+                for start, end in intervals:
+                    if merged and start <= merged[-1][1]:
+                        merged[-1] = (merged[-1][0], max(merged[-1][1], end))
+                    else:
+                        merged.append((start, end))
+                for index in range(1, len(merged)):
+                    hole_start, hole_end = merged[index - 1][1], merged[index][0]
+                    size = hole_end - hole_start
+                    for amount in sorted({size, max(1, size - self._LUNCH_SLOTS)}, reverse=True):
+                        after = [item for item in day_items if item.start_timeslot.period >= hole_end]
+                        before = [item for item in day_items if item.start_timeslot.period + item.duration <= hole_start]
+                        plans = [
+                            [(item, item.start_timeslot.period - amount) for item in after],
+                            [(item, item.start_timeslot.period + amount) for item in before],
+                        ]
+                        for plan in plans:
+                            if not plan or not all(self._is_quarter_movable(item) for item, _ in plan):
+                                continue
+                            movers = [item for item, _ in plan]
+                            rest = [other for other in activities if all(other is not mover for mover in movers)]
+                            placed: List[ScheduledActivity] = []
+                            valid = True
+                            for item, new_period in sorted(plan, key=lambda entry: entry[1]):
+                                placement = strategy.place_at_slot(
+                                    item.teaching_block, context, rest + placed, TimeSlot(day=day, period=new_period)
+                                )
+                                if placement is None:
+                                    valid = False
+                                    break
+                                placed.append(placement)
+                            if not valid:
+                                continue
+                            trial = rest + placed
+                            score = self._gap_score(trial, context)
+                            if (
+                                score < gap_before
+                                and self._teacher_gap_slots_total(trial) <= teacher_before
+                                and len(self._misplaced_lone_quarters(trial)) <= lone_before
+                            ):
+                                key = (score, self._teacher_gap_slots_total(trial), len(movers))
+                                if best is None or key < best[0]:
+                                    best = (key, trial)
+                if best is not None:
+                    break
+
+            if best is None:
+                # Si cap desplaçament dins del dia tanca el forat, es prova de
+                # passar una classe del dia amb forat a un altre dia.
+                days = list(context.school_calendar.days)
+                for group, day in targets:
+                    movable = [
+                        item for item in activities
+                        if item.day == day and group in group_names(item.group_id) and self._is_quarter_movable(item)
+                    ]
+                    for item in movable:
+                        others = [other for other in activities if other is not item]
+                        requirement_id = (item.teaching_block.metadata or {}).get("requirement_id")
+                        sibling_days = {
+                            other.day for other in others
+                            if requirement_id and (other.teaching_block.metadata or {}).get("requirement_id") == requirement_id
+                        }
+                        for target_day in days:
+                            if target_day == day or target_day in sibling_days:
+                                continue
+                            placement = strategy.place(
+                                item.teaching_block, context, others, excluded_days=set(days) - {target_day}
+                            )
+                            if placement is None or placement.day != target_day:
+                                continue
+                            trial = others + [placement]
+                            score = self._gap_score(trial, context)
+                            if (
+                                score < gap_before
+                                and self._teacher_gap_slots_total(trial) <= teacher_before
+                                and len(self._misplaced_lone_quarters(trial)) <= lone_before
+                            ):
+                                key = (score, self._teacher_gap_slots_total(trial), 1)
+                                if best is None or key < best[0]:
+                                    best = (key, trial)
+                    if best is not None:
+                        break
+
+            if best is None:
+                break
+            activities = best[1]
+
+        return activities
+
     def _same_day_edge_options(
         self,
         activity: ScheduledActivity,
@@ -845,6 +1060,13 @@ class SchedulerGenerator:
 
             if placement is None:
                 placement = self._try_local_reorganization(
+                    block,
+                    context,
+                    scheduled_activities,
+                )
+
+            if placement is None:
+                placement = self._try_window_ejection(
                     block,
                     context,
                     scheduled_activities,

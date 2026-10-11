@@ -1153,11 +1153,10 @@ class SchedulerUseCases:
         professors amb màxim de dies que només poden anar pocs dies (segons la
         seva disponibilitat i la del grup). Així, per exemple, la classe de
         tarda d'un professor que només pot venir el divendres a la tarda es
-        col·loca abans que les de matí i no es queda sense dia. La resta
-        conserva l'ordre original (ordenació estable)."""
-        if not max_days_teacher_names:
-            return requirements
-
+        col·loca abans que les de matí i no es queda sense dia. Després van
+        les classes conjuntes de diversos grups (p.ex. "GI, GP"), que són les
+        més difícils de fer encaixar. La resta conserva l'ordre original
+        (ordenació estable)."""
         teacher_blocked: Dict[str, set] = {}
         group_blocked: Dict[str, set] = {}
         for activity in blocked_activities:
@@ -1194,8 +1193,14 @@ class SchedulerUseCases:
                         break
             return days
 
+        def joint_groups(requirement: TeachingRequirement) -> int:
+            # Una classe conjunta (p.ex. "GI, GP") necessita una franja lliure
+            # alhora a tots els grups i al professor: és la més difícil de
+            # col·locar i s'ha de fer abans que els grups s'omplin.
+            return len(group_names(requirement.group_id) or [requirement.group_id])
+
         keyed = [
-            ((requirement.priority, available_days(requirement), position), requirement)
+            ((requirement.priority, available_days(requirement), -joint_groups(requirement), position), requirement)
             for position, requirement in enumerate(requirements)
         ]
         return [requirement for _, requirement in sorted(keyed, key=lambda item: item[0])]
@@ -1548,7 +1553,9 @@ class SchedulerUseCases:
                 if start_index is None:
                     continue
                 new_index = start_index + (first.duration or 1)
-                if new_index >= len(hour_names):
+                # La classe consecutiva ha d'acabar dins la jornada (les
+                # classes acaben com a màxim a les 21:30).
+                if new_index + (second.duration or 1) > self._school_calendar.periods_per_day:
                     continue
 
                 original_day, original_start = second.day, second.start

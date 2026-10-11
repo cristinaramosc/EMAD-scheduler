@@ -18,6 +18,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.models import SchoolCalendar
 
 _DEFAULT_DAY_NAMES = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+_DAY_END_LABEL = "21:30"
 # Graella de 30 minuts, 8:00-21:30 (franja màxima que cobreix tots els
 # grups: matí 8:00-15:00 i tarda/vespre 15:00-21:30). Les franges
 # concretes per grup es limiten amb group_time_window_constraints, no aquí.
@@ -71,9 +72,15 @@ class SchoolCalendarRepository:
 
     def load_school_calendar(self) -> SchoolCalendar:
         settings = self.load_settings()
+        hour_names = settings.hour_names
+        # L'etiqueta 21:30 de la graella és la MARCA DE FINAL de jornada (el
+        # frontend la pinta com a "final"), no una franja de classe: les
+        # classes acaben com a màxim a les 21:30, per tant l'última franja
+        # útil comença a les 21:00.
+        usable = len(hour_names) - (1 if hour_names and str(hour_names[-1]).strip() == _DAY_END_LABEL else 0)
         return SchoolCalendar(
             days=list(range(len(settings.day_names))),
-            periods_per_day=len(settings.hour_names),
+            periods_per_day=max(1, usable),
         )
 
     def load_time_labels(self) -> Dict[str, List[str]]:
