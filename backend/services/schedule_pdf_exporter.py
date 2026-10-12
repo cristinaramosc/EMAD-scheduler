@@ -535,6 +535,7 @@ def _draw_grid(
         if not day_items:
             continue
         _layout_columns(day_items)
+        _halve_lone_quarters(day_items)
         for it in day_items:
             first = max(it["_start"], start_min)
             last = min(it["_end"], start_min + n_rows * 30)
@@ -584,6 +585,17 @@ def _draw_grid(
     c.setLineWidth(1)
     c.line(left, body_top, left, body_bottom)
     c.line(right, body_top, right, body_bottom)
+
+
+def _halve_lone_quarters(day_items: List[Dict[str, Any]]) -> None:
+    """Un 1Q o 2Q que va sol (cap altre bloc el solapa) es dibuixa a mig ample:
+    el 1Q a l'esquerra i el 2Q a la dreta. Així es veu a primera vista que
+    només ocupa aquell quadrimestre i que l'altra meitat està lliure, en lloc
+    de semblar una classe de tot el curs."""
+    for item in day_items:
+        if item.get("quarter") in ("1Q", "2Q") and item["_ncols"] == 1:
+            item["_ncols"] = 2
+            item["_col"] = 0 if item["quarter"] == "1Q" else 1
 
 
 def _quarter_pair(left: Dict[str, Any], right: Dict[str, Any]) -> bool:

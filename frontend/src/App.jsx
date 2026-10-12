@@ -2110,6 +2110,21 @@ export default function App() {
       flushCluster();
     });
 
+    // Un 1Q o 2Q que va sol es dibuixa a mig ample (1Q a l'esquerra, 2Q a la
+    // dreta): així es veu que només ocupa aquell quadrimestre i que l'altra
+    // meitat està lliure, en lloc de semblar una classe de tot el curs.
+    result.forEach((item) => {
+      if ((item.totalColumns || 1) !== 1 || item.activities.length !== 1) {
+        return;
+      }
+      const lone = item.activities[0];
+      const marker = getQuarterSuffix(lone.subject) || getQuarterSuffix(lone.group);
+      if (marker === "1Q" || marker === "2Q") {
+        item.totalColumns = 2;
+        item.column = marker === "1Q" ? 0 : 1;
+      }
+    });
+
     return result;
   }, [visibleActivitiesBySlot]);
 
@@ -2892,6 +2907,10 @@ export default function App() {
         }}
       >
         <strong>{activity.subject}</strong>
+        {(() => {
+          const marker = getQuarterSuffix(activity.subject) || getQuarterSuffix(activity.group);
+          return marker ? <span className="activity-quarter-badge">{marker}</span> : null;
+        })()}
         <span>{activity.teacher}</span>
         <small>
           {activity.group}

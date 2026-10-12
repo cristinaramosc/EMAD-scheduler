@@ -210,3 +210,20 @@ def test_group_gap_repair_does_not_create_teacher_conflicts():
                 item.start_timeslot.period + item.duration <= other.start_timeslot.period
                 or other.start_timeslot.period + other.duration <= item.start_timeslot.period
             ), "un professor no pot fer dues classes alhora"
+
+
+def test_a_lone_quarter_is_drawn_at_half_width_in_the_pdf_and_overlaps_are_untouched():
+    from backend.services.schedule_pdf_exporter import _halve_lone_quarters
+
+    lone_first = {"quarter": "1Q", "_ncols": 1, "_col": 0}
+    lone_second = {"quarter": "2Q", "_ncols": 1, "_col": 0}
+    annual = {"quarter": None, "_ncols": 1, "_col": 0}
+    overlapped = {"quarter": "2Q", "_ncols": 2, "_col": 1}
+    items = [lone_first, lone_second, annual, overlapped]
+
+    _halve_lone_quarters(items)
+
+    assert (lone_first["_ncols"], lone_first["_col"]) == (2, 0)   # 1Q a l'esquerra
+    assert (lone_second["_ncols"], lone_second["_col"]) == (2, 1)  # 2Q a la dreta
+    assert (annual["_ncols"], annual["_col"]) == (1, 0)           # una classe anual, a ample complet
+    assert (overlapped["_ncols"], overlapped["_col"]) == (2, 1)   # ja compartia franja: no es toca

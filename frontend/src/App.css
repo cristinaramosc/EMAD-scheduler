@@ -1176,3 +1176,15 @@ button.primary:hover:not(:disabled) {
   height: 8px;
   width: 8px;
 }
+
+.activity-quarter-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: #263447;
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
