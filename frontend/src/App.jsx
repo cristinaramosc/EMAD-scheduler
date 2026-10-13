@@ -2868,7 +2868,17 @@ export default function App() {
     }
   }
 
-  function renderActivity(activity) {
+  function renderActivity(activity, pairSlots = 0) {
+    // Quan un 1Q i un 2Q comparteixen franja, cada targeta fa la seva durada
+    // (p.ex. 3 h i 4 h) i no s'estiren a la mateixa alçada.
+    const pairQuarter = pairSlots ? getQuarterSuffix(activity.subject) || getQuarterSuffix(activity.group) : null;
+    const pairStyle = pairSlots
+      ? {
+          gridRow: `1 / span ${Math.max(1, Math.min(Number(activity.duration) || 1, pairSlots))}`,
+          gridColumn: pairQuarter === "2Q" ? 2 : 1,
+          minHeight: 0,
+        }
+      : null;
     const hasConflict = conflictIds.has(activity.id);
     const conflictReasons = conflictMessages.get(activity.id) || [];
     const isSelected = selectedActivityId === activity.id;
@@ -2888,7 +2898,14 @@ export default function App() {
         ].filter(Boolean).join(" ")}
         draggable={!isSyntheticBreak}
         title={hasConflict ? conflictReasons.join("\n") : undefined}
-        style={groupColor ? { background: groupColor.background, borderColor: groupColor.border } : undefined}
+        style={
+          groupColor || pairStyle
+            ? {
+                ...(groupColor ? { background: groupColor.background, borderColor: groupColor.border } : null),
+                ...(pairStyle || null),
+              }
+            : undefined
+        }
         onClick={() => setSelectedActivityId(activity.id)}
         onDoubleClick={() => {
           if (!isSyntheticBreak) {
@@ -5255,9 +5272,14 @@ export default function App() {
                   ...(totalColumns > 1
                     ? { width: `${widthPercent}%`, marginLeft: `${leftPercent}%` }
                     : null),
+                  ...(block.activities.length > 1
+                    ? { gridTemplateRows: `repeat(${block.rowSpan}, minmax(0, 1fr))` }
+                    : null),
                 }}
               >
-                {block.activities.map(renderActivity)}
+                {block.activities.map((activity) =>
+                  renderActivity(activity, block.activities.length > 1 ? block.rowSpan : 0)
+                )}
               </div>
             );
           })}
