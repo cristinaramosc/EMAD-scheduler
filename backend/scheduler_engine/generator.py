@@ -68,6 +68,7 @@ class SchedulerGenerator:
             scheduled_activities = self._repair_group_gaps(scheduled_activities, context)
             scheduled_activities = self._balance_group_days(scheduled_activities, context)
             scheduled_activities = self._arrange_quarter_activities(scheduled_activities, context)
+            scheduled_activities = self._arrange_consecutive_pairs(scheduled_activities, context)
             scheduled_activities = self._repair_group_gaps(scheduled_activities, context)
             if not scheduled_activities and placement_warnings:
                 warnings.extend(placement_warnings)
@@ -697,6 +698,95 @@ class SchedulerGenerator:
             if self._is_lone_quarter(activity, activities) and self._is_off_group_edge(activity, activities)
         ]
 
+    def _paired_quarters(self, activities: Sequence[ScheduledActivity]) -> List[tuple]:
+        """Parelles (1Q, 2Q) que comparteixen franja i algun grup pare."""
+        firsts = [a for a in activities if self._quarter_of(a) == "1q"]
+        seconds = [a for a in activities if self._quarter_of(a) == "2q"]
+        pairs = []
+        for first in firsts:
+            for second in seconds:
+                if first.day != second.day:
+                    continue
+                if not self._parent_group_set(first) & self._parent_group_set(second):
+                    continue
+                first_end = first.start_timeslot.period + first.duration
+                second_end = second.start_timeslot.period + second.duration
+                if first.start_timeslot.period < second_end and second.start_timeslot.period < first_end:
+                    pairs.append((first, second))
+        return pairs
+
+    def _misplaced_unequal_pairs(self, activities: Sequence[ScheduledActivity]) -> List[tuple]:
+        """Parelles 1Q/2Q de durada diferent (o que no comencen alhora) que NO
+        són a l'últim tram del dia del grup: durant el quadrimestre de la
+        classe més curta quedaria un forat entre classes. Una parella
+        desigual ha de ser l'última cosa del dia del grup."""
+        misplaced = []
+        for first, second in self._paired_quarters(activities):
+            if first.start_timeslot.period == second.start_timeslot.period and first.duration == second.duration:
+                continue
+            shared = self._parent_group_set(first) & self._parent_group_set(second)
+            shorter_end = min(
+                first.start_timeslot.period + first.duration,
+                second.start_timeslot.period + second.duration,
+            )
+            if any(
+                other is not first and other is not second
+                and other.day == first.day
+                and shared & set(group_names(other.group_id))
+                and other.start_timeslot.period >= shorter_end
+                for other in activities
+            ):
+                misplaced.append((first, second))
+        return misplaced
+
+    def _quarter_violations(self, activities: Sequence[ScheduledActivity]) -> int:
+        """1Q/2Q sols fora d'extrem + parelles desiguals que no acaben el dia."""
+        return len(self._misplaced_lone_quarters(activities)) + len(self._misplaced_unequal_pairs(activities))
+
+    def _pair_to_end_options(
+        self,
+        first: ScheduledActivity,
+        second: ScheduledActivity,
+        activities: Sequence[ScheduledActivity],
+        context: GenerationContext,
+    ) -> List[List[ScheduledActivity]]:
+        """Reordena el dia del grup perquè la parella quedi al final: les
+        classes que hi havia darrere passen davant, tantes franges com ocupa
+        la parella, i la parella es posa després. Cada classe moguda passa per
+        les restriccions de `place()`."""
+        if first.start_timeslot.period != second.start_timeslot.period:
+            return []
+        shared = self._parent_group_set(first) & self._parent_group_set(second)
+        start = first.start_timeslot.period
+        span = max(first.duration, second.duration)
+        pair_end = start + span
+        after = [
+            other for other in activities
+            if other is not first and other is not second
+            and other.day == first.day
+            and shared & set(group_names(other.group_id))
+            and other.start_timeslot.period >= min(start + first.duration, start + second.duration)
+        ]
+        if not after or any(item.start_timeslot.period < pair_end for item in after):
+            return []
+        movers = [first, second] + after
+        if not all(self._is_quarter_movable(item) for item in movers):
+            return []
+
+        group_end = max(item.start_timeslot.period + item.duration for item in after)
+        rest = [other for other in activities if all(other is not mover for mover in movers)]
+        placed: List[ScheduledActivity] = []
+        plan = [(item, item.start_timeslot.period - span) for item in sorted(after, key=lambda i: i.start_timeslot.period)]
+        plan += [(first, group_end - span), (second, group_end - span)]
+        for item, new_period in plan:
+            placement = self._placement_strategy.place_at_slot(
+                item.teaching_block, context, rest + placed, TimeSlot(day=first.day, period=new_period)
+            )
+            if placement is None:
+                return []
+            placed.append(placement)
+        return [rest + placed]
+
     @staticmethod
     def _is_quarter_movable(activity: ScheduledActivity) -> bool:
         block = activity.teaching_block
@@ -757,7 +847,7 @@ class SchedulerGenerator:
             if gap_before[0] == 0:
                 break
             teacher_before = self._teacher_gap_slots_total(activities)
-            lone_before = len(self._misplaced_lone_quarters(activities))
+            lone_before = self._quarter_violations(activities)
             gaps = self._group_day_gaps(activities, context)
             targets = sorted((key for key, value in gaps.items() if value > 1), key=lambda key: -gaps[key])
 
@@ -808,7 +898,7 @@ class SchedulerGenerator:
                             if (
                                 score < gap_before
                                 and self._teacher_gap_slots_total(trial) <= teacher_before
-                                and len(self._misplaced_lone_quarters(trial)) <= lone_before
+                                and self._quarter_violations(trial) <= lone_before
                             ):
                                 key = (score, self._teacher_gap_slots_total(trial), len(movers))
                                 if best is None or key < best[0]:
@@ -845,7 +935,7 @@ class SchedulerGenerator:
                             if (
                                 score < gap_before
                                 and self._teacher_gap_slots_total(trial) <= teacher_before
-                                and len(self._misplaced_lone_quarters(trial)) <= lone_before
+                                and self._quarter_violations(trial) <= lone_before
                             ):
                                 key = (score, self._teacher_gap_slots_total(trial), 1)
                                 if best is None or key < best[0]:
@@ -856,6 +946,152 @@ class SchedulerGenerator:
             if best is None:
                 break
             activities = best[1]
+
+        return activities
+
+    @staticmethod
+    def _are_adjacent(first: ScheduledActivity, second: ScheduledActivity) -> bool:
+        if first.day != second.day:
+            return False
+        first_start, second_start = first.start_timeslot.period, second.start_timeslot.period
+        return first_start + first.duration == second_start or second_start + second.duration == first_start
+
+    def _consecutive_options(
+        self,
+        first: ScheduledActivity,
+        second: ScheduledActivity,
+        activities: Sequence[ScheduledActivity],
+        context: GenerationContext,
+    ) -> List[List[ScheduledActivity]]:
+        """Col·loca `second` just darrere `first`. Si aquella franja és
+        ocupada per altres classes dels mateixos grups, aquestes es desplacen
+        (cap endavant o cap endarrere) tantes franges com dura `second`, de
+        manera que no quedi cap forat nou. Cada classe moguda passa per les
+        restriccions de `place()`."""
+        duration = second.duration
+        shared = set(group_names(first.group_id)) | set(group_names(second.group_id))
+        first_start = first.start_timeslot.period
+        first_end = first_start + first.duration
+        second_start = second.start_timeslot.period
+        day_items = [
+            other for other in activities
+            if other.day == first.day and shared & set(group_names(other.group_id))
+            and other is not first and other is not second
+        ]
+
+        if second.day == first.day and second_start >= first_end:
+            between = [o for o in day_items if first_end <= o.start_timeslot.period < second_start]
+            plan = [(second, first_end)] + [(o, o.start_timeslot.period + duration) for o in between]
+            movers = [second] + between
+        elif second.day == first.day:
+            between = [o for o in day_items if second_start + duration <= o.start_timeslot.period < first_end]
+            between.append(first)
+            plan = [(o, o.start_timeslot.period - duration) for o in between] + [(second, first_end - duration)]
+            movers = [second] + between
+        else:
+            after = [o for o in day_items if o.start_timeslot.period >= first_end]
+            plan = [(second, first_end)] + [(o, o.start_timeslot.period + duration) for o in after]
+            movers = [second] + after
+
+        plans = [(plan, movers)]
+        # Variant: `second` s'enganxa PER DARRERE de `first` (abans de l'hora
+        # d'inici de `first`) quan és al mateix dia i ja era abans.
+        second_end = second_start + duration
+        if second.day == first.day and second_end <= first_start:
+            between_before = [o for o in day_items if second_end <= o.start_timeslot.period < first_start]
+            plans.append(
+                (
+                    [(o, o.start_timeslot.period - duration) for o in between_before] + [(second, first_start - duration)],
+                    [second] + between_before,
+                )
+            )
+
+        options: List[List[ScheduledActivity]] = []
+        for plan, movers in plans:
+            if not all(self._is_quarter_movable(item) for item in movers):
+                continue
+            rest = [other for other in activities if all(other is not mover for mover in movers)]
+            ascending = sorted(plan, key=lambda entry: entry[1])
+            # L'ordre de col·locació importa: en estats intermedis un forat
+            # transitori pot fer fallar la comprovació de forats del grup.
+            orders = [
+                ascending,
+                list(reversed(ascending)),
+                [entry for entry in ascending if entry[0] is second] + [entry for entry in ascending if entry[0] is not second],
+            ]
+            for order in orders:
+                placed: List[ScheduledActivity] = []
+                valid = True
+                for item, new_period in order:
+                    placement = self._placement_strategy.place_at_slot(
+                        item.teaching_block,
+                        context,
+                        rest + placed,
+                        TimeSlot(day=first.day, period=new_period),
+                        skip_group_gap_check=True,
+                    )
+                    if placement is None:
+                        valid = False
+                        break
+                    placed.append(placement)
+                if valid:
+                    options.append(rest + placed)
+                    break
+        return options
+
+    def _arrange_consecutive_pairs(
+        self,
+        activities: List[ScheduledActivity],
+        context: GenerationContext,
+    ) -> List[ScheduledActivity]:
+        """Assignatures marcades com a "consecutives" (columna "Consecutiva
+        amb" de l'Excel): les posa una justa darrere l'altra, desplaçant si cal
+        les classes que hi ha pel mig, sempre amb les mateixes restriccions que
+        la col·locació normal. No s'accepta si això afegeix forats als grups
+        ni deixa 1Q/2Q sols enmig del dia."""
+        pairs = context.configuration.get("consecutive_pairs") or []
+        if not pairs or not activities:
+            return activities
+
+        activities = list(activities)
+
+        def find(key):
+            subject, group, teacher = key
+            return [
+                a for a in activities
+                if (a.teaching_block.metadata or {}).get("subject") == subject
+                and str(a.group_id or "").strip().casefold() == group.casefold()
+                and str(a.teacher_id or "").strip().casefold() == teacher.casefold()
+            ]
+
+        for pair in pairs:
+            firsts, seconds = find(pair["a"]), find(pair["b"])
+            if not firsts or not seconds:
+                continue
+            if any(self._are_adjacent(x, y) for x in firsts for y in seconds):
+                continue
+
+            before = (
+                self._quarter_violations(activities),
+                self._group_gap_slots_total(activities),
+                self._teacher_gap_slots_total(activities),
+            )
+            best = None
+            for x in firsts:
+                for y in seconds:
+                    for first, second in ((x, y), (y, x)):
+                        for trial in self._consecutive_options(first, second, activities, context):
+                            after = (
+                                self._quarter_violations(trial),
+                                self._group_gap_slots_total(trial),
+                                self._teacher_gap_slots_total(trial),
+                            )
+                            if after[0] <= before[0] and after[1] <= before[1]:
+                                key = (after[1], after[2], after[0])
+                                if best is None or key < best[0]:
+                                    best = (key, trial)
+            if best is not None:
+                activities = best[1]
 
         return activities
 
@@ -941,7 +1177,7 @@ class SchedulerGenerator:
 
         def metrics(items: Sequence[ScheduledActivity]) -> tuple:
             return (
-                len(self._misplaced_lone_quarters(items)),
+                self._quarter_violations(items),
                 self._group_gap_slots_total(items),
                 self._teacher_gap_slots_total(items),
             )
@@ -973,6 +1209,43 @@ class SchedulerGenerator:
                     after = metrics(trial)
                     if after[0] < before[0] and after[1] <= before[1] and after[2] <= before[2]:
                         key = (after[2], after[1], slot.day != activity.day, slot.day, slot.period)
+                        if best is None or key < best[0]:
+                            best = (key, trial)
+                if best is not None:
+                    break
+            if best is None:
+                break
+            activities = best[1]
+
+        # --- 1b. Una parella 1Q/2Q de durada diferent ha d'acabar el dia del
+        # grup (si no, un dels quadrimestres quedaria amb un forat enmig).
+        for _ in range(self._QUARTER_MAX_MOVES):
+            bad_pairs = self._misplaced_unequal_pairs(activities)
+            if not bad_pairs:
+                break
+            before = metrics(activities)
+            best = None
+            for first, second in bad_pairs:
+                for trial in self._pair_to_end_options(first, second, activities, context):
+                    after = metrics(trial)
+                    if after[0] < before[0] and after[1] <= before[1] and after[2] <= before[2]:
+                        key = (after[2], after[1], first.day, 0)
+                        if best is None or key < best[0]:
+                            best = (key, trial)
+                if not (self._is_quarter_movable(first) and self._is_quarter_movable(second)):
+                    continue
+                rest = [a for a in activities if a is not first and a is not second]
+                for slot in all_slots:
+                    moved_first = strategy.place_at_slot(first.teaching_block, context, rest, slot)
+                    if moved_first is None:
+                        continue
+                    moved_second = strategy.place_at_slot(second.teaching_block, context, rest + [moved_first], slot)
+                    if moved_second is None:
+                        continue
+                    trial = rest + [moved_first, moved_second]
+                    after = metrics(trial)
+                    if after[0] < before[0] and after[1] <= before[1] and after[2] <= before[2]:
+                        key = (after[2], after[1], slot.day, slot.period)
                         if best is None or key < best[0]:
                             best = (key, trial)
                 if best is not None:

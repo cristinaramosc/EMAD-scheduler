@@ -328,6 +328,24 @@ class SchedulerUseCases:
                 "group_time_window_constraints": self._build_group_time_window_constraints(group_restrictions, hour_names),
                 "group_max_days_constraints": self._build_group_max_days_constraints(group_restrictions),
                 "teacher_max_days_constraints": self._build_teacher_max_days_constraints(teacher_restrictions),
+                # Assignatures que han d'anar una darrere l'altra (columna
+                # "Consecutiva amb"): el generador les reordena amb les
+                # mateixes restriccions de la col·locació normal.
+                "consecutive_pairs": [
+                    {
+                        "a": (
+                            str(first.get("subject") or "").strip(),
+                            str(first.get("group") or "").strip(),
+                            str(first.get("teacher") or "").strip(),
+                        ),
+                        "b": (
+                            str(second.get("subject") or "").strip(),
+                            str(second.get("group") or "").strip(),
+                            str(second.get("teacher") or "").strip(),
+                        ),
+                    }
+                    for first, second in self._resolve_consecutive_pairs(assignments)
+                ],
             },
         )
 
@@ -1453,16 +1471,11 @@ class SchedulerUseCases:
 
         return blocked
 
-    def _apply_consecutive_group_preferences(
-        self, proposal: ScheduleProposal, assignments: List[Dict[str, Any]], hour_names: List[str]
-    ) -> ScheduleProposal:
-        """Si una assignació té `consecutive_group` apuntant al nom d'una
-        altra assignatura del mateix grup, intenta col·locar-les una justa
-        darrere l'altra (mateix dia, sense forat). Preferència: si una
-        acaba en '1Q' i l'altra en '2Q', la 1Q va primera, però s'accepta
-        l'ordre invers si és l'única manera de fer-les consecutives."""
-        hour_index = {name: index for index, name in enumerate(hour_names)}
-
+    @staticmethod
+    def _resolve_consecutive_pairs(assignments: List[Dict[str, Any]]) -> List[tuple]:
+        """Parelles (assignació, parella) definides per `consecutive_group`.
+        Si no s'indica professor i hi ha diverses assignatures amb aquest
+        nom al grup, es tria la darrera de la llista."""
         by_group_subject: Dict[tuple, List[Dict[str, Any]]] = {}
         for assignment in assignments:
             key = (
@@ -1501,6 +1514,20 @@ class SchedulerUseCases:
                 continue
             seen_pairs.add(pair_id)
             pairs.append((assignment, partner))
+
+        return pairs
+
+    def _apply_consecutive_group_preferences(
+        self, proposal: ScheduleProposal, assignments: List[Dict[str, Any]], hour_names: List[str]
+    ) -> ScheduleProposal:
+        """Si una assignació té `consecutive_group` apuntant al nom d'una
+        altra assignatura del mateix grup, intenta col·locar-les una justa
+        darrere l'altra (mateix dia, sense forat). Preferència: si una
+        acaba en '1Q' i l'altra en '2Q', la 1Q va primera, però s'accepta
+        l'ordre invers si és l'única manera de fer-les consecutives."""
+        hour_index = {name: index for index, name in enumerate(hour_names)}
+
+        pairs = self._resolve_consecutive_pairs(assignments)
 
         if not pairs:
             return proposal

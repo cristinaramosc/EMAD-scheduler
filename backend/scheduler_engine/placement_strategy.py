@@ -521,9 +521,13 @@ class GreedyPlacementStrategy(PlacementStrategy):
         context: GenerationContext,
         current_scheduled_activities: Sequence[ScheduledActivity],
         slot: TimeSlot,
+        skip_group_gap_check: bool = False,
     ) -> Optional[ScheduledActivity]:
         """Col·loca el bloc exactament en aquesta franja si compleix TOTES les
-        mateixes restriccions que `place()`; si no, retorna None."""
+        mateixes restriccions que `place()`; si no, retorna None. Amb
+        `skip_group_gap_check` s'omet la comprovació de forats del grup: es
+        fa servir quan es mouen diverses classes alhora i el forat només
+        existeix en estats intermedis; el resultat final es valida a part."""
         required_slots = teaching_block.duration_blocks or 1
         existing_activities = list(context.existing_scheduled_activities) + list(context.fixed_activities)
         all_activities = list(existing_activities) + list(current_scheduled_activities)
@@ -536,7 +540,9 @@ class GreedyPlacementStrategy(PlacementStrategy):
             return None
         if self._group_conflict_exists(teaching_block, slot, all_activities, context):
             return None
-        if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, all_activities, context):
+        if not skip_group_gap_check and self._group_daily_gap_limit_conflict_exists(
+            teaching_block, slot, all_activities, context
+        ):
             return None
         if self._teacher_conflict_exists(teaching_block, slot, all_activities):
             return None

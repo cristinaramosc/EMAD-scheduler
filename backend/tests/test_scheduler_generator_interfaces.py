@@ -1414,3 +1414,125 @@ def test_arrange_quarters_can_be_disabled_from_the_configuration():
 
     assert {item.teaching_block.id: item.start_timeslot.period for item in arranged} == {"a": 0, "q": 2, "b": 4}
 
+
+
+def _unequal_pair_setup(generator_cls=None):
+    generator = SchedulerGenerator()
+    strategy, context, block, placed = _quarter_fixture()
+    long_first = placed(block("q1", "Audio 1Q", "G1", "T1", 8), day=0, period=0, duration=8)  # 4 h
+    short_second = placed(block("q2", "Audio 2Q", "G1", "T2", 6), day=0, period=0, duration=6)  # 3 h
+    return generator, context, block, placed, long_first, short_second
+
+
+def test_an_unequal_quarter_pair_must_end_the_group_day():
+    generator, context, block, placed, first, second = _unequal_pair_setup()
+    class_after = placed(block("m", "Mat", "G1", "T3", 2), day=0, period=8, duration=2)
+
+    # La 2Q (3 h) acaba abans que l'1Q (4 h): amb una classe darrere queda un forat a la 2Q.
+    assert generator._misplaced_unequal_pairs([first, second, class_after]) == [(first, second)]
+    assert generator._quarter_violations([first, second, class_after]) == 1
+    # Sense cap classe darrere, la parella ja acaba el dia.
+    assert generator._misplaced_unequal_pairs([first, second]) == []
+
+
+def test_an_equal_quarter_pair_can_go_anywhere_in_the_day():
+    generator, context, block, placed, _, _ = _unequal_pair_setup()
+    first = placed(block("a1", "Foto 1Q", "G1", "T1", 4), day=0, period=0, duration=4)
+    second = placed(block("a2", "Dib 2Q", "G1", "T2", 4), day=0, period=0, duration=4)
+    class_after = placed(block("m", "Mat", "G1", "T3", 2), day=0, period=4, duration=2)
+
+    assert generator._misplaced_unequal_pairs([first, second, class_after]) == []
+
+
+def test_arrange_quarters_moves_an_unequal_pair_to_the_end_of_the_day():
+    generator, context, block, placed, first, second = _unequal_pair_setup()
+    class_after = placed(block("m", "Mat", "G1", "T3", 2), day=0, period=8, duration=2)
+
+    arranged = generator._arrange_quarter_activities([first, second, class_after], context)
+
+    positions = {item.teaching_block.id: item.start_timeslot.period for item in arranged}
+    assert positions["m"] == 0                       # la classe passa davant...
+    assert positions["q1"] == positions["q2"] == 2   # ...i la parella queda al final
+    assert generator._misplaced_unequal_pairs(arranged) == []
+
+
+def test_arrange_quarters_does_not_move_fixed_unequal_pairs():
+    generator, context, block, placed, first, second = _unequal_pair_setup()
+    first.teaching_block.fixed = True
+    second.teaching_block.fixed = True
+    class_after = placed(block("m", "Mat", "G1", "T3", 2), day=0, period=8, duration=2)
+
+    arranged = generator._arrange_quarter_activities([first, second, class_after], context)
+
+    positions = {item.teaching_block.id: item.start_timeslot.period for item in arranged}
+    assert positions["q1"] == positions["q2"] == 0
+
+
+def _consecutive_context(pairs):
+    return GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=27),
+        existing_scheduled_activities=(),
+        fixed_activities=(),
+        blocked_time_slots=(),
+        configuration={"consecutive_pairs": pairs},
+    )
+
+
+_FOL_GPP_PAIR = {"a": ("FOL", "G1", "T1"), "b": ("GPP", "G1", "T2")}
+
+
+def _consecutive_day(fixed_between=False):
+    _, _, block, placed = _quarter_fixture()
+    fol = placed(block("fol", "FOL", "G1", "T1", 2), day=0, period=0, duration=2)
+    between = placed(block("mig", "Dib", "G1", "T3", 3), day=0, period=2, duration=3)
+    between.teaching_block.fixed = fixed_between
+    gpp = placed(block("gpp", "GPP", "G1", "T2", 2), day=0, period=5, duration=2)
+    return [fol, between, gpp]
+
+
+def _by_id(activities):
+    return {item.teaching_block.id: (item.day, item.start_timeslot.period) for item in activities}
+
+
+def test_consecutive_assignments_are_placed_one_right_after_the_other():
+    generator = SchedulerGenerator()
+    activities = _consecutive_day()
+
+    arranged = generator._arrange_consecutive_pairs(activities, _consecutive_context([_FOL_GPP_PAIR]))
+
+    positions = _by_id(arranged)
+    fol_end = positions["fol"][1] + 2
+    gpp_end = positions["gpp"][1] + 2
+    assert positions["fol"][0] == positions["gpp"][0]
+    assert fol_end == positions["gpp"][1] or gpp_end == positions["fol"][1], "han de ser seguides"
+    # La classe del mig s'ha desplaçat sense solapar-se i sense deixar cap forat al grup.
+    spans = sorted((p, p + d) for (_, p), d in zip(positions.values(), [2, 3, 2]))
+    assert generator._group_gap_slots_total(arranged) == 0
+    assert len(arranged) == 3
+
+
+def test_consecutive_pairs_are_left_alone_without_configuration_or_when_a_class_in_between_is_fixed():
+    generator = SchedulerGenerator()
+    activities = _consecutive_day()
+
+    assert _by_id(generator._arrange_consecutive_pairs(activities, _consecutive_context([]))) == _by_id(activities)
+
+    blocked = _consecutive_day(fixed_between=True)
+    assert _by_id(generator._arrange_consecutive_pairs(blocked, _consecutive_context([_FOL_GPP_PAIR]))) == _by_id(blocked)
+
+
+def test_the_consecutive_partner_is_resolved_by_subject_and_optionally_by_teacher():
+    from backend.application.scheduler_use_cases import SchedulerUseCases
+
+    assignments = [
+        {"subject": "FOL GPP", "group": "GI", "teacher": "Bego", "consecutive_group": "GPP"},
+        {"subject": "GPP", "group": "GI", "teacher": "Bego"},
+        {"subject": "GPP", "group": "GI", "teacher": "Marc"},
+    ]
+
+    ambiguous = SchedulerUseCases._resolve_consecutive_pairs(assignments)
+    assert [(first["teacher"], second["teacher"]) for first, second in ambiguous] == [("Bego", "Marc")]
+
+    assignments[0]["consecutive_group"] = "GPP::Bego"
+    explicit = SchedulerUseCases._resolve_consecutive_pairs(assignments)
+    assert [(first["teacher"], second["teacher"]) for first, second in explicit] == [("Bego", "Bego")]
