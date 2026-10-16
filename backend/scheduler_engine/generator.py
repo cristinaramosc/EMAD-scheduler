@@ -16,7 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from services.block_generator import BlockGenerator
 from .models import Activity, Conflict, GenerationContext, GenerationResult, ScheduleProposal, ScheduledActivity, TimeSlot
 from .placement_strategy import GreedyPlacementStrategy, PlacementStrategy
-from .quarter_utils import group_names, parent_and_quarter, quarter_suffix
+from .quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter, quarter_suffix
 from .teacher_utils import teacher_label, teacher_names
 from .proposal_scorer import ProposalScorer
 
@@ -61,6 +61,11 @@ class SchedulerGenerator:
                 valid=True,
                 schedule_proposal=proposal,
             )
+
+        # Parelles de blocs que han d'anar junts (consecutives declarades i
+        # 1Q/2Q del mateix professor): el col·locador les fa servir per
+        # triar, per a la primera peça, una franja on la segona també hi càpiga.
+        context.configuration["pair_partners"] = self._build_pair_partners(teaching_blocks, context)
 
         orderings = self._build_orderings(teaching_blocks, context)
         for ordering in orderings[:max_proposals]:
@@ -407,6 +412,64 @@ class SchedulerGenerator:
                 return True
 
         return False
+
+    @staticmethod
+    def _build_pair_partners(
+        blocks: Sequence[TeachingBlock], context: GenerationContext
+    ) -> dict:
+        """{id_bloc: [(tipus, bloc_parella), ...]} amb tipus "consecutive"
+        (columna "Consecutiva amb": una darrere l'altra el mateix dia) o
+        "quarter" (1Q i 2Q del mateix professor que comparteixen algun grup:
+        han d'anar a la mateixa franja)."""
+        partners: dict = {}
+
+        def add(first: TeachingBlock, second: TeachingBlock, kind: str) -> None:
+            partners.setdefault(first.id, []).append((kind, second))
+            partners.setdefault(second.id, []).append((kind, first))
+
+        def key(block: TeachingBlock) -> tuple:
+            metadata = block.metadata or {}
+            return (
+                str(metadata.get("subject") or "").strip().casefold(),
+                str(metadata.get("group_id") or metadata.get("group") or "").strip().casefold(),
+                str(block.preferred_teacher_id or "").strip().casefold(),
+            )
+
+        blocks_by_key: dict = {}
+        for block in blocks:
+            blocks_by_key.setdefault(key(block), []).append(block)
+
+        for pair in context.configuration.get("consecutive_pairs") or []:
+            first_key = tuple(str(part or "").strip().casefold() for part in pair["a"])
+            second_key = tuple(str(part or "").strip().casefold() for part in pair["b"])
+            if first_key == second_key:
+                continue
+            for first in blocks_by_key.get(first_key, []):
+                for second in blocks_by_key.get(second_key, []):
+                    add(first, second, "consecutive")
+
+        quartered = [
+            block for block in blocks
+            if quarter_suffix((block.metadata or {}).get("subject")) is not None
+            or quarter_suffix((block.metadata or {}).get("group")) is not None
+        ]
+        for index, first in enumerate(quartered):
+            first_meta = first.metadata or {}
+            first_teachers = set(teacher_names(first.preferred_teacher_id))
+            if not first_teachers:
+                continue
+            for second in quartered[index + 1:]:
+                second_meta = second.metadata or {}
+                if first_teachers.isdisjoint(teacher_names(second.preferred_teacher_id)):
+                    continue
+                if is_valid_quarter_pair(
+                    first_meta.get("group_id") or first_meta.get("group"),
+                    first_meta.get("subject"),
+                    second_meta.get("group_id") or second_meta.get("group"),
+                    second_meta.get("subject"),
+                ):
+                    add(first, second, "quarter")
+        return partners
 
     def _fixed_day_first(self, blocks: Sequence[TeachingBlock]) -> List[TeachingBlock]:
         """Manté l'ordre relatiu de cada llista (sort estable) però posa
@@ -1312,8 +1375,12 @@ class SchedulerGenerator:
         # però aquí cal repetir-ho perquè aquesta és la passada que
         # realment decideix l'horari final.
         used_days_by_requirement: dict[str, set] = {}
+        placed_block_ids: set = set()
+        pair_partners = context.configuration.get("pair_partners") or {}
 
         for block in ordering:
+            if block.id in placed_block_ids:
+                continue  # ja col·locat com a parella d'un bloc anterior
             requirement_id = (block.metadata or {}).get("requirement_id")
             excluded_days = used_days_by_requirement.get(requirement_id) if requirement_id else None
 
@@ -1390,6 +1457,25 @@ class SchedulerGenerator:
 
             else:
                 scheduled_activities.append(placement)
+                placed_block_ids.add(block.id)
+                # Les parelles (consecutives declarades, 1Q/2Q) s'enganxen
+                # ara mateix: si esperessin el seu torn, altres classes
+                # podrien ocupar la franja que s'ha deixat per a elles.
+                place_partner = getattr(self._placement_strategy, "place_pair_partner", None)
+                for _kind, partner in (pair_partners.get(block.id, []) if callable(place_partner) else []):
+                    if partner.id in placed_block_ids:
+                        continue
+                    partner_requirement = (partner.metadata or {}).get("requirement_id")
+                    partner_excluded = used_days_by_requirement.get(partner_requirement) if partner_requirement else None
+                    partner_placement = place_partner(
+                        partner, context, scheduled_activities, partner_excluded
+                    )
+                    if partner_placement is None:
+                        continue
+                    scheduled_activities.append(partner_placement)
+                    placed_block_ids.add(partner.id)
+                    if partner_requirement:
+                        used_days_by_requirement.setdefault(partner_requirement, set()).add(partner_placement.day)
 
         return scheduled_activities, warnings
     def _build_proposal(

@@ -72,6 +72,29 @@ class GreedyPlacementStrategy(PlacementStrategy):
         if preferred is not None:
             return preferred
 
+        # Parelles que han d'anar juntes (consecutives declarades a
+        # "Consecutiva amb" i 1Q/2Q del mateix professor): si la parella ja
+        # és col·locada, s'hi enganxa; si no, es tria per a aquest bloc una
+        # franja on la parella també hi càpiga.
+        pending_partners = self._pending_pair_partners(teaching_block, context, all_activities)
+        placed_partner = self._try_placed_consecutive_partner_slot(
+            teaching_block, context, current_scheduled_activities, excluded_days
+        )
+        if placed_partner is not None:
+            return placed_partner
+        if pending_partners:
+            joint = self._try_joint_pair_slot(
+                teaching_block,
+                context,
+                current_scheduled_activities,
+                all_activities,
+                required_slots,
+                excluded_days,
+                pending_partners,
+            )
+            if joint is not None:
+                return joint
+
         # Si l'assignatura és 1Q/2Q però no s'ha trobat cap parella amb qui
         # compartir franja, es prioritza col·locar-la a la primera o última
         # hora del dia (per no deixar-la enmig d'un dia, ja que només
@@ -408,6 +431,140 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         return None
 
+    @staticmethod
+    def _partners_of(teaching_block: TeachingBlock, context: GenerationContext) -> list:
+        partners = (context.configuration or {}).get("pair_partners") or {}
+        return partners.get(teaching_block.id) or []
+
+    def _pending_pair_partners(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        all_activities: Sequence[ScheduledActivity],
+    ) -> list:
+        """Parelles (tipus, bloc) d'aquest bloc que encara no estan col·locades."""
+        placed_ids = {activity.teaching_block.id for activity in all_activities}
+        return [
+            (kind, partner)
+            for kind, partner in self._partners_of(teaching_block, context)
+            if partner.id not in placed_ids
+        ]
+
+    def _try_placed_consecutive_partner_slot(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        current_scheduled_activities: Sequence[ScheduledActivity],
+        excluded_days: Optional[set],
+    ) -> Optional[ScheduledActivity]:
+        """Si la parella "Consecutiva amb" ja és col·locada, intenta posar
+        aquest bloc just darrere (o just abans) al mateix dia."""
+        required_slots = teaching_block.duration_blocks or 1
+        placed = {activity.teaching_block.id: activity for activity in current_scheduled_activities}
+        candidates = []
+        for kind, partner in self._partners_of(teaching_block, context):
+            if kind != "consecutive" or partner.id not in placed:
+                continue
+            anchor = placed[partner.id]
+            if excluded_days and anchor.day in excluded_days:
+                continue
+            start = anchor.start_timeslot.period
+            candidates.append(TimeSlot(day=anchor.day, period=start + anchor.duration))
+            if start - required_slots >= 0:
+                candidates.append(TimeSlot(day=anchor.day, period=start - required_slots))
+        for skip_gap_check in (False, True):
+            for slot in candidates:
+                placement = self.place_at_slot(
+                    teaching_block, context, current_scheduled_activities, slot,
+                    skip_group_gap_check=skip_gap_check,
+                )
+                if placement is not None:
+                    return placement
+        return None
+
+    def _try_joint_pair_slot(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        current_scheduled_activities: Sequence[ScheduledActivity],
+        all_activities: Sequence[ScheduledActivity],
+        required_slots: int,
+        excluded_days: Optional[set],
+        pending_partners: list,
+    ) -> Optional[ScheduledActivity]:
+        """Tria la millor franja per a aquest bloc entre les que deixen lloc
+        a una de les seves parelles pendents (mateixa franja per a 1Q/2Q;
+        just abans o just després per a les consecutives)."""
+        best = None
+        best_key = None
+        for day in context.school_calendar.days:
+            if excluded_days and day in excluded_days:
+                continue
+            for slot in context.school_calendar.periods_for_day(day):
+                candidate = self.place_at_slot(
+                    teaching_block, context, current_scheduled_activities, slot
+                )
+                if candidate is None:
+                    continue
+                trial = list(current_scheduled_activities) + [candidate]
+                if not self._partner_fits_after(candidate, trial, context, pending_partners):
+                    continue
+                key = self._slot_preference_key(teaching_block, day, slot, all_activities, context)
+                if best_key is None or key < best_key:
+                    best_key, best = key, candidate
+        return best
+
+    def _partner_fits_after(
+        self,
+        candidate: ScheduledActivity,
+        trial: Sequence[ScheduledActivity],
+        context: GenerationContext,
+        pending_partners: list,
+    ) -> bool:
+        day = candidate.day
+        start = candidate.start_timeslot.period
+        end = start + candidate.duration
+        for kind, partner in pending_partners:
+            partner_slots = (partner.duration_blocks or 1)
+            if kind == "quarter":
+                slots = [TimeSlot(day=day, period=start)]
+            else:
+                slots = [TimeSlot(day=day, period=end)]
+                if start - partner_slots >= 0:
+                    slots.append(TimeSlot(day=day, period=start - partner_slots))
+            for slot in slots:
+                if self.place_at_slot(
+                    partner, context, trial, slot, skip_group_gap_check=True
+                ) is not None:
+                    return True
+        return False
+
+    def place_pair_partner(
+        self,
+        teaching_block: TeachingBlock,
+        context: GenerationContext,
+        current_scheduled_activities: Sequence[ScheduledActivity],
+        excluded_days: Optional[set] = None,
+    ) -> Optional[ScheduledActivity]:
+        """Col·loca `teaching_block` NOMÉS si pot enganxar-se a la seva
+        parella ja col·locada (mateixa franja per a 1Q/2Q, just abans o
+        després per a les consecutives). Retorna None si no és possible: en
+        aquest cas el bloc es col·locarà normalment quan li toqui."""
+        required_slots = teaching_block.duration_blocks or 1
+        all_activities = (
+            list(context.existing_scheduled_activities)
+            + list(context.fixed_activities)
+            + list(current_scheduled_activities)
+        )
+        snapped = self._try_quarter_pair_slot(
+            teaching_block, context, all_activities, required_slots, excluded_days
+        )
+        if snapped is not None:
+            return snapped
+        return self._try_placed_consecutive_partner_slot(
+            teaching_block, context, current_scheduled_activities, excluded_days
+        )
+
     def _try_quarter_pair_slot(
         self,
         teaching_block: TeachingBlock,
@@ -637,7 +794,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 any_calendar_slot = True
                 day_name = self._day_name(day)
 
-                if self._group_same_subject_day_conflict_exists(teaching_block, day, all_activities):
+                if self._group_same_subject_day_conflict_exists(teaching_block, day, all_activities, context):
                     subject_label = metadata.get("subject") or teaching_block.id
                     add(f"L'assignatura {subject_label} ja està programada per al grup {group_label} {day_name}.")
                 elif self._group_conflict_exists(teaching_block, slot, all_activities, context):
@@ -762,6 +919,45 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         return False
 
+    @staticmethod
+    def _declared_consecutive_pair(
+        teaching_block: TeachingBlock,
+        other_subject: Optional[str],
+        other_group: Optional[str],
+        other_teacher: Optional[str],
+        context: Optional[GenerationContext],
+    ) -> bool:
+        """Cert si el bloc i l'altra activitat són una parella declarada a la
+        columna "Consecutiva amb" (p.ex. Projecte Integrat de la Cristina i
+        de la Sònia a GI). Aquestes parelles han de poder caure el mateix
+        dia i una darrere l'altra, així que queden eximides de la regla
+        "una assignatura no es repeteix el mateix dia al grup"."""
+        if context is None:
+            return False
+        pairs = (context.configuration or {}).get("consecutive_pairs") or []
+        if not pairs:
+            return False
+        metadata = teaching_block.metadata or {}
+
+        def key(subject, group, teacher):
+            return (
+                str(subject or "").strip().casefold(),
+                str(group or "").strip().casefold(),
+                str(teacher or "").strip().casefold(),
+            )
+
+        candidate = key(
+            metadata.get("subject"),
+            metadata.get("group_id") or metadata.get("group"),
+            teaching_block.preferred_teacher_id or metadata.get("teacher"),
+        )
+        existing = key(other_subject, other_group, other_teacher)
+        for pair in pairs:
+            first, second = key(*pair["a"]), key(*pair["b"])
+            if {first, second} == {candidate, existing} and first != second:
+                return True
+        return False
+
     def _group_conflict_exists(
         self,
         teaching_block: TeachingBlock,
@@ -791,7 +987,10 @@ class GreedyPlacementStrategy(PlacementStrategy):
             if not self._groups_overlap(activity_parent, candidate_parent):
                 continue
             if candidate_subject_key and candidate_subject_key == normalize_group_name(existing_subject):
-                return True
+                if not self._declared_consecutive_pair(
+                    teaching_block, existing_subject, activity.group_id, activity.teacher_id, context
+                ):
+                    return True
             activity_end = activity.start_timeslot.period + activity.duration
             candidate_end = start_slot.period + required_slots
             if start_slot.period < activity_end and candidate_end > activity.start_timeslot.period:
@@ -826,6 +1025,7 @@ class GreedyPlacementStrategy(PlacementStrategy):
         teaching_block: TeachingBlock,
         day: int,
         activities: Sequence[ScheduledActivity],
+        context: Optional[GenerationContext] = None,
     ) -> bool:
         metadata = teaching_block.metadata or {}
         group_id = metadata.get("group_id") or metadata.get("group")
@@ -844,6 +1044,10 @@ class GreedyPlacementStrategy(PlacementStrategy):
             existing_group = activity.group_id or existing_metadata.get("group_id") or existing_metadata.get("group")
             existing_parent, _ = _parent_and_quarter(existing_group, existing_subject)
             if self._groups_overlap(candidate_parent, existing_parent):
+                if self._declared_consecutive_pair(
+                    teaching_block, existing_subject, existing_group, activity.teacher_id, context
+                ):
+                    continue
                 return True
         return False
 

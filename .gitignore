@@ -14,3 +14,11 @@ node_modules/
 
 # Virtual environment
 venv/
+# Generats / estat local
+frontend/dist/
+backend/data/excel_templates/
+backend/data/working_timetable.json
+*.orig
+*.tar.gz
+*.b64
+*.patch
