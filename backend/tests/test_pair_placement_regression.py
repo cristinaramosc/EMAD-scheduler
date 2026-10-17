@@ -121,3 +121,41 @@ def test_quarter_pair_with_different_duration_and_groups_shares_the_same_slot():
         assert _period(audio_1q) == _period(audio_2q)
         # La llarga (4 h) ha de cabre abans del final de la jornada.
         assert _period(audio_1q) + audio_1q.duration <= 27
+
+
+def test_unequal_quarter_pair_is_centered_and_following_class_shifts_with_it():
+    """Audio 1Q (4 h, GI) i 2Q (3 h, GI+GP) alineades per dalt deixarien 2
+    franges buides seguides en un quadrimestre. La 2Q ha de començar una
+    franja més tard, i la classe de GP just darrere s'hi desplaça."""
+    from backend.bootstrap import reset_dependencies
+    from backend.dependencies import get_scheduler_use_cases
+    from backend.scheduler_engine.models import Activity
+
+    reset_dependencies()
+    use_cases = get_scheduler_use_cases()
+    activities = [
+        Activity(1, "Bego", "Ll. Tec. Audio UF3 1Q", "GI", "", "Dimarts", "15:00", 8),
+        Activity(2, "Bego", "Ll. Tec. Audio UF3 2Q", "GI, GP", "", "Dimarts", "15:00", 6),
+        Activity(3, "Cristina", "Projecte Integrat", "GP", "", "Dimarts", "18:00", 4),
+    ]
+
+    use_cases._center_unequal_quarter_pairs(activities)
+
+    assert [a.start for a in activities] == ["15:00", "15:30", "18:30"]
+
+
+def test_equal_duration_quarter_pair_is_left_untouched():
+    from backend.bootstrap import reset_dependencies
+    from backend.dependencies import get_scheduler_use_cases
+    from backend.scheduler_engine.models import Activity
+
+    reset_dependencies()
+    use_cases = get_scheduler_use_cases()
+    activities = [
+        Activity(1, "Bego", "Audio 1Q", "GI", "", "Dimarts", "15:00", 6),
+        Activity(2, "Bego", "Audio 2Q", "GI", "", "Dimarts", "15:00", 6),
+    ]
+
+    use_cases._center_unequal_quarter_pairs(activities)
+
+    assert [a.start for a in activities] == ["15:00", "15:00"]

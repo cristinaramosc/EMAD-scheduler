@@ -6,6 +6,8 @@ import "./App.css";
 const API_URL = "http://127.0.0.1:8000";
 
 const DAYS = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"];
+const DAY_ABBR = { Dilluns: "Dl", Dimarts: "Dt", Dimecres: "Dc", Dijous: "Dj", Divendres: "Dv" };
+const dayAbbr = (day) => DAY_ABBR[day] || String(day).slice(0, 3);
 const DAY_ALIASES = {
   dilluns: "Dilluns",
   dimarts: "Dimarts",
@@ -686,6 +688,7 @@ export default function App() {
   const [isSavingSpreadsheet, setIsSavingSpreadsheet] = useState(false);
   const [entitySheetOpen, setEntitySheetOpen] = useState({ teachers: false, groups: false, rooms: false });
   const [academicSearch, setAcademicSearch] = useState("");
+  const [showInactiveTeachers, setShowInactiveTeachers] = useState(false);
   const [academicAssignmentGroupFilter, setAcademicAssignmentGroupFilter] = useState("");
   const [academicSort, setAcademicSort] = useState({ key: null, direction: "asc" });
   const [entitySheetRows, setEntitySheetRows] = useState({ teachers: [], groups: [], rooms: [] });
@@ -1263,7 +1266,7 @@ export default function App() {
               <tbody>
                 {DAYS.map((day) => (
                   <tr key={day}>
-                    <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
+                    <td className="availability-grid-daylabel">{dayAbbr(day)}</td>
                     {HOURS.map((hour) => {
                       const slotKey = `${day}-${hour}`;
                       const isPreferred = teacherRestrictionDraft.preferred_availability.includes(slotKey);
@@ -1312,7 +1315,7 @@ export default function App() {
               <tbody>
                 {DAYS.map((day) => (
                   <tr key={day}>
-                    <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
+                    <td className="availability-grid-daylabel">{dayAbbr(day)}</td>
                     {HOURS.map((hour) => {
                       const slotKey = `${day}-${hour}`;
                       const isUnavailable = teacherRestrictionDraft.unavailable_slots.includes(slotKey);
@@ -3603,7 +3606,7 @@ export default function App() {
                       color: isActive ? "#ffffff" : "#1f2937",
                     }}
                   >
-                    {day.slice(0, 3)}
+                    {dayAbbr(day)}
                   </button>
                 );
               })}
@@ -3760,6 +3763,16 @@ export default function App() {
                   onChange={(event) => setAcademicSearch(event.target.value)}
                   style={{ marginBottom: 10, padding: "6px 10px", width: "260px" }}
                 />
+                {teachers.some((t) => t.active === false) && (
+                  <label style={{ marginLeft: 12, fontSize: 13 }}>
+                    <input
+                      type="checkbox"
+                      checked={showInactiveTeachers}
+                      onChange={(event) => setShowInactiveTeachers(event.target.checked)}
+                    />{" "}
+                    Mostra inactius ({teachers.filter((t) => t.active === false).length})
+                  </label>
+                )}
                 <table className="academic-table">
                   <thead>
                     <tr>
@@ -3776,7 +3789,7 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {applyAcademicSort(teachers.filter((t) => matchesSearch(academicSearch, [t.name])), academicSort).map((t) => {
+                    {applyAcademicSort(teachers.filter((t) => (showInactiveTeachers || t.active !== false) && matchesSearch(academicSearch, [t.name])), academicSort).map((t) => {
                       const restriction = teacherRestrictions.find((item) => item.teacher === t.name);
                       const manualCount = (restriction?.unavailable_slots || []).length;
                       return (
@@ -3903,7 +3916,13 @@ export default function App() {
                           <button
                             type="button"
                             className={teacherRestrictionEditor === t.name ? "active" : ""}
-                            onClick={() => openTeacherRestrictionEditor(teacherRestrictionEditor === t.name ? "" : t.name)}
+                            onClick={() => {
+                              const opening = teacherRestrictionEditor !== t.name;
+                              openTeacherRestrictionEditor(opening ? t.name : "");
+                              if (opening) {
+                                setTimeout(() => document.getElementById("teacher-restrictions-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 250);
+                              }
+                            }}
                           >
                             {teacherRestrictionEditor === t.name ? "Editant…" : "Hores / restriccions"}
                           </button>
@@ -4062,7 +4081,7 @@ export default function App() {
                 </>
                 )}
                 </div>
-                <div className="teachers-restrictions-panel">
+                <div className="teachers-restrictions-panel" id="teacher-restrictions-panel">
                   <h2>Hores disponibles i restriccions</h2>
                   {renderTeacherRestrictionEditor()}
                 </div>
@@ -4411,7 +4430,7 @@ export default function App() {
                                 <tbody>
                                   {DAYS.map((day) => (
                                     <tr key={day}>
-                                      <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
+                                      <td className="availability-grid-daylabel">{dayAbbr(day)}</td>
                                       {HOURS.map((hour) => {
                                         const slotKey = `${day}-${hour}`;
                                         const isUnavailable = (roomEditValues.unavailable_slots || []).includes(slotKey);
@@ -4723,7 +4742,15 @@ export default function App() {
                     ))}
                   </select>
                 </div>
-                <table className="academic-table">
+                <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--color-text-secondary)" }}>
+                  {teachingAssignments.filter(
+                    (a) =>
+                      matchesSearch(academicSearch, [a.teacher, a.subject, a.group]) &&
+                      (!academicAssignmentGroupFilter || activityBelongsToGroup(a.group, academicAssignmentGroupFilter))
+                  ).length}{" "}
+                  de {teachingAssignments.length} assignacions
+                </p>
+                <table className="academic-table academic-table-sticky">
                   <thead>
                     <tr>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("teacher", setAcademicSort)}>Professor{sortIndicator("teacher", academicSort)}</th>
@@ -5199,7 +5226,7 @@ export default function App() {
               <strong>Tutor/a: {selectedGroupTutorInfo.tutor}</strong>
               {!selectedGroupTutorInfo.isPfiGroup && (
                 <span>
-                  Tutoria (no lectiva): {selectedGroupTutorInfo.tutoringSlots.length
+                  {" · "}Tutoria (no lectiva): {selectedGroupTutorInfo.tutoringSlots.length
                     ? selectedGroupTutorInfo.tutoringSlots.join(" · ")
                     : "pendent d'assignar"}
                 </span>
@@ -5491,7 +5518,7 @@ export default function App() {
                       <tbody>
                         {DAYS.map((day) => (
                           <tr key={day}>
-                            <td className="availability-grid-daylabel">{day.slice(0, 3)}</td>
+                            <td className="availability-grid-daylabel">{dayAbbr(day)}</td>
                             {HOURS.map((hour) => {
                               const slotKey = `${day}-${hour}`;
                               const isUnavailable = (groupRestrictionDraft.unavailable_slots || [])
@@ -5569,8 +5596,8 @@ export default function App() {
             )}
           </section>
 
-          <section>
-            <h2>Dades acadèmiques</h2>
+          <details className="sidebar-section">
+            <summary><h2>Dades acadèmiques</h2></summary>
 
             {!academicSummary ? (
               <p className="muted">Encara no hi ha dades acadèmiques importades.</p>
@@ -5602,7 +5629,7 @@ export default function App() {
                 </div>
               </div>
             )}
-          </section>
+          </details>
 
           <details className="sidebar-section" open={Boolean(proposal)}>
             <summary><h2>Proposta generada</h2></summary>
@@ -5627,6 +5654,7 @@ export default function App() {
                 >
                   {isAccepting ? "Acceptant..." : "Accepta proposta"}
                 </button>
+                <div className="academic-metrics-grid">
                 <div className="proposal-metric">
                   <span className="metric-label">Activitats</span>
                   <strong>{proposal.activities?.length ?? 0}</strong>
@@ -5646,6 +5674,7 @@ export default function App() {
                 <div className="proposal-metric">
                   <span className="metric-label">Sense franja</span>
                   <strong>{generationStats?.unscheduled_activities_total ?? 0}</strong>
+                </div>
                 </div>
                 {proposal.warnings?.length ? (
                   <div className="proposal-warning-box" id="incidents-panel">

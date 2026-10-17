@@ -383,6 +383,7 @@ class SchedulerUseCases:
             compacted_activities, _ = self._compact_activities(list(proposal.activities))
             proposal.activities = self._insert_default_group_breaks(compacted_activities)
             aligned_proposal = self._apply_quarter_pair_alignment(proposal)
+            self._center_unequal_quarter_pairs(aligned_proposal.activities)
             final_schedule = self._build_schedule(list(aligned_proposal.activities))
             final_conflicts = self._scheduler_engine.validate(final_schedule)
             new_conflicts = [
@@ -1640,6 +1641,76 @@ class SchedulerUseCases:
             pairs.append((one, two))
 
         return pairs
+
+    def _center_unequal_quarter_pairs(self, activities: List[Activity]) -> None:
+        """Parelles 1Q/2Q que comparteixen dia i hora d'inici però duren
+        diferent (p.ex. 4 h i 3 h): si la més curta queda alineada per dalt,
+        en el seu quadrimestre deixa tot el sobrant (2 franges de 30 min)
+        buit i seguit. Es fa començar una franja més tard, de manera que el
+        sobrant es reparteix (una franja al principi i una al final) i cap
+        buit no passa d'una franja. Només es mou si no crea cap conflicte."""
+        hour_names = self._time_labels.get("hour_names", [])
+        hour_index = {name: position for position, name in enumerate(hour_names)}
+        if not hour_index:
+            return
+
+        by_parent: Dict[str, Dict[str, List[Activity]]] = {}
+        for activity in activities:
+            parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
+            if quarter_marker is None:
+                continue
+            for individual_name in group_names(parent) or (parent,):
+                by_parent.setdefault(individual_name, {"1q": [], "2q": []})[quarter_marker].append(activity)
+
+        pairs: List[Tuple[Activity, Activity]] = []
+        seen: set = set()
+        for buckets in by_parent.values():
+            for pair in self._match_quarter_pairs(buckets["1q"], buckets["2q"]):
+                key = frozenset({id(pair[0]), id(pair[1])})
+                if key not in seen:
+                    seen.add(key)
+                    pairs.append(pair)
+
+        baseline_keys = {
+            self._conflict_key(conflict)
+            for conflict in self._scheduler_engine.validate(self._build_schedule(list(activities)))
+        }
+        for first, second in pairs:
+            if first.day != second.day or first.start != second.start:
+                continue
+            longer, shorter = (first, second) if first.duration >= second.duration else (second, first)
+            offset = (longer.duration - shorter.duration) // 2
+            position = hour_index.get(shorter.start)
+            if offset < 1 or shorter.fixed or position is None or position + offset >= len(hour_names):
+                continue
+            # Si el grup té classes enganxades just darrere de la més curta,
+            # es desplacen també (en cadena) la mateixa quantitat.
+            moved: List[Tuple[Activity, str]] = [(shorter, shorter.start)]
+            chain_ok = True
+            queue = [(shorter, position + shorter.duration)]
+            while queue and chain_ok:
+                current, end_index = queue.pop()
+                for other in activities:
+                    if other in (first, second) or any(other is item for item, _ in moved):
+                        continue
+                    if other.day != current.day or hour_index.get(other.start) != end_index:
+                        continue
+                    if not set(group_names(other.group)) & set(group_names(shorter.group)):
+                        continue
+                    other_position = hour_index[other.start]
+                    if other.fixed or other_position + offset + other.duration > len(hour_names) - 1:
+                        chain_ok = False
+                        break
+                    moved.append((other, other.start))
+                    queue.append((other, other_position + other.duration))
+            if not chain_ok:
+                continue
+            for item, _ in moved:
+                item.start = hour_names[hour_index[item.start] + offset]
+            conflicts = self._scheduler_engine.validate(self._build_schedule(list(activities)))
+            if any(self._conflict_key(conflict) not in baseline_keys for conflict in conflicts):
+                for item, original_start in moved:
+                    item.start = original_start
 
     def _apply_quarter_pair_alignment(self, proposal: ScheduleProposal) -> ScheduleProposal:
         """Si dues activitats són la variant 1Q i 2Q del mateix grup pare,

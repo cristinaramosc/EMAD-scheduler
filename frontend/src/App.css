@@ -917,6 +917,17 @@ button.primary:hover:not(:disabled) {
   text-transform: uppercase;
 }
 
+/* Capçalera sempre visible en taules llargues (Assignacions docents) */
+.academic-table-sticky {
+  overflow: visible;
+}
+
+.academic-table-sticky th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 .academic-table tbody tr:last-child td {
   border-bottom: none;
 }
