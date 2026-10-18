@@ -8,3 +8,4 @@ Pillow
 reportlab
 anthropic
 python-multipart
+truststore

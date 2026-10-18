@@ -127,7 +127,7 @@ button.primary:hover:not(:disabled) {
 }
 
 .topbar h1 {
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.15;
@@ -137,15 +137,16 @@ button.primary:hover:not(:disabled) {
 .brand-block {
   align-items: center;
   display: flex;
-  gap: 18px;
+  flex: 0 0 auto;
+  gap: 14px;
 }
 
 .brand-logo {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  height: 104px;
-  padding: 10px 14px;
+  height: 64px;
+  padding: 6px 10px;
   width: auto;
   object-fit: contain;
 }
@@ -157,8 +158,26 @@ button.primary:hover:not(:disabled) {
 }
 
 .topbar-actions {
+  align-items: center;
   display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
+}
+
+/* Empeny l'Assistent i "Més" cap a la dreta de la barra */
+.topbar-spacer {
+  flex: 1 1 auto;
+}
+
+.group-restrictions-panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  margin-top: 24px;
+  padding: 20px;
 }
 
 .notice {

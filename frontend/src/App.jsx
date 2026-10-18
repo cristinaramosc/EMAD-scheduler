@@ -560,10 +560,10 @@ function assistantErrorMessage(data) {
   if (ASSISTANT_ERROR_MESSAGES[code]) {
     return ASSISTANT_ERROR_MESSAGES[code];
   }
-  // Error de l'API d'Anthropic: el detall és el que permet diagnosticar-ho
+  // Error del servei d'IA: el detall és el que permet diagnosticar-ho
   // (clau invàlida, model inexistent, sense crèdit...).
   if (payload.error === "api_call_failed" && payload.detail) {
-    return `L'assistent ha respost amb un error de l'API d'Anthropic: ${payload.detail}`;
+    return `L'assistent ha respost amb un error del servei d'IA: ${payload.detail}`;
   }
   if (typeof payload.detail === "string" && payload.detail && payload.detail !== "proposal_not_found") {
     return payload.detail;
@@ -3394,6 +3394,279 @@ export default function App() {
     return apiJson("POST", `/academic-data/assignments/${encodeURIComponent(id)}/split`);
   }
 
+  const renderGroupRestrictionsPanel = () => (
+    <section id="group-restrictions-panel" className="group-restrictions-panel">
+      <h2>Restriccions de grup</h2>
+      {!selectedGroup ? (
+        <p className="muted">Premeu «Hores / restriccions» en un grup per editar-ne les restriccions.</p>
+      ) : (
+        <div className="restriction-editor">
+          <p className="muted">{selectedGroup}</p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+            <label>
+              Màx. hores consecutives
+              <input
+                type="number"
+                min="0"
+                value={groupRestrictionDraft.max_consecutive_hours}
+                onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, max_consecutive_hours: event.target.value })}
+                style={{ marginLeft: 8 }}
+              />
+            </label>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <h3>Franges no disponibles</h3>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <label>
+                Màx. dies
+                <input
+                  type="number"
+                  min="0"
+                  value={groupRestrictionDraft.max_days}
+                  onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, max_days: event.target.value })}
+                  style={{ marginLeft: 8, width: 70 }}
+                />
+              </label>
+              <label>
+                Hora d'inici
+                <select
+                  value={groupRestrictionDraft.daily_start_time || ""}
+                  onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_start_time: event.target.value })}
+                  style={{ marginLeft: 8 }}
+                >
+                  <option value="">Sense límit</option>
+                  {HOURS.map((hour) => (
+                    <option key={hour} value={hour}>{hour}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Hora final màx.
+                <select
+                  value={groupRestrictionDraft.daily_max_end_time || ""}
+                  onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_max_end_time: event.target.value })}
+                  style={{ marginLeft: 8 }}
+                >
+                  <option value="">Sense límit</option>
+                  {HOURS.map((hour) => (
+                    <option key={hour} value={hour}>{hour}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Màx. hores per grup
+                <input
+                  type="number"
+                  min="0"
+                  value={groupRestrictionDraft.max_hours_per_day}
+                  onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, max_hours_per_day: event.target.value })}
+                  style={{ marginLeft: 8, width: 70 }}
+                />
+              </label>
+            </div>
+            <details style={{ marginTop: 12 }}>
+              <summary className="muted" style={{ cursor: "pointer" }}>
+                Excepcions per dia (opcional) ▸
+              </summary>
+              <p className="muted" style={{ marginTop: 6, marginBottom: 6 }}>
+                Si un dia no té valor propi, s'aplica l'hora d'inici/final general d'aquí dalt.
+              </p>
+              <table style={{ borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    <th></th>
+                    {DAYS.map((day) => (
+                      <th key={day} style={{ padding: "4px 8px", fontWeight: 600, fontSize: 13 }}>{day}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td style={{ padding: "4px 8px", fontSize: 13 }}>Inici</td>
+                    {DAYS.map((day) => {
+                      const dayWindows = groupRestrictionDraft.daily_windows || {};
+                      const dayValue = dayWindows[day]?.start || "";
+                      return (
+                        <td key={day} style={{ padding: "4px 8px" }}>
+                          <select
+                            value={dayValue}
+                            onChange={(event) => {
+                              const nextWindows = { ...dayWindows };
+                              const current = { ...(nextWindows[day] || {}) };
+                              if (event.target.value) {
+                                current.start = event.target.value;
+                              } else {
+                                delete current.start;
+                              }
+                              if (current.start || current.end) {
+                                nextWindows[day] = current;
+                              } else {
+                                delete nextWindows[day];
+                              }
+                              setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_windows: nextWindows });
+                            }}
+                          >
+                            <option value="">(general)</option>
+                            {HOURS.map((hour) => (
+                              <option key={hour} value={hour}>{hour}</option>
+                            ))}
+                          </select>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr>
+                    <td style={{ padding: "4px 8px", fontSize: 13 }}>Final</td>
+                    {DAYS.map((day) => {
+                      const dayWindows = groupRestrictionDraft.daily_windows || {};
+                      const dayValue = dayWindows[day]?.end || "";
+                      return (
+                        <td key={day} style={{ padding: "4px 8px" }}>
+                          <select
+                            value={dayValue}
+                            onChange={(event) => {
+                              const nextWindows = { ...dayWindows };
+                              const current = { ...(nextWindows[day] || {}) };
+                              if (event.target.value) {
+                                current.end = event.target.value;
+                              } else {
+                                delete current.end;
+                              }
+                              if (current.start || current.end) {
+                                nextWindows[day] = current;
+                              } else {
+                                delete nextWindows[day];
+                              }
+                              setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_windows: nextWindows });
+                            }}
+                          >
+                            <option value="">(general)</option>
+                            {HOURS.map((hour) => (
+                              <option key={hour} value={hour}>{hour}</option>
+                            ))}
+                          </select>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tbody>
+              </table>
+            </details>
+          </div>
+
+          <div className="restriction-section">
+            <h4>
+              Franges concretes no disponibles (forats enmig del dia){" "}
+              <span
+                className="help-icon"
+                title={'Per a coses que "hora d\'inici/final" no pot expressar, com un grup que té classe al matí, no té classe entre les 14:00 i les 16:00, i torna a tenir classe de 16:00 a 19:00 el mateix dia. Clic simple per marcar/desmarcar una franja no disponible. Maj + clic per seleccionar un rang.'}
+              >
+                ⓘ
+              </span>
+            </h4>
+            <div className="restriction-presets">
+              <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setGroupUnavailableSelectionAnchor)}>Entre les 10:00 i les 14:00 (tots els dies)</button>
+              <button
+                type="button"
+                className="ghost"
+                onClick={() => clearAvailabilitySelection(groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setGroupUnavailableSelectionAnchor)}
+              >
+                Neteja selecció
+              </button>
+            </div>
+            <div className="availability-grid-wrap">
+              <table className="availability-grid">
+                <thead>
+                  <tr>
+                    <th></th>
+                    {HOURS.map((hour) => (
+                      <th key={hour}>{hour}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {DAYS.map((day) => (
+                    <tr key={day}>
+                      <td className="availability-grid-daylabel">{dayAbbr(day)}</td>
+                      {HOURS.map((hour) => {
+                        const slotKey = `${day}-${hour}`;
+                        const isUnavailable = (groupRestrictionDraft.unavailable_slots || [])
+                          .map(normalizeAvailabilitySlot)
+                          .includes(slotKey);
+                        const cellClass = isUnavailable
+                          ? "availability-cell availability-cell--unavailable"
+                          : "availability-cell";
+                        return (
+                          <td key={slotKey}>
+                            <button
+                              type="button"
+                              className={cellClass}
+                              onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setGroupUnavailableSelectionAnchor(slotKey); }}
+                              onClick={(event) => updateAvailabilitySelection(slotKey, event, groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", groupUnavailableSelectionAnchor, setGroupUnavailableSelectionAnchor)}
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 12, marginBottom: 8 }}>
+            <p className="muted" style={{ marginTop: 0, marginBottom: 6 }}>
+              Grups als quals aplicar "Desa per a diversos grups" (per exemple, no barregis grups de matí i de tarda):
+            </p>
+            <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
+              <button
+                type="button"
+                onClick={() => setBulkSaveSelectedGroups(timetableGroupOptions.map((g) => g.name))}
+              >
+                Selecciona tots
+              </button>
+              <button type="button" onClick={() => setBulkSaveSelectedGroups([])}>
+                Neteja selecció
+              </button>
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px" }}>
+              {timetableGroupOptions.map((group) => (
+                <label key={group.name} style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: "normal" }}>
+                  <input
+                    type="checkbox"
+                    checked={bulkSaveSelectedGroups.includes(group.name)}
+                    onChange={(event) => {
+                      setBulkSaveSelectedGroups((current) =>
+                        event.target.checked
+                          ? [...current, group.name]
+                          : current.filter((name) => name !== group.name)
+                      );
+                    }}
+                  />
+                  {group.name}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <button type="button" onClick={() => saveGroupRestrictions()} disabled={isSavingGroupRestrictions}>
+            {isSavingGroupRestrictions ? "S'està desant..." : "Desa restriccions"}
+          </button>
+          <button
+            type="button"
+            onClick={saveGroupRestrictionsForAllGroups}
+            disabled={isSavingGroupRestrictions || bulkSaveSelectedGroups.length === 0}
+            style={{ marginLeft: 8 }}
+            title="Aplica aquestes mateixes restriccions (hores màx., franges, dies...) nomes als grups marcats a dalt, sense tocar el descans propi de cadascun"
+          >
+            {isSavingGroupRestrictions ? "S'està desant..." : `Desa per als grups seleccionats (${bulkSaveSelectedGroups.length})`}
+          </button>
+        </div>
+      )}
+    </section>
+  );
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -3517,6 +3790,8 @@ export default function App() {
             ↪️ Refer
           </button>
 
+          <span className="topbar-spacer" />
+
           <button
             type="button"
             onClick={() => {
@@ -3585,46 +3860,32 @@ export default function App() {
               >
                 {isImportingSpreadsheet ? "Important..." : "📤 Importa Excel"}
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  loadData();
+                }}
+                disabled={isLoading || isSaving || isGenerating}
+                title="Torna a carregar l'horari i les dades des del servidor"
+              >
+                {isLoading ? "Carregant" : "🔄 Actualitza"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  clearActiveSchedule();
+                }}
+                disabled={isLoading || isSaving || isGenerating}
+                title="Esborra totes les activitats de l'horari actiu (no toca les dades acadèmiques)"
+              >
+                🗑️ Buida l'horari
+              </button>
             </div>
           </details>
 
-          {selectedGroup ? (
-            <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: 8 }}>
-              <span style={{ fontSize: 12, color: "#667085" }}>Descans:</span>
-              {DAYS.map((day) => {
-                const isActive = groupBreakDays.has(day);
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => toggleGroupBreak(day)}
-                    disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
-                    title={`Descans ${day} per ${selectedGroup} (desplaça 30 min les classes posteriors per obrir un forat, entre 1h després de començar i 1h30 abans d'acabar)`}
-                    style={{
-                      padding: "0 6px",
-                      background: isActive ? "#2f6f73" : "#ffffff",
-                      color: isActive ? "#ffffff" : "#1f2937",
-                    }}
-                  >
-                    {dayAbbr(day)}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
 
-          <button type="button" onClick={loadData} disabled={isLoading || isSaving || isGenerating}>
-            {isLoading ? "Carregant" : "Actualitza"}
-          </button>
-
-          <button
-            type="button"
-            onClick={clearActiveSchedule}
-            disabled={isLoading || isSaving || isGenerating}
-            title="Esborra totes les activitats de l'horari actiu (no toca les dades acadèmiques)"
-          >
-            🗑️ Buida l'horari
-          </button>
         </div>
       </header>
 
@@ -4223,6 +4484,15 @@ export default function App() {
                             </>
                           ) : (
                             <>
+                              <button
+                                onClick={() => {
+                                  setSelectedGroup(g.name);
+                                  setTimeout(() => document.getElementById("group-restrictions-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }), 250);
+                                }}
+                                title="Hores no disponibles, màxims i excepcions d'aquest grup"
+                              >
+                                Hores / restriccions
+                              </button>
                               <button onClick={() => {
                                 setGroupEdit(g.name);
                                 setGroupEditValues({ name: g.name, tutor: g.tutor || "", active: g.active !== false, is_split: Boolean(g.is_split) });
@@ -4280,6 +4550,7 @@ export default function App() {
                     </tr>
                   </tbody>
                 </table>
+                {renderGroupRestrictionsPanel()}
                 </>
                 )}
               </div>
@@ -5206,6 +5477,43 @@ export default function App() {
                 <input type="checkbox" checked={pdfShowDni} onChange={(event) => setPdfShowDni(event.target.checked)} />
                 DNI al PDF
               </label>
+
+              {selectedGroup ? (
+                <button
+                  type="button"
+                  className={groupRestrictionDraft.locked ? "primary" : ""}
+                  style={{ marginLeft: 12 }}
+                  onClick={() => toggleGroupLock(selectedGroup, !groupRestrictionDraft.locked)}
+                  disabled={isSavingGroupRestrictions}
+                  title="Manté aquest grup a la mateixa posició quan es torni a generar l'horari"
+                >
+                  {groupRestrictionDraft.locked ? "🔒 Horari bloquejat" : "🔓 Bloqueja horari"}
+                </button>
+              ) : null}
+          {selectedGroup ? (
+            <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: 8 }}>
+              <span style={{ fontSize: 12, color: "#667085" }}>Descans:</span>
+              {DAYS.map((day) => {
+                const isActive = groupBreakDays.has(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleGroupBreak(day)}
+                    disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
+                    title={`Descans ${day} per ${selectedGroup} (desplaça 30 min les classes posteriors per obrir un forat, entre 1h després de començar i 1h30 abans d'acabar)`}
+                    style={{
+                      padding: "0 6px",
+                      background: isActive ? "#2f6f73" : "#ffffff",
+                      color: isActive ? "#ffffff" : "#1f2937",
+                    }}
+                  >
+                    {dayAbbr(day)}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
             </div>
             {proposals && proposals.length > 0 && (
               <div style={{ marginLeft: 12 }}>
@@ -5314,287 +5622,6 @@ export default function App() {
       </div>
 
         <aside className="side-panel">
-          <section>
-            <h2>Restriccions de grup</h2>
-            {!selectedGroup ? (
-              <p className="muted">Seleccioneu un grup per editar les restriccions.</p>
-            ) : (
-              <div className="restriction-editor">
-                <p className="muted">{selectedGroup}</p>
-                <div style={{ marginBottom: 12 }}>
-                  <button
-                    type="button"
-                    className={groupRestrictionDraft.locked ? "primary" : ""}
-                    onClick={() => toggleGroupLock(selectedGroup, !groupRestrictionDraft.locked)}
-                    disabled={isSavingGroupRestrictions}
-                    title="Manté aquest grup a la mateixa posició quan es torni a generar l'horari"
-                  >
-                    {groupRestrictionDraft.locked ? "🔒 Horari bloquejat (clica per desbloquejar)" : "🔓 Bloqueja horari d'aquest grup"}
-                  </button>
-                </div>
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
-                  <label>
-                    Màx. hores consecutives
-                    <input
-                      type="number"
-                      min="0"
-                      value={groupRestrictionDraft.max_consecutive_hours}
-                      onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, max_consecutive_hours: event.target.value })}
-                      style={{ marginLeft: 8 }}
-                    />
-                  </label>
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <h3>Franges no disponibles</h3>
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                    <label>
-                      Màx. dies
-                      <input
-                        type="number"
-                        min="0"
-                        value={groupRestrictionDraft.max_days}
-                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, max_days: event.target.value })}
-                        style={{ marginLeft: 8, width: 70 }}
-                      />
-                    </label>
-                    <label>
-                      Hora d'inici
-                      <select
-                        value={groupRestrictionDraft.daily_start_time || ""}
-                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_start_time: event.target.value })}
-                        style={{ marginLeft: 8 }}
-                      >
-                        <option value="">Sense límit</option>
-                        {HOURS.map((hour) => (
-                          <option key={hour} value={hour}>{hour}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Hora final màx.
-                      <select
-                        value={groupRestrictionDraft.daily_max_end_time || ""}
-                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_max_end_time: event.target.value })}
-                        style={{ marginLeft: 8 }}
-                      >
-                        <option value="">Sense límit</option>
-                        {HOURS.map((hour) => (
-                          <option key={hour} value={hour}>{hour}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      Màx. hores per grup
-                      <input
-                        type="number"
-                        min="0"
-                        value={groupRestrictionDraft.max_hours_per_day}
-                        onChange={(event) => setGroupRestrictionDraft({ ...groupRestrictionDraft, max_hours_per_day: event.target.value })}
-                        style={{ marginLeft: 8, width: 70 }}
-                      />
-                    </label>
-                  </div>
-                  <details style={{ marginTop: 12 }}>
-                    <summary className="muted" style={{ cursor: "pointer" }}>
-                      Excepcions per dia (opcional) ▸
-                    </summary>
-                    <p className="muted" style={{ marginTop: 6, marginBottom: 6 }}>
-                      Si un dia no té valor propi, s'aplica l'hora d'inici/final general d'aquí dalt.
-                    </p>
-                    <table style={{ borderCollapse: "collapse" }}>
-                      <thead>
-                        <tr>
-                          <th></th>
-                          {DAYS.map((day) => (
-                            <th key={day} style={{ padding: "4px 8px", fontWeight: 600, fontSize: 13 }}>{day}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr>
-                          <td style={{ padding: "4px 8px", fontSize: 13 }}>Inici</td>
-                          {DAYS.map((day) => {
-                            const dayWindows = groupRestrictionDraft.daily_windows || {};
-                            const dayValue = dayWindows[day]?.start || "";
-                            return (
-                              <td key={day} style={{ padding: "4px 8px" }}>
-                                <select
-                                  value={dayValue}
-                                  onChange={(event) => {
-                                    const nextWindows = { ...dayWindows };
-                                    const current = { ...(nextWindows[day] || {}) };
-                                    if (event.target.value) {
-                                      current.start = event.target.value;
-                                    } else {
-                                      delete current.start;
-                                    }
-                                    if (current.start || current.end) {
-                                      nextWindows[day] = current;
-                                    } else {
-                                      delete nextWindows[day];
-                                    }
-                                    setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_windows: nextWindows });
-                                  }}
-                                >
-                                  <option value="">(general)</option>
-                                  {HOURS.map((hour) => (
-                                    <option key={hour} value={hour}>{hour}</option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                        <tr>
-                          <td style={{ padding: "4px 8px", fontSize: 13 }}>Final</td>
-                          {DAYS.map((day) => {
-                            const dayWindows = groupRestrictionDraft.daily_windows || {};
-                            const dayValue = dayWindows[day]?.end || "";
-                            return (
-                              <td key={day} style={{ padding: "4px 8px" }}>
-                                <select
-                                  value={dayValue}
-                                  onChange={(event) => {
-                                    const nextWindows = { ...dayWindows };
-                                    const current = { ...(nextWindows[day] || {}) };
-                                    if (event.target.value) {
-                                      current.end = event.target.value;
-                                    } else {
-                                      delete current.end;
-                                    }
-                                    if (current.start || current.end) {
-                                      nextWindows[day] = current;
-                                    } else {
-                                      delete nextWindows[day];
-                                    }
-                                    setGroupRestrictionDraft({ ...groupRestrictionDraft, daily_windows: nextWindows });
-                                  }}
-                                >
-                                  <option value="">(general)</option>
-                                  {HOURS.map((hour) => (
-                                    <option key={hour} value={hour}>{hour}</option>
-                                  ))}
-                                </select>
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </details>
-                </div>
-
-                <div className="restriction-section">
-                  <h4>
-                    Franges concretes no disponibles (forats enmig del dia){" "}
-                    <span
-                      className="help-icon"
-                      title={'Per a coses que "hora d\'inici/final" no pot expressar, com un grup que té classe al matí, no té classe entre les 14:00 i les 16:00, i torna a tenir classe de 16:00 a 19:00 el mateix dia. Clic simple per marcar/desmarcar una franja no disponible. Maj + clic per seleccionar un rang.'}
-                    >
-                      ⓘ
-                    </span>
-                  </h4>
-                  <div className="restriction-presets">
-                    <button type="button" onClick={() => applyUnavailablePreset("entre-10-14", groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setGroupUnavailableSelectionAnchor)}>Entre les 10:00 i les 14:00 (tots els dies)</button>
-                    <button
-                      type="button"
-                      className="ghost"
-                      onClick={() => clearAvailabilitySelection(groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", setGroupUnavailableSelectionAnchor)}
-                    >
-                      Neteja selecció
-                    </button>
-                  </div>
-                  <div className="availability-grid-wrap">
-                    <table className="availability-grid">
-                      <thead>
-                        <tr>
-                          <th></th>
-                          {HOURS.map((hour) => (
-                            <th key={hour}>{hour}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {DAYS.map((day) => (
-                          <tr key={day}>
-                            <td className="availability-grid-daylabel">{dayAbbr(day)}</td>
-                            {HOURS.map((hour) => {
-                              const slotKey = `${day}-${hour}`;
-                              const isUnavailable = (groupRestrictionDraft.unavailable_slots || [])
-                                .map(normalizeAvailabilitySlot)
-                                .includes(slotKey);
-                              const cellClass = isUnavailable
-                                ? "availability-cell availability-cell--unavailable"
-                                : "availability-cell";
-                              return (
-                                <td key={slotKey}>
-                                  <button
-                                    type="button"
-                                    className={cellClass}
-                                    onMouseDown={(event) => { event.preventDefault(); if (!event.shiftKey) setGroupUnavailableSelectionAnchor(slotKey); }}
-                                    onClick={(event) => updateAvailabilitySelection(slotKey, event, groupRestrictionDraft, setGroupRestrictionDraft, "unavailable_slots", groupUnavailableSelectionAnchor, setGroupUnavailableSelectionAnchor)}
-                                  />
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 12, marginBottom: 8 }}>
-                  <p className="muted" style={{ marginTop: 0, marginBottom: 6 }}>
-                    Grups als quals aplicar "Desa per a diversos grups" (per exemple, no barregis grups de matí i de tarda):
-                  </p>
-                  <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
-                    <button
-                      type="button"
-                      onClick={() => setBulkSaveSelectedGroups(timetableGroupOptions.map((g) => g.name))}
-                    >
-                      Selecciona tots
-                    </button>
-                    <button type="button" onClick={() => setBulkSaveSelectedGroups([])}>
-                      Neteja selecció
-                    </button>
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 16px" }}>
-                    {timetableGroupOptions.map((group) => (
-                      <label key={group.name} style={{ display: "flex", alignItems: "center", gap: 4, fontWeight: "normal" }}>
-                        <input
-                          type="checkbox"
-                          checked={bulkSaveSelectedGroups.includes(group.name)}
-                          onChange={(event) => {
-                            setBulkSaveSelectedGroups((current) =>
-                              event.target.checked
-                                ? [...current, group.name]
-                                : current.filter((name) => name !== group.name)
-                            );
-                          }}
-                        />
-                        {group.name}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                <button type="button" onClick={() => saveGroupRestrictions()} disabled={isSavingGroupRestrictions}>
-                  {isSavingGroupRestrictions ? "S'està desant..." : "Desa restriccions"}
-                </button>
-                <button
-                  type="button"
-                  onClick={saveGroupRestrictionsForAllGroups}
-                  disabled={isSavingGroupRestrictions || bulkSaveSelectedGroups.length === 0}
-                  style={{ marginLeft: 8 }}
-                  title="Aplica aquestes mateixes restriccions (hores màx., franges, dies...) nomes als grups marcats a dalt, sense tocar el descans propi de cadascun"
-                >
-                  {isSavingGroupRestrictions ? "S'està desant..." : `Desa per als grups seleccionats (${bulkSaveSelectedGroups.length})`}
-                </button>
-              </div>
-            )}
-          </section>
 
           <details className="sidebar-section">
             <summary><h2>Dades acadèmiques</h2></summary>

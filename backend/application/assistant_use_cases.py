@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 import threading
+import urllib.error
+import urllib.request
 import uuid
 from typing import Any, Callable, Dict, List, Optional
 
@@ -15,6 +18,8 @@ except ModuleNotFoundError:  # pragma: no cover
 
 
 DEFAULT_MODEL = "claude-sonnet-5-5"
+GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
 MAX_TOOL_ROUNDS = 8
 MAX_PENDING_ACTIONS = 100
 MAX_TOOL_RESULT_CHARS = 12000
@@ -187,6 +192,47 @@ def _conflict_to_dict(conflict: Any) -> Dict[str, Any]:
     return {"type": getattr(conflict, "type", "conflicte"), "message": getattr(conflict, "message", "")}
 
 
+def _ssl_context() -> Optional[ssl.SSLContext]:
+    """Context SSL que no depèn dels certificats del Python instal·lat.
+
+    El Python de python.org per a macOS no porta certificats arrel i falla
+    amb CERTIFICATE_VERIFY_FAILED. 'truststore' fa servir els del sistema
+    operatiu; si no hi és, 'certifi'; si tampoc, el valor per defecte."""
+    try:
+        import truststore
+
+        return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    except Exception:  # pragma: no cover - depèn de l'entorn
+        pass
+    try:
+        import certifi
+
+        return ssl.create_default_context(cafile=certifi.where())
+    except Exception:  # pragma: no cover - depèn de l'entorn
+        return None
+
+
+def _http_post_json(url: str, headers: Dict[str, str], payload: Dict[str, Any]) -> Dict[str, Any]:
+    """POST JSON amb la llibreria estàndard (sense dependències noves)."""
+    request = urllib.request.Request(
+        url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=90, context=_ssl_context()) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace")[:300]
+        if exc.code in (401, 403):
+            raise RuntimeError("La clau de l'API no és vàlida o no té permís.") from exc
+        if exc.code == 429:
+            raise RuntimeError(
+                "S'ha arribat al límit gratuït del servei. Espera una estona i torna-ho a provar."
+            ) from exc
+        raise RuntimeError(f"El servei d'IA ha respost amb error {exc.code}: {body}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"No s'ha pogut connectar amb el servei d'IA: {exc.reason}") from exc
+
+
 class AssistantUseCases:
     def __init__(
         self,
@@ -196,9 +242,12 @@ class AssistantUseCases:
         live_schedule_use_cases: Optional[Any] = None,
         scheduler_use_cases: Optional[Any] = None,
         client_factory: Optional[Callable[[str], Any]] = None,
+        http_post: Optional[Callable[[str, Dict[str, str], Dict[str, Any]], Dict[str, Any]]] = None,
     ) -> None:
         self._proposal_store = proposal_store
-        self._model = model or os.environ.get("EMAD_ASSISTANT_MODEL", DEFAULT_MODEL)
+        self._explicit_model = model or os.environ.get("EMAD_ASSISTANT_MODEL")
+        self._model = self._explicit_model or DEFAULT_MODEL
+        self._http_post = http_post or _http_post_json
         self._academic_data_repo = academic_data_repo
         self._live = live_schedule_use_cases
         self._scheduler = scheduler_use_cases
@@ -207,15 +256,58 @@ class AssistantUseCases:
         self._lock = threading.Lock()
 
     # ----------------------------------------------------------------- estat
+    def _provider(self) -> Optional[Dict[str, Any]]:
+        """Proveïdor d'IA configurat per variables d'entorn.
+
+        - Claude (API d'Anthropic): ANTHROPIC_API_KEY.
+        - Groq (capa gratuïta, format compatible amb OpenAI): GROQ_API_KEY.
+        - Qualsevol altre servei compatible (Gemini, OpenRouter, Ollama...):
+          EMAD_ASSISTANT_BASE_URL (+ EMAD_ASSISTANT_API_KEY i EMAD_ASSISTANT_MODEL).
+        Es pot forçar amb EMAD_ASSISTANT_PROVIDER=anthropic|groq|custom.
+        """
+        explicit = os.environ.get("EMAD_ASSISTANT_PROVIDER", "").strip().lower()
+        anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+        groq_key = os.environ.get("GROQ_API_KEY")
+        custom_url = os.environ.get("EMAD_ASSISTANT_BASE_URL")
+        if explicit == "anthropic" or (not explicit and anthropic_key):
+            if not anthropic_key:
+                return None
+            return {"kind": "anthropic", "api_key": anthropic_key, "model": self._model}
+        if explicit == "groq" or (not explicit and groq_key):
+            if not groq_key:
+                return None
+            return {
+                "kind": "openai",
+                "name": "Groq",
+                "base_url": GROQ_BASE_URL,
+                "api_key": groq_key,
+                "model": self._explicit_model or GROQ_DEFAULT_MODEL,
+            }
+        if explicit == "custom" or (not explicit and custom_url):
+            if not custom_url or not self._explicit_model:
+                return None
+            return {
+                "kind": "openai",
+                "name": "servei compatible",
+                "base_url": custom_url.rstrip("/"),
+                "api_key": os.environ.get("EMAD_ASSISTANT_API_KEY", ""),
+                "model": self._explicit_model,
+            }
+        return None
+
     def status(self) -> Dict[str, Any]:
-        if not os.environ.get("ANTHROPIC_API_KEY"):
+        provider = self._provider()
+        if provider is None:
             return {
                 "configured": False,
                 "error": "missing_api_key",
-                "detail": "Cal definir la variable d'entorn ANTHROPIC_API_KEY al backend.",
+                "detail": (
+                    "Cal definir GROQ_API_KEY (gratuït) o ANTHROPIC_API_KEY al backend "
+                    "i reiniciar-lo."
+                ),
                 "model": self._model,
             }
-        if self._client_factory is None:
+        if provider["kind"] == "anthropic" and self._client_factory is None:
             try:
                 import anthropic  # noqa: F401
             except ModuleNotFoundError:
@@ -223,9 +315,9 @@ class AssistantUseCases:
                     "configured": False,
                     "error": "missing_dependency",
                     "detail": "Cal instal·lar el paquet 'anthropic' (pip install anthropic).",
-                    "model": self._model,
+                    "model": provider["model"],
                 }
-        return {"configured": True, "model": self._model}
+        return {"configured": True, "model": provider["model"]}
 
     # ----------------------------------------------------------- accions
     def _register_action(self, action: PendingAction) -> None:
@@ -325,15 +417,19 @@ class AssistantUseCases:
             if proposal is None:
                 raise LookupError("proposal_not_found")
 
-        api_key = os.environ.get("ANTHROPIC_API_KEY")
-        if not api_key:
+        provider = self._provider()
+        if provider is None:
             return {
                 "ok": False,
                 "error": "missing_api_key",
-                "detail": "Cal configurar la variable d'entorn ANTHROPIC_API_KEY al backend.",
+                "detail": (
+                    "Cal configurar GROQ_API_KEY (gratuït) o ANTHROPIC_API_KEY al backend "
+                    "i reiniciar-lo."
+                ),
             }
+        api_key = provider["api_key"]
 
-        if self._client_factory is None:
+        if provider["kind"] == "anthropic" and self._client_factory is None:
             try:
                 import anthropic  # noqa: F401
             except ModuleNotFoundError:
@@ -390,6 +486,19 @@ class AssistantUseCases:
             }
         )
 
+        if provider["kind"] == "openai":
+            try:
+                reply_text = self._run_openai_loop(provider, conversation_messages, toolbox)
+            except Exception as exc:  # pragma: no cover - depends on live network/API
+                return {"ok": False, "error": "api_call_failed", "detail": str(exc)}
+            if not reply_text.strip():
+                reply_text = "He deixat les accions proposades a sota." if turn_actions else "No tinc cap resposta."
+            return {
+                "ok": True,
+                "reply": reply_text,
+                "actions": [action.public() for action in turn_actions],
+            }
+
         client = self._make_client(api_key)
         reply_text = ""
         try:
@@ -436,6 +545,54 @@ class AssistantUseCases:
             "reply": reply_text,
             "actions": [action.public() for action in turn_actions],
         }
+
+    def _run_openai_loop(self, provider: Dict[str, Any], conversation: List[Dict[str, Any]], toolbox: Any) -> str:
+        """Bucle d'eines en format compatible amb OpenAI (Groq i similars)."""
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": definition["name"],
+                    "description": definition.get("description", ""),
+                    "parameters": definition.get("input_schema") or {"type": "object", "properties": {}},
+                },
+            }
+            for definition in toolbox.definitions()
+        ]
+        headers = {"Content-Type": "application/json", "User-Agent": "EMAD-Scheduler/1.0"}
+        if provider.get("api_key"):
+            headers["Authorization"] = f"Bearer {provider['api_key']}"
+        url = f"{provider['base_url']}/chat/completions"
+        messages: List[Dict[str, Any]] = [{"role": "system", "content": SYSTEM_PROMPT}] + list(conversation)
+        reply_text = ""
+        for _ in range(MAX_TOOL_ROUNDS):
+            payload = {
+                "model": provider["model"],
+                "messages": messages,
+                "tools": tools,
+                "tool_choice": "auto",
+                "max_tokens": 2048,
+                "temperature": 0.2,
+            }
+            response = self._http_post(url, headers, payload)
+            message = ((response.get("choices") or [{}])[0]).get("message") or {}
+            reply_text = message.get("content") or ""
+            tool_calls = message.get("tool_calls") or []
+            if not tool_calls:
+                return reply_text
+            messages.append({"role": "assistant", "content": reply_text, "tool_calls": tool_calls})
+            for call in tool_calls:
+                function = call.get("function") or {}
+                try:
+                    arguments = json.loads(function.get("arguments") or "{}")
+                except (TypeError, ValueError):
+                    arguments = {}
+                output = toolbox.call(function.get("name", ""), arguments if isinstance(arguments, dict) else {})
+                text_output = json.dumps(output, ensure_ascii=False)
+                if len(text_output) > MAX_TOOL_RESULT_CHARS:
+                    text_output = text_output[:MAX_TOOL_RESULT_CHARS] + "… [resultat truncat]"
+                messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": text_output})
+        return reply_text or "No he pogut acabar l'anàlisi (massa passos). Prova de concretar més la pregunta."
 
     @staticmethod
     def _block_to_param(block: Any) -> Dict[str, Any]:
