@@ -29,6 +29,11 @@ try:
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.subject_utils import is_non_lective_tutoria
 
+try:
+    from backend.services.group_order import group_sort_key
+except ModuleNotFoundError:  # pragma: no cover
+    from services.group_order import group_sort_key
+
 _LOGO_PATH = Path(__file__).resolve().parent.parent / "assets" / "logo-emad.png"
 _LOGO_HEADER_ROWS = 4
 _LOGO_TARGET_WIDTH_PX = 150
@@ -266,7 +271,7 @@ def build_schedule_export(activities: Sequence[Dict[str, Any]]) -> BytesIO:
             by_room.setdefault(room_text, []).append(activity)
 
     all_group_names = set(by_group) | set(group_notes)
-    for group_name in sorted(all_group_names):
+    for group_name in sorted(all_group_names, key=group_sort_key):
         _write_grid_sheet(
             workbook,
             f"G-{group_name}",

@@ -159,3 +159,70 @@ def test_equal_duration_quarter_pair_is_left_untouched():
     use_cases._center_unequal_quarter_pairs(activities)
 
     assert [a.start for a in activities] == ["15:00", "15:00"]
+
+
+def _fresh_use_cases():
+    from backend.bootstrap import reset_dependencies
+    from backend.dependencies import get_scheduler_use_cases
+
+    reset_dependencies()
+    return get_scheduler_use_cases()
+
+
+def _overlaps(activities):
+    for i, first in enumerate(activities):
+        for second in activities[i + 1:]:
+            if first.day != second.day:
+                continue
+            a0 = int(first.start.split(":")[0]) * 2 + (1 if first.start.endswith(":30") else 0)
+            b0 = int(second.start.split(":")[0]) * 2 + (1 if second.start.endswith(":30") else 0)
+            if a0 < b0 + second.duration and b0 < a0 + first.duration:
+                return True
+    return False
+
+
+def test_a_group_with_empty_days_gets_its_classes_spread_over_more_days():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _fresh_use_cases()
+    activities = [
+        Activity(1, "Ana", "Mat", "1A", "", "Dilluns", "8:00", 4),
+        Activity(2, "Bruno", "Hist", "1A", "", "Dilluns", "10:00", 4),
+        Activity(3, "Carla", "Dibuix", "1A", "", "Dilluns", "12:00", 4),
+        Activity(4, "Dani", "Musica", "1A", "", "Dimarts", "8:00", 4),
+    ]
+
+    use_cases._spread_group_days(activities, [])
+
+    assert len({a.day for a in activities}) >= 3
+    assert not _overlaps(activities)
+    # Cap classe queda amb més d'una franja buida al mig del seu dia.
+    assert use_cases._scheduler_engine.validate(use_cases._build_schedule(activities)) == []
+
+
+def test_classes_tied_by_consecutive_with_and_fixed_classes_are_never_spread():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _fresh_use_cases()
+    activities = [
+        Activity(1, "Ana", "Mat", "1A", "", "Dilluns", "8:00", 4),
+        Activity(2, "Bruno", "Hist", "1A", "", "Dilluns", "10:00", 4),
+        Activity(3, "Carla", "Dibuix", "1A", "", "Dilluns", "12:00", 4, True),
+    ]
+    assignments = [
+        {"subject": "Mat", "group": "1A", "teacher": "Ana", "consecutive_group": "Hist::Bruno"},
+        {"subject": "Hist", "group": "1A", "teacher": "Bruno"},
+    ]
+
+    use_cases._spread_group_days(activities, assignments)
+
+    assert [(a.day, a.start) for a in activities] == [("Dilluns", "8:00"), ("Dilluns", "10:00"), ("Dilluns", "12:00")]
+
+
+def test_groups_are_ordered_as_the_school_wants_in_the_exports():
+    from backend.services.group_order import group_sort_key
+
+    names = ["GI", "2n APGI", "Comú", "GP", "PFI", "1r APGI", "Nou", "2n COM", "1r COM"]
+    assert sorted(names, key=group_sort_key) == [
+        "PFI", "1r COM", "2n COM", "1r APGI", "2n APGI", "Comú", "GP", "GI", "Nou",
+    ]

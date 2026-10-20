@@ -157,18 +157,19 @@ button.primary:hover:not(:disabled) {
   margin: 5px 0 0;
 }
 
+/* Logo i títol a dalt; la línia de botons just a sota, alineada a l'esquerra */
 .topbar-actions {
   align-items: center;
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 100%;
   flex-wrap: wrap;
   gap: 8px;
+  justify-content: flex-start;
   min-width: 0;
 }
 
-/* Empeny l'Assistent i "Més" cap a la dreta de la barra */
 .topbar-spacer {
-  flex: 1 1 auto;
+  display: none;
 }
 
 .group-restrictions-panel {
@@ -228,8 +229,10 @@ button.primary:hover:not(:disabled) {
 
 .group-tabs {
   display: flex;
+  flex: 1 1 0;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .group-tab {
@@ -257,6 +260,15 @@ button.primary:hover:not(:disabled) {
   font-weight: 600;
 }
 
+/* Professor i Aula en una sola línia, a la dreta i alineats amb els grups */
+.timetable-filter {
+  align-items: center;
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+
 .timetable-filter label {
   display: flex;
   align-items: center;
@@ -267,6 +279,7 @@ button.primary:hover:not(:disabled) {
 }
 
 .timetable-filter select {
+  max-width: 130px;
   min-height: 32px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -1217,4 +1230,22 @@ button.primary:hover:not(:disabled) {
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.4;
+}
+
+/* Eines de descàrrega i de grup, a la barra de la dreta de l'Horari */
+.sidebar-tools {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+}
+
+.sidebar-tools h2 {
+  font-size: 15px;
+  margin: 0;
 }

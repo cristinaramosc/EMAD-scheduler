@@ -6,6 +6,16 @@ import "./App.css";
 const API_URL = "http://127.0.0.1:8000";
 
 const DAYS = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"];
+// Ordre fix dels grups a tota l'aplicació; els que no hi són van al final.
+const GROUP_ORDER = ["PFI", "1r COM", "2n COM", "1r APGI", "2n APGI", "Comú", "GP", "GI"];
+const groupOrderIndex = (name) => {
+  const position = GROUP_ORDER.findIndex((item) => item.toLowerCase() === String(name || "").trim().toLowerCase());
+  return position === -1 ? GROUP_ORDER.length : position;
+};
+const compareGroupNames = (first, second) =>
+  groupOrderIndex(first) - groupOrderIndex(second) || String(first || "").localeCompare(String(second || ""), "ca");
+const sortGroupsByOrder = (list) =>
+  Array.isArray(list) ? [...list].sort((first, second) => compareGroupNames(first?.name, second?.name)) : list;
 const DAY_ABBR = { Dilluns: "Dl", Dimarts: "Dt", Dimecres: "Dc", Dijous: "Dj", Divendres: "Dv" };
 const dayAbbr = (day) => DAY_ABBR[day] || String(day).slice(0, 3);
 const DAY_ALIASES = {
@@ -882,6 +892,18 @@ export default function App() {
   }
 
   async function downloadScheduleExport() {
+    // Les hores de centre i de coordinació s'afegeixen en acceptar la proposta:
+    // amb una proposta pendent el PDF sortiria incomplet.
+    if (
+      proposal &&
+      !window.confirm(
+        "Hi ha una proposta generada que encara no has acceptat.\n\n" +
+          "El PDF no la reflecteix i no inclou les hores de centre ni de coordinació " +
+          "fins que premis «Accepta proposta».\n\nVols descarregar-lo igualment?"
+      )
+    ) {
+      return;
+    }
     try {
       const response = await fetch(`${API_URL}/scheduler/export/pdf${pdfShowDni ? "?show_dni=true" : ""}`);
       if (!response.ok) {
@@ -1002,7 +1024,7 @@ export default function App() {
         setTeachers(await teachersResp.json());
       }
       if (groupsResp.ok) {
-        setGroups(await groupsResp.json());
+        setGroups(sortGroupsByOrder(await groupsResp.json()));
       }
       if (roomsResp.ok) {
         setRooms(await roomsResp.json());
@@ -1873,7 +1895,7 @@ export default function App() {
       });
     });
 
-    return parentGroups;
+    return parentGroups.sort((first, second) => compareGroupNames(first.name, second.name));
   }, [groups, activities]);
 
   useEffect(() => {
@@ -5447,7 +5469,7 @@ export default function App() {
                   ))}
                 </select>
               </label>
-              <label style={{ marginLeft: 12 }}>
+              <label>
                 Aula
                 <select
                   value={roomFilter}
@@ -5465,55 +5487,6 @@ export default function App() {
                   ))}
                 </select>
               </label>
-              <button
-                type="button"
-                style={{ marginLeft: 16 }}
-                onClick={downloadScheduleExport}
-                title="Descarrega un PDF amb l'horari de cada grup, professor i aula"
-              >
-                ⬇️ Descarrega horaris
-              </button>
-              <label style={{ marginLeft: 8, display: "inline-flex", alignItems: "center", gap: 4, fontWeight: "normal" }} title="Imprimeix el DNI de cada professor a la seva pàgina del PDF">
-                <input type="checkbox" checked={pdfShowDni} onChange={(event) => setPdfShowDni(event.target.checked)} />
-                DNI al PDF
-              </label>
-
-              {selectedGroup ? (
-                <button
-                  type="button"
-                  className={groupRestrictionDraft.locked ? "primary" : ""}
-                  style={{ marginLeft: 12 }}
-                  onClick={() => toggleGroupLock(selectedGroup, !groupRestrictionDraft.locked)}
-                  disabled={isSavingGroupRestrictions}
-                  title="Manté aquest grup a la mateixa posició quan es torni a generar l'horari"
-                >
-                  {groupRestrictionDraft.locked ? "🔒 Horari bloquejat" : "🔓 Bloqueja horari"}
-                </button>
-              ) : null}
-          {selectedGroup ? (
-            <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: 8 }}>
-              <span style={{ fontSize: 12, color: "#667085" }}>Descans:</span>
-              {DAYS.map((day) => {
-                const isActive = groupBreakDays.has(day);
-                return (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => toggleGroupBreak(day)}
-                    disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
-                    title={`Descans ${day} per ${selectedGroup} (desplaça 30 min les classes posteriors per obrir un forat, entre 1h després de començar i 1h30 abans d'acabar)`}
-                    style={{
-                      padding: "0 6px",
-                      background: isActive ? "#2f6f73" : "#ffffff",
-                      color: isActive ? "#ffffff" : "#1f2937",
-                    }}
-                  >
-                    {dayAbbr(day)}
-                  </button>
-                );
-              })}
-            </div>
-          ) : null}
             </div>
             {proposals && proposals.length > 0 && (
               <div style={{ marginLeft: 12 }}>
@@ -5622,6 +5595,60 @@ export default function App() {
       </div>
 
         <aside className="side-panel">
+          <section className="sidebar-tools">
+            <h2>Descàrrega i grup</h2>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                style={{ flex: "1 1 auto" }}
+                onClick={downloadScheduleExport}
+                title="Descarrega un PDF amb l'horari de cada grup, professor i aula"
+              >
+                ⬇️ Descarrega horaris
+              </button>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: "normal" }} title="Imprimeix el DNI de cada professor a la seva pàgina del PDF">
+                <input type="checkbox" checked={pdfShowDni} onChange={(event) => setPdfShowDni(event.target.checked)} />
+                DNI al PDF
+              </label>
+            </div>
+              {selectedGroup ? (
+                <button
+                  type="button"
+                  className={groupRestrictionDraft.locked ? "primary" : ""}
+                  style={{ width: "100%" }}
+                  onClick={() => toggleGroupLock(selectedGroup, !groupRestrictionDraft.locked)}
+                  disabled={isSavingGroupRestrictions}
+                  title="Manté aquest grup a la mateixa posició quan es torni a generar l'horari"
+                >
+                  {groupRestrictionDraft.locked ? "🔒 Horari bloquejat" : "🔓 Bloqueja horari"}
+                </button>
+              ) : null}
+              {selectedGroup ? (
+            <div style={{ display: "flex", gap: 3, alignItems: "center", marginLeft: 0 }}>
+              <span style={{ fontSize: 12, color: "#667085" }}>Descans:</span>
+              {DAYS.map((day) => {
+                const isActive = groupBreakDays.has(day);
+                return (
+                  <button
+                    key={day}
+                    type="button"
+                    onClick={() => toggleGroupBreak(day)}
+                    disabled={isLoading || isSaving || isGenerating || isTogglingBreak}
+                    title={`Descans ${day} per ${selectedGroup} (desplaça 30 min les classes posteriors per obrir un forat, entre 1h després de començar i 1h30 abans d'acabar)`}
+                    style={{
+                      padding: "0 6px",
+                      background: isActive ? "#2f6f73" : "#ffffff",
+                      color: isActive ? "#ffffff" : "#1f2937",
+                    }}
+                  >
+                    {dayAbbr(day)}
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          </section>
+
 
           <details className="sidebar-section">
             <summary><h2>Dades acadèmiques</h2></summary>

@@ -5,12 +5,12 @@ from datetime import datetime, time
 from typing import Any, Dict, List, Optional, Tuple
 
 try:
-    from backend.scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter
+    from backend.scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, quarter_suffix, parent_and_quarter as _parent_and_quarter
     from backend.scheduler_engine.teacher_utils import teacher_label, teacher_names
     from backend.time_units import hours_to_blocks
     from backend.scheduler_engine.subject_utils import is_non_lective_tutoria
 except ModuleNotFoundError:  # pragma: no cover
-    from scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, parent_and_quarter as _parent_and_quarter
+    from scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, quarter_suffix, parent_and_quarter as _parent_and_quarter
     from scheduler_engine.teacher_utils import teacher_label, teacher_names
     from time_units import hours_to_blocks
     from scheduler_engine.subject_utils import is_non_lective_tutoria
@@ -383,7 +383,6 @@ class SchedulerUseCases:
             compacted_activities, _ = self._compact_activities(list(proposal.activities))
             proposal.activities = self._insert_default_group_breaks(compacted_activities)
             aligned_proposal = self._apply_quarter_pair_alignment(proposal)
-            self._center_unequal_quarter_pairs(aligned_proposal.activities)
             final_schedule = self._build_schedule(list(aligned_proposal.activities))
             final_conflicts = self._scheduler_engine.validate(final_schedule)
             new_conflicts = [
@@ -400,6 +399,12 @@ class SchedulerUseCases:
             else:
                 proposal.activities = aligned_proposal.activities
                 proposal.conflicts = final_conflicts
+            # Ajustos finals, independents de si la compactació s'ha conservat o
+            # descartat: cada pas es valida pel seu compte i només es queda el que
+            # no crea cap conflicte nou.
+            self._center_unequal_quarter_pairs(proposal.activities)
+            self._spread_group_days(proposal.activities, assignments)
+            proposal.conflicts = self._scheduler_engine.validate(self._build_schedule(list(proposal.activities)))
         proposals.sort(key=lambda proposal: (len(proposal.warnings), -proposal.score))
 
         for proposal in proposals:
@@ -1642,6 +1647,125 @@ class SchedulerUseCases:
 
         return pairs
 
+    # Activitats que no són classes del grup i no es poden moure a un altre dia.
+    _NON_SPREADABLE_SUBJECTS = {"descans", "tutoria", "coordinació", "hores de centre", "reunió de claustre"}
+
+    def _spread_group_days(self, activities: List[Activity], assignments: List[Dict[str, Any]]) -> None:
+        """Les assignatures de cada grup han de quedar repartides entre tots els
+        dies lectius. Si un grup té un dia sense cap classe, s'hi mou una classe
+        d'un dia carregat, sempre que el validador no detecti cap conflicte nou
+        (disponibilitat, màxims de dies, horari del grup...) i que no es creï
+        cap forat de més d'una franja. No es toquen les classes fixes, les de
+        grups combinats, les 1Q/2Q, ni les lligades per "Consecutiva amb"."""
+        day_names = self._time_labels.get("day_names", [])
+        hour_names = self._time_labels.get("hour_names", [])
+        hour_index = {name: position for position, name in enumerate(hour_names)}
+        if not day_names or not hour_index:
+            return
+        last_period = len(hour_names) - 1  # l'última etiqueta només marca el final
+
+        protected = set()
+        for first, second in self._resolve_consecutive_pairs(assignments):
+            for item in (first, second):
+                protected.add(
+                    (
+                        str(item.get("subject") or "").strip().casefold(),
+                        str(item.get("group") or "").strip().casefold(),
+                        str(item.get("teacher") or "").strip().casefold(),
+                    )
+                )
+
+        def interior_gap(group: str, day: str) -> int:
+            spans = sorted(
+                (hour_index[item.start], hour_index[item.start] + item.duration)
+                for item in activities
+                if item.day == day and group in group_names(item.group) and item.start in hour_index
+            )
+            gap, end = 0, None
+            for start, finish in spans:
+                if end is not None and start > end:
+                    gap = max(gap, start - end)
+                end = finish if end is None else max(end, finish)
+            return gap
+
+        def new_conflicts(baseline: set) -> bool:
+            conflicts = self._scheduler_engine.validate(self._build_schedule(list(activities)))
+            return any(self._conflict_key(conflict) not in baseline for conflict in conflicts)
+
+        baseline_keys = {
+            self._conflict_key(conflict)
+            for conflict in self._scheduler_engine.validate(self._build_schedule(list(activities)))
+        }
+        def movable(item: Activity, group: str, mine: List[Activity]) -> bool:
+            return (
+                set(group_names(item.group)) == {group}
+                and not item.fixed
+                and (item.subject or "").strip().casefold() not in self._NON_SPREADABLE_SUBJECTS
+                and quarter_suffix(item.subject) is None
+                and quarter_suffix(item.group) is None
+                and (item.subject.strip().casefold(), item.group.strip().casefold(), str(item.teacher).strip().casefold())
+                not in protected
+                and sum(1 for other in mine if other.day == item.day and other is not item) >= 1
+            )
+
+        def try_move(item: Activity, group: str, target_days: List[str], reference_start: int) -> bool:
+            source_day, source_start = item.day, item.start
+            source_gap_before = interior_gap(group, source_day)
+            periods = sorted(range(0, last_period - item.duration + 1), key=lambda value: abs(value - reference_start))
+            for target_day in target_days:
+                for period in periods:
+                    item.day, item.start = target_day, hour_names[period]
+                    if (
+                        interior_gap(group, target_day) <= 1
+                        and interior_gap(group, source_day) <= max(1, source_gap_before)
+                        and not new_conflicts(baseline_keys)
+                    ):
+                        return True
+            item.day, item.start = source_day, source_start
+            return False
+
+        all_groups = sorted({name for item in activities for name in group_names(item.group)})
+        for group in all_groups:
+            # 1) Dies lectius sense cap classe: s'hi mou una classe d'un dia carregat.
+            for _ in range(3):
+                mine = [item for item in activities if group in group_names(item.group)]
+                used_days = {item.day for item in mine}
+                empty_days = [day for day in day_names if day not in used_days]
+                if not mine or not empty_days or len(used_days) < 2:
+                    break
+                load: Dict[str, int] = {}
+                for item in mine:
+                    load[item.day] = load.get(item.day, 0) + item.duration
+                reference_start = min((hour_index[item.start] for item in mine if item.start in hour_index), default=0)
+                candidates = sorted(
+                    (item for item in mine if movable(item, group, mine)),
+                    key=lambda item: (-load[item.day], item.duration),
+                )
+                if not any(try_move(item, group, empty_days, reference_start) for item in candidates):
+                    break
+
+            # 2) Equilibri entre els dies amb classe: del dia més carregat al menys
+            # carregat, només mentre la diferència millori (sense passar-se).
+            for _ in range(6):
+                mine = [item for item in activities if group in group_names(item.group)]
+                load = {}
+                for item in mine:
+                    load[item.day] = load.get(item.day, 0) + item.duration
+                if len(load) < 2:
+                    break
+                heavy = max(load, key=lambda day: load[day])
+                light = min(load, key=lambda day: load[day])
+                spread = load[heavy] - load[light]
+                if spread <= 2:  # com a màxim 1 h de diferència
+                    break
+                reference_start = min((hour_index[item.start] for item in mine if item.start in hour_index), default=0)
+                candidates = sorted(
+                    (item for item in mine if item.day == heavy and item.duration < spread and movable(item, group, mine)),
+                    key=lambda item: abs(item.duration - spread / 2),
+                )
+                if not any(try_move(item, group, [light], reference_start) for item in candidates):
+                    break
+
     def _center_unequal_quarter_pairs(self, activities: List[Activity]) -> None:
         """Parelles 1Q/2Q que comparteixen dia i hora d'inici però duren
         diferent (p.ex. 4 h i 3 h): si la més curta queda alineada per dalt,
@@ -1695,7 +1819,7 @@ class SchedulerUseCases:
                         continue
                     if other.day != current.day or hour_index.get(other.start) != end_index:
                         continue
-                    if not set(group_names(other.group)) & set(group_names(shorter.group)):
+                    if not set(group_names(other.group)) & set(group_names(current.group)):
                         continue
                     other_position = hour_index[other.start]
                     if other.fixed or other_position + offset + other.duration > len(hour_names) - 1:

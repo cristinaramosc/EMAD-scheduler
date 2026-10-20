@@ -34,6 +34,7 @@ from reportlab.pdfgen import canvas
 if __package__ and __package__.startswith("backend"):
     from backend.scheduler_engine.quarter_utils import parent_and_quarter, strip_quarter_suffix
     from backend.services.contract_hours import contract_hours
+    from backend.services.group_order import group_sort_key
     from backend.services.schedule_exporter import (
         _LOGO_PATH,
         _hour_sort_key,
@@ -44,6 +45,7 @@ if __package__ and __package__.startswith("backend"):
 else:  # pragma: no cover
     from scheduler_engine.quarter_utils import parent_and_quarter, strip_quarter_suffix
     from services.contract_hours import contract_hours
+    from services.group_order import group_sort_key
     from services.schedule_exporter import (
         _LOGO_PATH,
         _hour_sort_key,
@@ -414,13 +416,13 @@ def _draw_block_text(c: canvas.Canvas, x: float, y: float, w: float, h: float, t
         return
     pad = 1.5 * mm
     avail_w = max(w - 2 * pad, 4 * mm)
-    title_size = 9 if h >= 9 * mm and w >= 22 * mm else 7
-    sub_size = 7 if title_size == 9 else 6
+    title_size = 7 if h >= 9 * mm and w >= 22 * mm else 6
+    sub_size = 5.5 if title_size == 7 else 5
     # Si una sola paraula no hi cap (p.ex. blocs de mitja amplada 1Q/2Q),
-    # es redueix la lletra fins que hi càpiga, amb un mínim de 5 pt.
+    # es redueix la lletra fins que hi càpiga, amb un mínim de 4,5 pt.
     longest = max((pdfmetrics.stringWidth(word, _FONT_BOLD, title_size) for word in title.split()), default=0)
     if longest > avail_w:
-        title_size = max(5, title_size * avail_w / longest)
+        title_size = max(4.5, title_size * avail_w / longest)
         sub_size = min(sub_size, title_size)
     title_lines = simpleSplit(title, _FONT_BOLD, title_size, avail_w) if title else []
     sub_lines = simpleSplit(subtitle, _FONT, sub_size, avail_w) if subtitle else []
@@ -668,7 +670,7 @@ def build_schedule_pdf(
             by_room.setdefault(room_text, []).append(activity)
 
     sections: List[Tuple[str, str, List[Dict[str, Any]], List[str], List[str]]] = []
-    for group_name in sorted(set(by_group) | set(group_notes)):
+    for group_name in sorted(set(by_group) | set(group_notes), key=group_sort_key):
         sections.append(("group", group_name, by_group.get(group_name, []), group_notes.get(group_name, []), group_tutoria_slots.get(group_name, [])))
     for teacher_name in sorted(by_teacher):
         sections.append(("teacher", teacher_name, by_teacher[teacher_name], [], []))
