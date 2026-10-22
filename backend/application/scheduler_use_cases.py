@@ -380,7 +380,7 @@ class SchedulerUseCases:
             baseline_schedule = self._build_schedule(list(proposal.activities))
             baseline_conflicts = self._scheduler_engine.validate(baseline_schedule)
             baseline_keys = {self._conflict_key(conflict) for conflict in baseline_conflicts}
-            compacted_activities, _ = self._compact_activities(list(proposal.activities))
+            compacted_activities = self._compact_without_conflicts(list(proposal.activities), baseline_keys)
             proposal.activities = self._insert_default_group_breaks(compacted_activities)
             aligned_proposal = self._apply_quarter_pair_alignment(proposal)
             final_schedule = self._build_schedule(list(aligned_proposal.activities))
@@ -1998,8 +1998,14 @@ class SchedulerUseCases:
         earliest_allowed_index = max(original_start_indexes, default=0)
         required_slots = max(act_a.duration or 1, act_b.duration or 1)
 
+        # Només es busca al dia (o als dos dies) on ja són: moure la parella al
+        # primer dia possible de la setmana carregava sempre el dilluns.
+        allowed_days = {original_a[0], original_b[0]}
+        pair_names = set(group_names(act_a.group)) | set(group_names(act_b.group))
+        pair_days = set(allowed_days)
+        gaps_before = self._group_gap_slots(activities, pair_names, pair_days)
         for day_index in self._school_calendar.days:
-            if day_index >= len(day_names):
+            if day_index >= len(day_names) or day_names[day_index] not in allowed_days:
                 continue
             for slot in self._school_calendar.periods_for_day(day_index):
                 if slot.period < earliest_allowed_index:
@@ -2024,7 +2030,7 @@ class SchedulerUseCases:
                     conflict for conflict in candidate_conflicts
                     if self._conflict_key(conflict) not in baseline_keys
                 ]
-                if not new_keys:
+                if not new_keys and self._group_gap_slots(activities, pair_names, pair_days) <= gaps_before:
                     act_a.day, act_a.start = original_a
                     act_b.day, act_b.start = original_b
                     return day_label, start_label
@@ -2112,6 +2118,60 @@ class SchedulerUseCases:
                 (blocked_activity.day, blocked_activity.start_timeslot.period)
             )
         return blocked
+
+    def _group_gap_slots(self, activities: List[Activity], names: set, days: set) -> int:
+        """Franges buides entre classes (suma) dels grups indicats en aquells dies."""
+        hour_index = {name: position for position, name in enumerate(self._time_labels.get("hour_names", []))}
+        total = 0
+        for name in names:
+            for day in days:
+                spans = sorted(
+                    (hour_index[item.start], hour_index[item.start] + max(item.duration or 1, 1))
+                    for item in activities
+                    if item.day == day and name in group_names(item.group) and item.start in hour_index
+                )
+                end = None
+                for begin, finish in spans:
+                    if end is not None and begin > end:
+                        total += begin - end
+                    end = finish if end is None else max(end, finish)
+        return total
+
+    def _compact_without_conflicts(self, activities: List[Activity], baseline_keys: set) -> List[Activity]:
+        """Compacta els grups (elimina forats entre classes) però validant cada
+        moviment pel seu compte. `_compact_activities` empaqueta el grup sense
+        mirar la disponibilitat dels professors ni les aules, així que pot crear
+        conflictes; abans això feia descartar tota la compactació de la proposta
+        i els forats es quedaven. Ara només es queda cada moviment que no crea
+        cap conflicte nou respecte de la proposta original."""
+        hour_names = self._time_labels.get("hour_names", [])
+        hour_index = {name: position for position, name in enumerate(hour_names)}
+        day_index = {name: position for position, name in enumerate(self._time_labels.get("day_names", []))}
+        original = {id(activity): (activity.day, activity.start) for activity in activities}
+
+        self._compact_activities(activities)  # modifica les hores in situ
+
+        moves = [
+            (activity, activity.day, activity.start)
+            for activity in activities
+            if (activity.day, activity.start) != original[id(activity)]
+        ]
+        for activity, _day, _start in moves:
+            activity.day, activity.start = original[id(activity)]
+        moves.sort(key=lambda move: (day_index.get(move[1], 0), hour_index.get(move[2], 0)))
+
+        for activity, day, start in moves:
+            previous = (activity.day, activity.start)
+            names = set(group_names(activity.group))
+            days = {previous[0], day}
+            gaps_before = self._group_gap_slots(activities, names, days)
+            activity.day, activity.start = day, start
+            conflicts = self._scheduler_engine.validate(self._build_schedule(list(activities)))
+            if self._group_gap_slots(activities, names, days) > gaps_before or any(
+                self._conflict_key(conflict) not in baseline_keys for conflict in conflicts
+            ):
+                activity.day, activity.start = previous
+        return activities
 
     def _compact_activities(self, activities: List[Activity]) -> tuple[List[Activity], List[int]]:
         """Reubica les activitats de cada grup, dia a dia, el més aviat

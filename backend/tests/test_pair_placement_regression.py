@@ -226,3 +226,40 @@ def test_groups_are_ordered_as_the_school_wants_in_the_exports():
     assert sorted(names, key=group_sort_key) == [
         "PFI", "1r COM", "2n COM", "1r APGI", "2n APGI", "Comú", "GP", "GI", "Nou",
     ]
+
+
+def test_compaction_closes_a_gap_when_nothing_else_is_in_the_way():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _fresh_use_cases()
+    activities = [
+        Activity(1, "Ana", "Mat", "1A", "", "Dilluns", "8:00", 4),
+        Activity(2, "Bruno", "Hist", "1A", "", "Dilluns", "12:00", 4),
+    ]
+
+    result = use_cases._compact_without_conflicts(activities, set())
+
+    assert [(a.start) for a in sorted(result, key=lambda a: a.id)] == ["8:00", "10:00"]
+
+
+def test_compaction_never_creates_a_teacher_conflict_to_close_a_gap():
+    """Bruno ja fa classe (fixa) a 2B a les 10:00: moure-hi la Hist de 1A hi
+    xocaria, així que es queda on és (abans això feia descartar TOTA la
+    compactació de la proposta)."""
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _fresh_use_cases()
+    activities = [
+        Activity(1, "Ana", "Mat", "1A", "", "Dilluns", "8:00", 4),
+        Activity(2, "Bruno", "Hist", "1A", "", "Dilluns", "12:00", 4),
+        Activity(3, "Bruno", "Dibuix", "2B", "", "Dilluns", "10:00", 4, True),
+        Activity(4, "Carla", "Musica", "1A", "", "Dimarts", "8:00", 4),
+        Activity(5, "Dani", "Plastica", "1A", "", "Dimarts", "11:00", 4),
+    ]
+
+    result = use_cases._compact_without_conflicts(activities, set())
+    by_id = {a.id: a for a in result}
+
+    assert (by_id[2].day, by_id[2].start) == ("Dilluns", "12:00")  # bloquejada: es queda
+    assert by_id[5].start == "10:00"  # la resta de la compactació sí que s'aplica
+    assert use_cases._scheduler_engine.validate(use_cases._build_schedule(result)) == []
