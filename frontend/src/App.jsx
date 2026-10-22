@@ -1312,6 +1312,24 @@ export default function App() {
 
         <div className="restriction-section">
           <h4>Franges no disponibles</h4>
+          <div className="restriction-presets" style={{ alignItems: "center", marginBottom: 8 }}>
+            <strong style={{ fontSize: 13 }}>Dies que ve:</strong>
+            {DAYS.map((day) => {
+              const available = !isDayFullyBlocked(teacherRestrictionDraft, day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  className={available ? "primary" : ""}
+                  aria-pressed={available}
+                  title={available ? `Ve ${day.toLowerCase()}. Premeu per bloquejar tot el dia.` : `No ve ${day.toLowerCase()}. Premeu per tornar-lo a obrir.`}
+                  onClick={() => toggleDayAvailability(day, teacherRestrictionDraft, setTeacherRestrictionDraft)}
+                >
+                  {dayAbbr(day)}
+                </button>
+              );
+            })}
+          </div>
           <div className="restriction-presets">
             <button type="button" onClick={() => applyUnavailablePreset("no-abans-10", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No abans de les 10:00</button>
             <button type="button" onClick={() => applyUnavailablePreset("no-abans-15", teacherRestrictionDraft, setTeacherRestrictionDraft)}>No abans de les 15:00</button>
@@ -1537,12 +1555,20 @@ export default function App() {
           body: JSON.stringify({ group: group.name, ...sharedPayload }),
         });
         if (!response.ok) {
-          failedGroups.push(group.name);
+          let reason = `error ${response.status}`;
+          try {
+            const body = await response.json();
+            const detail = body?.detail;
+            reason = typeof detail === "string" ? detail : Array.isArray(detail) ? detail.map((item) => item?.msg).filter(Boolean).join("; ") : reason;
+          } catch {
+            // es manté el codi d'error
+          }
+          failedGroups.push(`${group.name} (${reason})`);
         } else {
           successCount += 1;
         }
       } catch {
-        failedGroups.push(group.name);
+        failedGroups.push(`${group.name} (no s'ha pogut connectar amb el servidor: és engegat el backend?)`);
       }
     }
 
@@ -3060,6 +3086,20 @@ export default function App() {
   // bloc franges com a "no disponibles", reutilitzant la graella clicable
   // que ja existeix. No cal cap canvi al motor: segueix sent la mateixa
   // llista `unavailable_slots` que ja consumeix el generador.
+  // Un dia està "bloquejat" quan totes les seves hores són no disponibles.
+  function isDayFullyBlocked(draft, day, field = "unavailable_slots") {
+    const slots = new Set(draft[field] || []);
+    return HOURS.every((hour) => slots.has(`${day}-${hour}`));
+  }
+
+  function toggleDayAvailability(day, draft, setDraft, field = "unavailable_slots") {
+    const slots = new Set(draft[field] || []);
+    const blocked = isDayFullyBlocked(draft, day, field);
+    HOURS.forEach((hour) => (blocked ? slots.delete(`${day}-${hour}`) : slots.add(`${day}-${hour}`)));
+    setDraft({ ...draft, [field]: Array.from(slots).sort() });
+    setUnavailableSelectionAnchor(null);
+  }
+
   function applyUnavailablePreset(preset, draft, setDraft, field = "unavailable_slots", setAnchor = setUnavailableSelectionAnchor) {
     const hourIndex = (hour) => HOURS.indexOf(hour);
     const matchers = {
