@@ -101,7 +101,7 @@ class GroupConflictConstraint(Constraint):
                 ):
                     bucket.append(activity)
                     continue
-
+\n                # Docència compartida: dues activitats del mateix grup poden\n                # ocupar la mateixa franja quan formen el mateix grup de\n                # docència simultània. Els conflictes de professor es validen\n                # per separat per a tots els professors de cada activitat.\n                first_simultaneous = str(getattr(bucket[0], "simultaneous_group", "") or "").strip()\n                current_simultaneous = str(getattr(activity, "simultaneous_group", "") or "").strip()\n                if first_simultaneous and first_simultaneous == current_simultaneous:\n                    bucket.append(activity)\n                    continue\n
                 previous = bucket[-1]
 
                 # Excepció: si el grup està marcat com a desdoblat, dues

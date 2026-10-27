@@ -25,6 +25,7 @@ class TeachingRequirement:
     min_block_duration: float
     max_consecutive_hours: float
     allow_half_hour_blocks: bool
+    simultaneous_group: str = ""
     min_distribution_days: Optional[int] = None
     max_distribution_days: Optional[int] = None
 
