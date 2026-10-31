@@ -209,8 +209,8 @@ def test_quarter_pair_alignment_reuses_start_even_with_different_durations():
     proposal = type("Proposal", (), {
         "id": "quarters",
         "activities": [
-            Activity(1, "Ana", "Projecte 1Q", "GI", "", "Dilluns", "8:00", 2),
-            Activity(2, "Biel", "Projecte 2Q", "GI", "", "Dilluns", "9:00", 1),
+            Activity(1, "Ana", "Projecte 1Q", "2n APGI", "", "Dilluns", "8:00", 2),
+            Activity(2, "Biel", "Projecte 2Q", "2n APGI", "", "Dilluns", "9:00", 1),
         ],
         "score": 0,
         "warnings": [],
@@ -276,8 +276,8 @@ def test_quarter_pair_alignment_only_matches_opposite_subject_endings():
         proposal = type("Proposal", (), {
             "id": "quarters",
             "activities": [
-                Activity(1, "Ana", first_subject, "GI", "", "Dilluns", "8:00", 1),
-                Activity(2, "Biel", second_subject, "GI", "", "Dilluns", "9:00", 1),
+                Activity(1, "Ana", first_subject, "2n APGI", "", "Dilluns", "8:00", 1),
+                Activity(2, "Biel", second_subject, "2n APGI", "", "Dilluns", "9:00", 1),
             ],
             "score": 0,
             "warnings": [],
@@ -482,14 +482,14 @@ def test_single_group_compaction_still_works_as_before():
     """No-regressió: una activitat de grup individual (no combinat) es
     continua compactant normalment cap a la primera franja lliure."""
     uc = _make_use_cases_for_compaction(
-        [{"group": "GI", "unavailable_slots": ["Dilluns 8:00"]}]
+        [{"group": "2n APGI", "unavailable_slots": ["Dilluns 8:00"]}]
     )
     activities = [
         Activity(
             id=1,
             teacher="Marc",
             subject="GPP",
-            group="GI",
+            group="2n APGI",
             room="",
             day="Dilluns",
             start="9:00",
@@ -525,7 +525,7 @@ def test_group_compaction_respects_group_daily_start_time():
     """La compactació no ha de forçar el grup a començar a les 8:00 si la
     restricció de grup exigeix començar més tard (p.ex. 10:00)."""
     uc = _make_use_cases_for_compaction(
-        [{"group": "GI", "daily_start_time": "10:00"}],
+        [{"group": "2n APGI", "daily_start_time": "10:00"}],
         hour_names=["8:00", "8:30", "9:00", "9:30", "10:00", "10:30", "11:00", "11:30", "15:00", "15:30"],
     )
     activities = [
@@ -533,7 +533,7 @@ def test_group_compaction_respects_group_daily_start_time():
             id=1,
             teacher="Marc",
             subject="GPP",
-            group="GI",
+            group="2n APGI",
             room="",
             day="Dilluns",
             start="15:00",
@@ -543,7 +543,7 @@ def test_group_compaction_respects_group_daily_start_time():
             id=2,
             teacher="Marc",
             subject="GPP 2",
-            group="GI",
+            group="2n APGI",
             room="",
             day="Dilluns",
             start="15:30",
@@ -560,9 +560,9 @@ def test_group_compaction_respects_group_daily_start_time():
 def test_compaction_merges_transitive_combined_group_components():
     uc = _make_use_cases_for_compaction([])
     activities = [
-        Activity(1, "A", "GI", "GI", "", "Dilluns", "8:00", 1),
-        Activity(2, "B", "GP", "GP", "", "Dilluns", "10:00", 1),
-        Activity(3, "C", "Compartida", "GI, GP", "", "Dilluns", "15:00", 1),
+        Activity(1, "A", "2n APGI", "2n APGI", "", "Dilluns", "8:00", 1),
+        Activity(2, "B", "1r APGI", "1r APGI", "", "Dilluns", "10:00", 1),
+        Activity(3, "C", "Compartida", "2n APGI, 1r APGI", "", "Dilluns", "15:00", 1),
     ]
 
     compacted, _ = uc._compact_activities(activities)

@@ -263,3 +263,182 @@ def test_compaction_never_creates_a_teacher_conflict_to_close_a_gap():
     assert (by_id[2].day, by_id[2].start) == ("Dilluns", "12:00")  # bloquejada: es queda
     assert by_id[5].start == "10:00"  # la resta de la compactació sí que s'aplica
     assert use_cases._scheduler_engine.validate(use_cases._build_schedule(result)) == []
+
+
+def test_afternoon_groups_never_start_before_15h_even_without_saved_restrictions():
+    from backend.scheduler_engine.constraints.group_time_window import get_group_time_window
+
+    use_cases = _fresh_use_cases()
+    hour_names = use_cases._time_labels["hour_names"]
+
+    # Sense cap restricció desada.
+    constraints = use_cases._build_group_time_window_constraints([], hour_names)
+    for group in ("Comú", "GP", "GI"):
+        assert get_group_time_window(group, constraints, day="Dimarts")[0] == 15 * 60
+    assert get_group_time_window("1r APGI", constraints, day="Dimarts") is None
+
+    # Una restricció desada que digui "des de les 13:30" no pot avançar-ho.
+    earlier = use_cases._build_group_time_window_constraints(
+        [{"group": "GP", "daily_start_time": "13:30", "daily_max_end_time": "21:30"}], hour_names
+    )
+    assert get_group_time_window("GP", earlier, day="Dilluns")[0] == 15 * 60
+
+    # Una que digui "des de les 17:00" sí que es respecta (la finestra mai s'amplia).
+    later = use_cases._build_group_time_window_constraints(
+        [{"group": "GI", "daily_start_time": "17:00", "daily_max_end_time": "21:30"}], hour_names
+    )
+    assert get_group_time_window("GI", later, day="Dilluns")[0] == 17 * 60
+
+
+def test_the_generator_never_places_afternoon_groups_before_15h():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _fresh_use_cases()
+    blocks = [
+        _block("a", "Tipografia", "GP", "Ana", 4),
+        _block("b", "Projectes", "GI", "Bruno", 4),
+        _block("c", "Marqueting", "Comú", "Carla", 4),
+    ]
+    context = _context(days=(0, 1))
+    context.configuration["hour_names"] = use_cases._time_labels["hour_names"]
+    context.configuration["group_time_window_constraints"] = use_cases._build_group_time_window_constraints(
+        [], use_cases._time_labels["hour_names"]
+    )
+
+    result = SchedulerGenerator().generate(blocks, context)
+
+    assert result.proposals
+    hour_names = use_cases._time_labels["hour_names"]
+    for proposal in result.proposals:
+        for activity in proposal.activities:
+            assert _period(activity) >= hour_names.index("15:00")
+
+
+def _use_cases_with_restrictions():
+    use_cases = _fresh_use_cases()
+    repo = use_cases._academic_data_repo
+    repo.upsert_teacher_restriction({"teacher": "Ana", "unavailable_slots": ["Dilluns-8:00", "Dilluns-8:30"]})
+    repo.upsert_group_restriction({"group": "1A", "unavailable_slots": ["Dimarts-10:00", "Dimarts-10:30"]})
+    return use_cases
+
+
+def _types(conflicts):
+    return sorted(conflict.type for conflict in conflicts)
+
+
+def test_validation_flags_classes_in_unavailable_slots_of_teachers_and_groups():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _use_cases_with_restrictions()
+    activities = [
+        # Dilluns 8:00-9:00: les dues franges són bloquejades per a la Ana.
+        Activity(1, "Ana", "Mat", "2B", "", "Dilluns", "8:00", 2),
+        Activity(2, "Bruno", "Hist", "1A", "", "Dimarts", "10:00", 2),
+        Activity(3, "Bruno", "Dibuix", "1A", "", "Dimecres", "10:00", 2),  # tot lliure
+    ]
+
+    conflicts = use_cases._scheduler_engine.validate(use_cases._build_schedule(activities))
+
+    assert _types(conflicts) == ["group_unavailable", "teacher_unavailable"]
+
+
+def test_a_class_that_only_overlaps_the_last_blocked_slot_is_also_flagged():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _use_cases_with_restrictions()
+    # 7:30 no existeix; es fa servir un bloc que comença abans de la franja
+    # bloquejada de la Ana (Dilluns 8:00) i hi arriba perquè dura 4 franges.
+    activities = [Activity(1, "Ana", "Mat", "2B", "", "Dilluns", "9:00", 2)]
+    assert use_cases._scheduler_engine.validate(use_cases._build_schedule(activities)) == []
+
+    use_cases._academic_data_repo.upsert_teacher_restriction(
+        {"teacher": "Ana", "unavailable_slots": ["Dilluns-10:00"]}
+    )
+    overlapping = [Activity(1, "Ana", "Mat", "2B", "", "Dilluns", "9:00", 4)]  # 9:00-11:00
+    assert _types(use_cases._scheduler_engine.validate(use_cases._build_schedule(overlapping))) == ["teacher_unavailable"]
+
+
+def test_center_hours_respect_the_teacher_availability_but_not_the_group_one():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _use_cases_with_restrictions()
+    center_hours = [Activity(1, "Ana", "Hores de centre", "", "", "Dilluns", "8:00", 2)]
+    assert _types(use_cases._scheduler_engine.validate(use_cases._build_schedule(center_hours))) == ["teacher_unavailable"]
+
+    # Una tutoria/coordinació no ocupa la franja del grup: la restricció del grup no hi compta.
+    coordination = [Activity(2, "Bruno", "Coordinació ED", "1A", "", "Dimarts", "10:00", 2)]
+    assert use_cases._scheduler_engine.validate(use_cases._build_schedule(coordination)) == []
+
+
+def test_the_fixed_weekly_meeting_block_is_exempt_from_the_availability_check():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _fresh_use_cases()
+    use_cases._academic_data_repo.upsert_teacher_restriction(
+        {"teacher": "Ana", "unavailable_slots": ["Dimecres-14:00", "Dimecres-14:30", "Dimecres-15:00", "Dimecres-15:30"]}
+    )
+    meetings = [
+        Activity(1, "Ana", "Reunió", "", "", "Dimecres", "14:00", 2),
+        Activity(2, "Ana", "Coordinació", "", "", "Dimecres", "15:00", 2),
+    ]
+    assert use_cases._scheduler_engine.validate(use_cases._build_schedule(meetings)) == []
+
+    # Només estan eximits el seu dia i la seva hora: la resta de coordinacions i
+    # d'hores de centre en aquella franja sí que es marquen.
+    wrong_hour = [Activity(3, "Ana", "Coordinació", "", "", "Dimecres", "14:00", 2)]
+    assert _types(use_cases._scheduler_engine.validate(use_cases._build_schedule(wrong_hour))) == ["teacher_unavailable"]
+    center = [Activity(4, "Ana", "Hores de centre", "", "", "Dimecres", "14:00", 2)]
+    assert _types(use_cases._scheduler_engine.validate(use_cases._build_schedule(center))) == ["teacher_unavailable"]
+
+
+def test_the_live_engine_state_is_validated_with_the_restrictions_not_without_them():
+    """Abans, en acceptar una proposta es carregava un horari sense configuració i
+    tot el que venia després (descansos, moviments) es validava sense restriccions."""
+    from backend.scheduler_engine.models import Activity, Schedule
+
+    use_cases = _use_cases_with_restrictions()
+    engine = use_cases._scheduler_engine
+    live = Schedule()  # sense configuració, com en carregar-lo en arrencar o en acceptar
+    live.add(Activity(1, "Ana", "Mat", "2B", "", "Dilluns", "8:00", 2))
+    engine.load(live)
+
+    assert _types(engine.validate()) == ["teacher_unavailable"]
+
+
+def test_a_class_cannot_end_after_the_last_slot_of_the_school_day():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _use_cases_with_restrictions()
+    # 21:00 + 2 h = 23:00: fora de la jornada (l'última etiqueta, 21:30, és el final).
+    too_late = [Activity(1, "Bruno", "Mat", "3C", "", "Dimecres", "21:00", 4)]
+    assert _types(use_cases._scheduler_engine.validate(use_cases._build_schedule(too_late))) == ["outside_school_day"]
+
+    # Acabar justament a les 21:30 és vàlid.
+    just_in_time = [Activity(2, "Bruno", "Mat", "3C", "", "Dimecres", "19:30", 4)]
+    assert use_cases._scheduler_engine.validate(use_cases._build_schedule(just_in_time)) == []
+
+
+def test_suggested_slots_always_fit_in_the_day_and_never_for_afternoon_groups_in_the_morning():
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _fresh_use_cases()
+    hour_names = use_cases._time_labels["hour_names"]
+    index = {name: position for position, name in enumerate(hour_names)}
+    base = [Activity(1, "Bruno", "Hist", "GI", "", "Dilluns", "15:00", 4)]
+    baseline = {
+        use_cases._conflict_key(conflict)
+        for conflict in use_cases._scheduler_engine.validate(use_cases._build_schedule(base))
+    }
+    target = Activity(2, "Ana", "Foto", "GI, GP", "", "", "", 4)  # 2 h
+
+    suggestions = use_cases._suggest_alternative_slots(base, target, set(), baseline, max_results=20)
+
+    assert suggestions
+    for slot in suggestions:
+        position = index[slot["start"]]
+        assert position >= index["15:00"], slot  # mai de matí per a grups de tarda
+        assert position + 4 <= len(hour_names) - 1, slot  # sempre acaba abans de les 21:30
+    # Sense cap franja que obri un forat al grup (la 1a ha de ser dins d'un dia sense classes
+    # de GI o enganxada a la d'abans).
+    first = suggestions[0]
+    assert first["day"] != "Dilluns" or first["start"] == "17:00"

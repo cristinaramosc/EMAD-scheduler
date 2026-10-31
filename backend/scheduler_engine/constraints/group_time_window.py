@@ -6,9 +6,11 @@ from typing import Any, Dict, Optional, Tuple
 try:
     from backend.scheduler_engine.constraints.base import Constraint
     from backend.scheduler_engine.models import Conflict
+    from backend.scheduler_engine.quarter_utils import group_names
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.base import Constraint
     from scheduler_engine.models import Conflict
+    from scheduler_engine.quarter_utils import group_names
 
 
 def normalize_group_name(group_name: Optional[str]) -> Optional[str]:
@@ -83,29 +85,35 @@ class GroupTimeWindowConstraint(Constraint):
                 continue
             if not activity.group or not activity.day or not activity.start:
                 continue
-            window = get_group_time_window(activity.group, constraints, day=activity.day)
-            if window is None:
-                continue
-
             required_slots = max(int(getattr(activity, "duration", 1) or 1), 1)
             start_minutes = self._parse_slot_index(activity.start)
-            for offset in range(required_slots):
-                slot_minutes = start_minutes + offset * 30
-                if slot_minutes < 0:
+            # Una classe de grups combinats ("GI, GP") ha de complir la finestra de CADA grup;
+            # abans es buscava amb el text sencer i no se'n comprovava cap.
+            flagged = False
+            for part in group_names(activity.group) or (activity.group,):
+                window = get_group_time_window(part, constraints, day=activity.day)
+                if window is None:
                     continue
-                if not self._is_within_window(slot_minutes, window):
-                    conflicts.append(
-                        Conflict(
-                            type="group_time_window",
-                            message=(
-                                f"El grup '{activity.group}' té classe fora de la seva franja horària permesa."
-                            ),
-                            day=activity.day,
-                            start=activity.start,
-                            activities=[activity.id],
-                            data={"group": activity.group, "window": window},
+                for offset in range(required_slots):
+                    slot_minutes = start_minutes + offset * 30
+                    if slot_minutes < 0:
+                        continue
+                    if not self._is_within_window(slot_minutes, window):
+                        conflicts.append(
+                            Conflict(
+                                type="group_time_window",
+                                message=(
+                                    f"El grup '{part}' té classe fora de la seva franja horària permesa."
+                                ),
+                                day=activity.day,
+                                start=activity.start,
+                                activities=[activity.id],
+                                data={"group": part, "window": window},
+                            )
                         )
-                    )
+                        flagged = True
+                        break
+                if flagged:
                     break
 
         return conflicts

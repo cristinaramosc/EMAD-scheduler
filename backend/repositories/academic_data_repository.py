@@ -174,16 +174,6 @@ class AcademicDataRepository:
     def active_teaching_assignments(self) -> List[Record]:
         return self._active_records(self._assignments)
 
-    def snapshot_for_generation(self) -> Dict[str, Any]:
-        return {
-            "teachers": self.list_teachers(),
-            "groups": self.list_groups(),
-            "subjects": self.list_subjects(),
-            "assignments": self.active_canonical_assignments(),
-            "teacher_restrictions": self.list_teacher_restrictions(),
-            "group_restrictions": self.list_group_restrictions(),
-        }
-
     def active_canonical_assignments(self) -> List[Record]:
         return self._active_records(self._canonical_assignments)
 
@@ -608,13 +598,6 @@ class AcademicDataRepository:
         existing = self._group_restrictions.get(key)
         if existing:
             existing["active"] = False
-
-    def list_breaks(self) -> List[Record]:
-        """Retorna els descansos/pauses horàries definits (p.ex. hora del pati),
-        que el generador d'horaris ha de tractar com a franges bloquejades.
-        Encara no hi ha una via per crear-ne des de la interfície, així que
-        per defecte retorna una llista buida sense trencar la generació."""
-        return [deepcopy(record) for record in getattr(self, "_breaks", [])]
 
     def set_breaks(self, records: List[Record]) -> None:
         self._breaks = [deepcopy(record) for record in records]

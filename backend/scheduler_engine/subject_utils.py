@@ -48,6 +48,13 @@ def is_non_lective_tutoria(subject: Optional[str], group: Optional[str]) -> bool
 _NON_CLASS_TOKENS = {"coordinació", "coordinacio", "reunió", "reunio", "claustre", "descans"}
 
 
+# Reunió de claustre i coordinació fixes de cada setmana (1 h cadascuna). És la
+# única definició: l'hora/dia on se solen marcar com a "no disponible" perquè
+# no s'hi posin classes, així que la comprovació de disponibilitat no s'hi aplica.
+FIXED_MEETING_DAY = "Dimecres"
+FIXED_MEETING_BLOCKS = [("Reunió", "14:00"), ("Coordinació", "15:00")]
+
+
 def is_non_class_subject(subject: Optional[str]) -> bool:
     """Cert si l'activitat és una coordinació (qualsevol, p.ex. `Coordinació
     ED`), una reunió/claustre, hores de centre o un descans: presència del

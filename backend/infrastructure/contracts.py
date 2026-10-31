@@ -133,35 +133,6 @@ class ImportProvider(ABC):
         raise NotImplementedError
 
 
-    def import_schedule(self, payload: ImportPayload) -> Schedule:
-        bundle = self.import_data(payload)
-        schedule_dataset = next((dataset for dataset in bundle.datasets if dataset.entity_name == "schedule"), None)
-        schedule = Schedule()
-        if schedule_dataset is None:
-            return schedule
-
-        try:
-            from backend.scheduler_engine.models import Activity
-        except ModuleNotFoundError:  # pragma: no cover
-            from backend.scheduler_engine.models import Activity
-
-        for record in schedule_dataset.records:
-            schedule.add(
-                Activity(
-                    id=record["id"],
-                    teacher=record["teacher"],
-                    subject=record["subject"],
-                    group=record["group"],
-                    room=record["room"],
-                    day=record["day"],
-                    start=record["start"],
-                    duration=record["duration"],
-                )
-            )
-
-        return schedule
-
-
 class MappingLayer(ABC):
     @abstractmethod
     def normalize_import(self, payload: ImportPayload) -> MappingBundle:

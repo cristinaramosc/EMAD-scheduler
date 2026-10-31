@@ -227,11 +227,14 @@ button.primary:hover:not(:disabled) {
   min-width: 0;
 }
 
+/* Els grups ocupen una sola línia; si no hi caben amb Professor i Aula,
+   són aquests dos els que passen a la línia de sota, alineats a la dreta. */
 .group-tabs {
   display: flex;
-  flex: 1 1 0;
+  flex: 0 1 auto;
   flex-wrap: wrap;
   gap: 8px;
+  max-width: 100%;
   min-width: 0;
 }
 
@@ -264,9 +267,10 @@ button.primary:hover:not(:disabled) {
 .timetable-filter {
   align-items: center;
   display: flex;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   flex-wrap: nowrap;
   gap: 12px;
+  justify-content: flex-end;
 }
 
 .timetable-filter label {

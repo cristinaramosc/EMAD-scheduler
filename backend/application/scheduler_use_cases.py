@@ -90,13 +90,17 @@ class SchedulerUseCases:
         that aren't marked as unavailable for this teacher/group."""
         day_names = self._time_labels.get("day_names", [])
         hour_names = self._time_labels.get("hour_names", [])
-        suggestions: List[Dict[str, str]] = []
         restricted_slots = self._restricted_slots_for(target_activity.teacher, target_activity.group)
+        length = max(int(target_activity.duration or 1), 1)
+        group_set = set(group_names(target_activity.group))
+        candidates: List[tuple] = []
 
-        for day in day_names:
-            for start in hour_names:
+        for day_position, day in enumerate(day_names):
+            for position, start in enumerate(hour_names[:-1]):  # l'última etiqueta no és una franja
                 if (day, start) in exclude_pairs or (day, start) in restricted_slots:
                     continue
+                if position + length > len(hour_names) - 1:
+                    continue  # no hi cap abans del final de la jornada
 
                 candidate = Activity(
                     id=target_activity.id,
@@ -111,14 +115,20 @@ class SchedulerUseCases:
                 )
                 schedule = self._build_schedule(base_activities + [candidate])
                 conflicts = self._scheduler_engine.validate(schedule)
-                new_conflicts = [c for c in conflicts if self._conflict_key(c) not in baseline_keys]
+                if any(self._conflict_key(c) not in baseline_keys for c in conflicts):
+                    continue
+                # Es prefereixen les franges que no deixen forats al grup (i, a igualtat, les
+                # d'un dia menys carregat), en lloc de les primeres de la setmana.
+                with_candidate = base_activities + [candidate]
+                gaps = self._group_gap_slots(with_candidate, group_set, {day}) if group_set else 0
+                day_load = sum(
+                    item.duration for item in base_activities
+                    if item.day == day and group_set & set(group_names(item.group))
+                )
+                candidates.append((gaps, day_load, day_position, position, {"day": day, "start": start}))
 
-                if not new_conflicts:
-                    suggestions.append({"day": day, "start": start})
-                    if len(suggestions) >= max_results:
-                        return suggestions
-
-        return suggestions
+        candidates.sort(key=lambda item: item[:4])
+        return [item[4] for item in candidates[:max_results]]
 
     def __init__(
         self,
@@ -139,6 +149,8 @@ class SchedulerUseCases:
         self._working_timetable_repo = working_timetable_repo
         self._move_history: Dict[str, List[Any]] = {}
         self._redo_history: Dict[str, List[Any]] = {}
+        if academic_data_repo is not None:
+            self._scheduler_engine.configuration_provider = self._build_configuration
 
     def _generate_empty_generation_result(self) -> Dict[str, Any]:
         """Return an explicit empty state until an academic workbook is imported."""
@@ -471,9 +483,9 @@ class SchedulerUseCases:
                 "unscheduled_activities": unscheduled,
             }
 
-        accepted_schedule = Schedule()
-        for activity in proposal.activities:
-            accepted_schedule.add(activity)
+        # Amb la configuració completa: si no, la validació d'acceptar ignorava les
+        # franges no disponibles, les finestres horàries i els màxims de dies.
+        accepted_schedule = self._build_schedule(list(proposal.activities))
 
         conflicts = self._scheduler_engine.validate(accepted_schedule)
         if conflicts:
@@ -496,16 +508,6 @@ class SchedulerUseCases:
         day: str,
         start: str,
     ) -> Dict[str, Any]:
-
-        print("\n========== MOVE ==========")
-        print("Proposal rebuda:", proposal_id)
-
-        print("Proposal store:")
-
-        for key in self._proposal_store.keys():
-            print(" -", key)
-
-        print("==========================\n")
 
         proposal = self._proposal_store.get(proposal_id)
 
@@ -1074,6 +1076,10 @@ class SchedulerUseCases:
             metadata=metadata,
         )
 
+    # Grups de tarda (els mateixos que fan servir els descansos) i hora mínima d'inici.
+    _AFTERNOON_GROUPS = ("Comú", "GP", "GI")
+    _AFTERNOON_EARLIEST_START_MINUTES = 15 * 60
+
     def _build_group_time_window_constraints(
         self,
         group_restrictions: List[Dict[str, Any]],
@@ -1137,6 +1143,27 @@ class SchedulerUseCases:
                 continue
 
             constraints[group_name.upper()] = {"default": default_window, "by_day": by_day}
+
+        # Els grups de tarda no poden començar abans de les 15:00, tinguin o no
+        # restriccions desades (i encara que les desades diguin una hora més
+        # aviat). Es combina amb la finestra pròpia del grup: mai la fa més ampla.
+        earliest = self._AFTERNOON_EARLIEST_START_MINUTES
+        for afternoon_group in self._AFTERNOON_GROUPS:
+            key = afternoon_group.upper()  # mateixa clau que fa servir la resta del constructor
+            entry = constraints.get(key)
+            if entry is None:
+                constraints[key] = {"default": (earliest, 24 * 60), "by_day": {}}
+                continue
+            default = entry.get("default")
+            entry["default"] = (
+                (earliest, 24 * 60)
+                if default is None
+                else (max(default[0], earliest), max(default[1], earliest))
+            )
+            entry["by_day"] = {
+                day: (max(window[0], earliest), max(window[1], earliest))
+                for day, window in (entry.get("by_day") or {}).items()
+            }
 
         return constraints
 
@@ -2044,10 +2071,16 @@ class SchedulerUseCases:
         schedule = Schedule()
         for activity in activities:
             schedule.add(activity)
+        schedule.configuration = self._build_configuration()
+        return schedule
+
+    def _build_configuration(self) -> Dict[str, Any]:
         group_restrictions = self._academic_data_repo.active_group_restrictions()
         hour_names = self._time_labels.get("hour_names", [])
-        schedule.configuration = {
+        return {
             "day_names": self._time_labels.get("day_names", []),
+            "hour_names": hour_names,
+            "blocked_slots": self._collect_blocked_slots_cached(),
             "split_groups": {
                 (group.get("name") or "").strip()
                 for group in self._academic_data_repo.list_groups()
@@ -2059,7 +2092,6 @@ class SchedulerUseCases:
                 self._academic_data_repo.active_teacher_restrictions()
             ),
         }
-        return schedule
 
     def _load_snapshot(self) -> WorkingTimetableSnapshot:
         if self._working_timetable_repo is None:
@@ -2092,6 +2124,30 @@ class SchedulerUseCases:
                 metadata={**previous.metadata, "last_source": "proposal"},
             )
         )
+
+    def _collect_blocked_slots_cached(self) -> Dict[tuple[str, str], set]:
+        """Com `_collect_blocked_slots`, però només es recalcula quan canvien les
+        restriccions (la validació es crida milers de vegades per proposta)."""
+        if not self._academic_data_repo:
+            return {}
+        signature = hash(
+            (
+                tuple(
+                    (str(item.get("teacher")), tuple(item.get("unavailable_slots") or ()))
+                    for item in self._academic_data_repo.active_teacher_restrictions()
+                ),
+                tuple(
+                    (str(item.get("group")), tuple(item.get("unavailable_slots") or ()))
+                    for item in self._academic_data_repo.active_group_restrictions()
+                ),
+            )
+        )
+        cached = getattr(self, "_blocked_slots_cache", None)
+        if cached is not None and cached[0] == signature:
+            return cached[1]
+        blocked = self._collect_blocked_slots()
+        self._blocked_slots_cache = (signature, blocked)
+        return blocked
 
     def _collect_blocked_slots(self) -> Dict[tuple[str, str], set]:
         """Retorna un mapa {(\"teacher\"|\"group\", nom): {(day_index, hour_index), ...}}

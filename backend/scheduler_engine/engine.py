@@ -1,5 +1,6 @@
 try:
     from backend.scheduler_engine.models.schedule import Schedule
+    from backend.scheduler_engine.constraints.availability import AvailabilityConstraint
     from backend.scheduler_engine.constraints.group_conflict import GroupConflictConstraint
     from backend.scheduler_engine.constraints.group_time_window import GroupTimeWindowConstraint
     from backend.scheduler_engine.constraints.group_max_days import GroupMaxDaysConstraint
@@ -8,6 +9,7 @@ try:
     from backend.scheduler_engine.constraints.room_conflict import RoomConflictConstraint
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.models.schedule import Schedule
+    from scheduler_engine.constraints.availability import AvailabilityConstraint
     from scheduler_engine.constraints.group_conflict import GroupConflictConstraint
     from scheduler_engine.constraints.group_time_window import GroupTimeWindowConstraint
     from scheduler_engine.constraints.group_max_days import GroupMaxDaysConstraint
@@ -19,8 +21,14 @@ except ModuleNotFoundError:  # pragma: no cover
 class SchedulerEngine:
     def __init__(self):
         self.state = Schedule()
+        # Funció que retorna la configuració vigent (restriccions de professors i
+        # grups). Si hi és, cada validació de l'estat propi del motor (l'horari
+        # actiu) la refresca: així mai no es valida un horari "sense restriccions"
+        # (p.ex. just després d'acceptar una proposta o en arrencar l'aplicació).
+        self.configuration_provider = None
         self.constraints = [
             GroupConflictConstraint(),
+            AvailabilityConstraint(),
             GroupTimeWindowConstraint(),
             GroupMaxDaysConstraint(),
             TeacherMaxDaysConstraint(),
@@ -43,6 +51,8 @@ class SchedulerEngine:
     def validate(self, schedule=None):
         if schedule is None:
             schedule = self.state
+            if self.configuration_provider is not None:
+                schedule.configuration = self.configuration_provider()
         # Note: GroupConflictConstraint enforces the rule that a parent-group
         # cannot have more than one different subject in the same slot,
         # except when the two activities correspond to 1Q and 2Q (quarter suffixes).

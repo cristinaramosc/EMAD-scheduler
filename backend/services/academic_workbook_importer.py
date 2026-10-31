@@ -596,14 +596,6 @@ class AcademicWorkbookImporter:
         except ValueError:
             return None
 
-    def _parse_int(self, value: str) -> int | None:
-        number = self._parse_float(value)
-        if number is None:
-            return None
-        if not number.is_integer():
-            return None
-        return int(number)
-
     def _parse_slots(self, value: str) -> List[str]:
         if not value:
             return []

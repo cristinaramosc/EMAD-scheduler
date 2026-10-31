@@ -762,6 +762,7 @@ export default function App() {
   });
   const [pdfShowDni, setPdfShowDni] = useState(false);
   const [teacherRestrictions, setTeacherRestrictions] = useState([]);
+  const [savingWeeklyFlag, setSavingWeeklyFlag] = useState("");
   const [teacherRestrictionEditor, setTeacherRestrictionEditor] = useState("");
   const [teacherRestrictionDraft, setTeacherRestrictionDraft] = useState(createTeacherRestrictionDraft(""));
   const [isSavingTeacherRestrictions, setIsSavingTeacherRestrictions] = useState(false);
@@ -1091,6 +1092,48 @@ export default function App() {
       setTeacherRestrictions(results);
     } catch {
       // ignore restriction loading failures
+    }
+  }
+
+  // Marca o desmarca el claustre / la coordinació setmanal d'un professor. El
+  // servidor no fa fusió parcial (un PATCH incomplet esborraria les franges), així
+  // que es reenvia tota la fitxa amb només aquest camp canviat.
+  async function setTeacherWeeklyFlag(teacherName, field, checked) {
+    const current = teacherRestrictions.find((item) => item.teacher === teacherName) || createTeacherRestrictionDraft(teacherName);
+    const previous = teacherRestrictions;
+    const updated = { ...current, teacher: teacherName, [field]: checked };
+    setTeacherRestrictions(
+      teacherRestrictions.some((item) => item.teacher === teacherName)
+        ? teacherRestrictions.map((item) => (item.teacher === teacherName ? updated : item))
+        : [...teacherRestrictions, updated]
+    );
+    setSavingWeeklyFlag(teacherName);
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/academic-data/teachers/${encodeURIComponent(teacherName)}/restrictions`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          teacher: teacherName,
+          no_gaps: Boolean(updated.no_gaps),
+          max_days: updated.max_days === "" || updated.max_days == null ? null : Number(updated.max_days),
+          max_hours_per_day: updated.max_hours_per_day === "" || updated.max_hours_per_day == null ? null : Number(updated.max_hours_per_day),
+          max_consecutive_hours: updated.max_consecutive_hours === "" || updated.max_consecutive_hours == null ? null : Number(updated.max_consecutive_hours),
+          preferred_availability: updated.preferred_availability || [],
+          unavailable_slots: updated.unavailable_slots || [],
+          weekly_meeting_active: updated.weekly_meeting_active !== false,
+          weekly_coordination_active: updated.weekly_coordination_active !== false,
+        }),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(typeof data.detail === "string" ? data.detail : `error ${response.status}`);
+      }
+    } catch (err) {
+      setTeacherRestrictions(previous);
+      setError(`No s'ha pogut desar el canvi de ${teacherName}: ${err.message}`);
+    } finally {
+      setSavingWeeklyFlag("");
     }
   }
 
@@ -4105,6 +4148,8 @@ export default function App() {
                       <th>DNI</th>
                       <th>Hores de centre</th>
                       <th>Coordinació</th>
+                      <th title="Reunió de claustre de dimecres (14–15 h). Desmarqueu-la si el professor no hi assisteix.">Claustre</th>
+                      <th title="Coordinació setmanal de dimecres (15–16 h). Desmarqueu-la si el professor no hi assisteix.">Coord. setmanal</th>
                       <th>Màx. dies/setmana</th>
                       <th>Tutor/a de</th>
                       <th>Restriccions</th>
@@ -4209,6 +4254,24 @@ export default function App() {
                           ) : (
                             <span className="muted">—</span>
                           )}
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            aria-label={`Claustre de ${t.name}`}
+                            checked={restriction ? restriction.weekly_meeting_active !== false : true}
+                            disabled={savingWeeklyFlag === t.name}
+                            onChange={(event) => setTeacherWeeklyFlag(t.name, "weekly_meeting_active", event.target.checked)}
+                          />
+                        </td>
+                        <td style={{ textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            aria-label={`Coordinació setmanal de ${t.name}`}
+                            checked={restriction ? restriction.weekly_coordination_active !== false : true}
+                            disabled={savingWeeklyFlag === t.name}
+                            onChange={(event) => setTeacherWeeklyFlag(t.name, "weekly_coordination_active", event.target.checked)}
+                          />
                         </td>
                         <td>
                           {teacherEdit === t.name ? (
@@ -4364,6 +4427,8 @@ export default function App() {
                           />
                         </div>
                       </td>
+                      <td></td>
+                      <td></td>
                       <td>
                         <input
                           type="number"
@@ -5528,18 +5593,6 @@ export default function App() {
                 </select>
               </label>
             </div>
-            {proposals && proposals.length > 0 && (
-              <div style={{ marginLeft: 12 }}>
-                <label>
-                  Proposta
-                  <select value={selectedProposalId || ""} onChange={(e) => setSelectedProposalId(e.target.value)} style={{ marginLeft: 8 }}>
-                    {proposals.map((p) => (
-                      <option key={p.id} value={p.id}>{`${p.id} · score ${Math.round(p.score||0)}`}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            )}
           </div>
 
           {selectedGroupTutorInfo && (
@@ -5727,6 +5780,21 @@ export default function App() {
 
           <details className="sidebar-section" open={Boolean(proposal)}>
             <summary><h2>Proposta generada</h2></summary>
+
+            {proposals && proposals.length > 0 && (
+              <label style={{ alignItems: "center", display: "flex", fontSize: 13, gap: 8, margin: "4px 0 10px" }}>
+                <span style={{ color: "var(--color-text-secondary)" }}>Proposta</span>
+                <select
+                  value={selectedProposalId || ""}
+                  onChange={(e) => setSelectedProposalId(e.target.value)}
+                  style={{ flex: 1, minWidth: 0 }}
+                >
+                  {proposals.map((p) => (
+                    <option key={p.id} value={p.id}>{`${p.id} · score ${Math.round(p.score || 0)}`}</option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             {!proposal ? (
               <p className="muted">Encara no s'ha generat cap proposta.</p>

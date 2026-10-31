@@ -32,25 +32,5 @@ class SchedulerState:
         self.activities[activity_id].day = day
         self.activities[activity_id].start = start
 
-    def simulate_move(
-        self,
-        activity_id: int,
-        *,
-        day: str,
-        start: str
-    ) -> Dict[int, Activity]:
-        """
-        Retorna un estat simulat sense modificar l'original.
-        Ideal per drag & drop.
-        """
-
-        snapshot = deepcopy(self.activities)
-
-        if activity_id in snapshot:
-            snapshot[activity_id].day = day
-            snapshot[activity_id].start = start
-
-        return snapshot
-
     def all(self) -> List[Activity]:
         return list(self.activities.values())

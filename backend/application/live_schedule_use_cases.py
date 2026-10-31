@@ -11,7 +11,7 @@ try:
     from backend.repositories.academic_data_repository import AcademicDataRepository
     from backend.scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
     from backend.scheduler_engine.teacher_utils import teacher_names
-    from backend.scheduler_engine.subject_utils import is_tutoria_subject
+    from backend.scheduler_engine.subject_utils import FIXED_MEETING_BLOCKS, FIXED_MEETING_DAY, is_tutoria_subject
     from backend.services.contract_hours import contract_hours
     from backend.services.schedule_pdf_exporter import classify_activity
 except ModuleNotFoundError:  # pragma: no cover
@@ -21,7 +21,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from repositories.academic_data_repository import AcademicDataRepository
     from scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter as _parent_and_quarter
     from scheduler_engine.teacher_utils import teacher_names
-    from scheduler_engine.subject_utils import is_tutoria_subject
+    from scheduler_engine.subject_utils import FIXED_MEETING_BLOCKS, FIXED_MEETING_DAY, is_tutoria_subject
     from services.contract_hours import contract_hours
     from services.schedule_pdf_exporter import classify_activity
 
@@ -906,83 +906,14 @@ class LiveScheduleUseCases:
 
         return pairs
 
-    def align_quarter_pairs(self) -> Dict[str, Any]:
-        """Compacta a la mateixa franja horària (mateix dia i hora) les
-        assignatures 1Q i 2Q d'un mateix grup pare, prioritzant aparellar
-        les que comparteixen professor. Reutilitza `move()` per validar que
-        el desplaçament no introdueixi cap conflicte nou; si moure la 2Q
-        sobre la 1Q falla, prova al revés abans de descartar la parella."""
-        self._ensure_active_schedule_from_proposal()
-
-        by_parent: Dict[str, Dict[str, List[Activity]]] = {}
-        for activity in self._engine.state.all():
-            parent, quarter_marker = _parent_and_quarter(activity.group, activity.subject)
-            if quarter_marker is None:
-                continue
-            # Cada activitat compta per a CADA grup individual que hi
-            # assisteix, no nomes pel text exacte del grup pare: una
-            # activitat de 'GI, GP' ha de poder-se aparellar tant amb una
-            # activitat nomes de GI com nomes de GP.
-            for individual_name in group_names(parent) or (parent,):
-                by_parent.setdefault(individual_name, {"1q": [], "2q": []})[quarter_marker].append(activity)
-
-        pairs_to_align: List[tuple] = []
-        seen_pairs: set = set()
-        for buckets in by_parent.values():
-            for pair in self._match_quarter_pairs(buckets["1q"], buckets["2q"]):
-                pair_key = frozenset({id(pair[0]), id(pair[1])})
-                if pair_key in seen_pairs:
-                    continue
-                seen_pairs.add(pair_key)
-                pairs_to_align.append(pair)
-
-        aligned: List[Dict[str, Any]] = []
-        skipped: List[Dict[str, Any]] = []
-
-        for act_a, act_b in pairs_to_align:
-            if act_a.day == act_b.day and act_a.start == act_b.start:
-                continue  # ja comparteixen casella
-
-            if not is_valid_quarter_pair(act_a.group, act_a.subject, act_b.group, act_b.subject):
-                skipped.append({"subject_1q": act_a.subject, "subject_2q": act_b.subject, "reason": "invalid_pair"})
-                continue
-
-            target_day, target_start = act_a.day, act_a.start
-            result = self.move(act_b.id, target_day, target_start)
-            if not result.get("ok"):
-                target_day, target_start = act_b.day, act_b.start
-                result = self.move(act_a.id, target_day, target_start)
-
-            if result.get("ok"):
-                aligned.append(
-                    {
-                        "group": act_a.group,
-                        "subject_1q": act_a.subject,
-                        "subject_2q": act_b.subject,
-                        "teacher_1q": act_a.teacher,
-                        "teacher_2q": act_b.teacher,
-                        "day": target_day,
-                        "start": target_start,
-                    }
-                )
-            else:
-                skipped.append({"subject_1q": act_a.subject, "subject_2q": act_b.subject, "reason": "conflict"})
-
-        return {
-            "ok": True,
-            "aligned": aligned,
-            "skipped": skipped,
-            **self.state(),
-        }
-
     # ---------------------------------------------------------------
     # Reunió/Coordinació fixes (dimecres) + repartiment automàtic de les
     # hores de centre i coordinació restants de cada professor.
     # ---------------------------------------------------------------
 
     _DAY_ORDER = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
-    _FIXED_MEETING_DAY = "Dimecres"
-    _FIXED_MEETING_BLOCKS = [("Reunió", "14:00"), ("Coordinació", "15:00")]  # 1h cadascun
+    _FIXED_MEETING_DAY = FIXED_MEETING_DAY
+    _FIXED_MEETING_BLOCKS = list(FIXED_MEETING_BLOCKS)  # 1h cadascun
     _FIXED_BLOCK_START = "14:00"
     _MAX_DAILY_BLOCKS = 24  # 12h * 2 blocs de 30 min
 
@@ -1292,8 +1223,21 @@ class LiveScheduleUseCases:
                 a for a in self._engine.state.all()
                 if name in teacher_names(a.teacher) and a.day == self._FIXED_MEETING_DAY
             ]
+            # Si el professor no ve aquell dia (tot el dia bloquejat), no se li
+            # assigna el bloc fix: s'indica als pendents en lloc d'ignorar la seva
+            # disponibilitat. La reunió només queda eximida per als qui sí que hi
+            # són (la seva franja consta com a "no disponible" per no posar-hi classes).
+            unavailable = self._unavailable_labels(restriction)
+            meeting_day = str(self._FIXED_MEETING_DAY).casefold()
+            comes_on_meeting_day = not all(
+                f"{meeting_day}-{hour}" in unavailable or f"{meeting_day} {hour}" in unavailable
+                for hour in hour_names
+            )
             for subject, start in self._FIXED_MEETING_BLOCKS:
                 if not block_active[subject]:
+                    continue
+                if not comes_on_meeting_day:
+                    skipped_no_slot.append({"teacher": name, "subject": subject, "reason": "no_ve_aquest_dia"})
                     continue
                 already_present = any(
                     (a.subject or "").strip().lower() == subject.lower() and a.start == start
