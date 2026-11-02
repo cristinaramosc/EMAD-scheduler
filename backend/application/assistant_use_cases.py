@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import ssl
 import threading
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -23,6 +25,9 @@ GROQ_DEFAULT_MODEL = "llama-3.3-70b-versatile"
 MAX_TOOL_ROUNDS = 8
 MAX_PENDING_ACTIONS = 100
 MAX_TOOL_RESULT_CHARS = 12000
+# Els serveis gratuïts limiten els tokens per minut: es retallen més els resultats.
+MAX_TOOL_RESULT_CHARS_FREE = 3500
+MAX_RATE_LIMIT_WAIT_SECONDS = 20.0
 
 
 SYSTEM_PROMPT = """Ets l'assistent de l'EMAD-Scheduler: ajudes la coordinació i el professorat a entendre, \
@@ -192,6 +197,32 @@ def _conflict_to_dict(conflict: Any) -> Dict[str, Any]:
     return {"type": getattr(conflict, "type", "conflicte"), "message": getattr(conflict, "message", "")}
 
 
+def _error_message(body: str) -> str:
+    """Text d'error d'un servei compatible amb OpenAI (retallat)."""
+    try:
+        data = json.loads(body)
+        message = (data.get("error") or {}).get("message") or ""
+    except (TypeError, ValueError, AttributeError):
+        message = body or ""
+    return str(message).strip()[:240]
+
+
+def _retry_delay_seconds(message: str, retry_after: Optional[str] = None) -> Optional[float]:
+    """Segons a esperar segons el servei ("try again in 4.2s", "1m3s", Retry-After)."""
+    if retry_after:
+        try:
+            return float(retry_after)
+        except ValueError:
+            pass
+    match = re.search(r"try again in\s+((?:\d+(?:\.\d+)?\s*(?:ms|m|s)\s*)+)", message or "")
+    if not match:
+        return None
+    total = 0.0
+    for amount, unit in re.findall(r"(\d+(?:\.\d+)?)\s*(ms|m|s)", match.group(1)):
+        total += float(amount) * {"ms": 0.001, "s": 1.0, "m": 60.0}[unit]
+    return total
+
+
 def _ssl_context() -> Optional[ssl.SSLContext]:
     """Context SSL que no depèn dels certificats del Python instal·lat.
 
@@ -217,20 +248,29 @@ def _http_post_json(url: str, headers: Dict[str, str], payload: Dict[str, Any]) 
     request = urllib.request.Request(
         url, data=json.dumps(payload).encode("utf-8"), headers=headers, method="POST"
     )
-    try:
-        with urllib.request.urlopen(request, timeout=90, context=_ssl_context()) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace")[:300]
-        if exc.code in (401, 403):
-            raise RuntimeError("La clau de l'API no és vàlida o no té permís.") from exc
-        if exc.code == 429:
-            raise RuntimeError(
-                "S'ha arribat al límit gratuït del servei. Espera una estona i torna-ho a provar."
-            ) from exc
-        raise RuntimeError(f"El servei d'IA ha respost amb error {exc.code}: {body}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"No s'ha pogut connectar amb el servei d'IA: {exc.reason}") from exc
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(request, timeout=90, context=_ssl_context()) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode("utf-8", errors="replace")
+            if exc.code in (401, 403):
+                raise RuntimeError("La clau de l'API no és vàlida o no té permís.") from exc
+            if exc.code == 429:
+                detail = _error_message(body)
+                wait = _retry_delay_seconds(detail, exc.headers.get("retry-after") if exc.headers else None)
+                if attempt == 0 and wait is not None and wait <= MAX_RATE_LIMIT_WAIT_SECONDS:
+                    time.sleep(wait + 0.5)
+                    continue
+                raise RuntimeError(
+                    "S'ha arribat al límit gratuït del servei"
+                    + (f" (cal esperar uns {int(wait) + 1} s)" if wait is not None and wait < 120 else "")
+                    + (f": {detail}" if detail else ".")
+                ) from exc
+            raise RuntimeError(f"El servei d'IA ha respost amb error {exc.code}: {body[:300]}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"No s'ha pogut connectar amb el servei d'IA: {exc.reason}") from exc
+    raise RuntimeError("El servei d'IA no ha respost.")  # pragma: no cover
 
 
 class AssistantUseCases:
@@ -589,8 +629,8 @@ class AssistantUseCases:
                     arguments = {}
                 output = toolbox.call(function.get("name", ""), arguments if isinstance(arguments, dict) else {})
                 text_output = json.dumps(output, ensure_ascii=False)
-                if len(text_output) > MAX_TOOL_RESULT_CHARS:
-                    text_output = text_output[:MAX_TOOL_RESULT_CHARS] + "… [resultat truncat]"
+                if len(text_output) > MAX_TOOL_RESULT_CHARS_FREE:
+                    text_output = text_output[:MAX_TOOL_RESULT_CHARS_FREE] + "… [resultat truncat; concreta la pregunta: un grup, un professor o un dia]"
                 messages.append({"role": "tool", "tool_call_id": call.get("id", ""), "content": text_output})
         return reply_text or "No he pogut acabar l'anàlisi (massa passos). Prova de concretar més la pregunta."
 

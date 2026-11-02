@@ -23,3 +23,6 @@ backend/data/working_timetable.json
 *.b64
 *.patch
 .venv/
+
+# Dades reals del centre: mai dins el projecte
+/*.xlsx

@@ -1,8 +1,8 @@
 """Auditoria d'extrem a extrem de les franges no disponibles.
 
-Carrega l'Excel real de dades (`EMAD-dades-actuals.xlsx`), genera propostes, accepta
-la millor i assigna les hores de centre i de coordinació, i comprova amb un
-verificador PROPI (que no fa servir el motor de validació) que cap activitat cau en
+Carrega una escola fictícia (`synthetic_school.py`, sense cap Excel ni dades reals dins del
+projecte), genera propostes, accepta la millor i assigna les hores de centre i de
+coordinació, i comprova amb un verificador PROPI (que no fa servir el motor de validació) que cap activitat cau en
 una franja no disponible del professor ni del grup.
 
 Si algú toca un pas posterior a la generació (compactació, alineació, repartiment,
@@ -10,6 +10,7 @@ descansos, hores de centre...) i deixa una classe en una franja bloquejada, aque
 ho detecta, tot i que el motor de validació no ho vegi.
 """
 
+import os
 import re
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from fastapi.testclient import TestClient
 
 from backend.bootstrap import reset_dependencies
 from backend.main import app
+from backend.tests.synthetic_school import build_workbook
 
 HOURS = [f"{hour}:{minute}" for hour in range(8, 22) for minute in ("00", "30")]
 INDEX = {name: position for position, name in enumerate(HOURS)}
@@ -59,12 +61,18 @@ def _violations(activities, teacher_blocked, group_blocked):
 
 
 def test_no_class_or_center_hour_lands_in_an_unavailable_slot_of_a_teacher_or_group():
-    workbook = Path(__file__).resolve().parents[2] / "EMAD-dades-actuals.xlsx"
+    # Per defecte, l'escola fictícia. Per auditar les dades reals, indiqueu l'Excel (que ha de
+    # ser FORA del projecte) amb la variable EMAD_AUDIT_XLSX.
+    external = os.environ.get("EMAD_AUDIT_XLSX")
     reset_dependencies()
     client = TestClient(app)
+    if external:
+        workbook_bytes = Path(external).expanduser().read_bytes()
+    else:
+        workbook_bytes = build_workbook(client.get("/academic-data/spreadsheet/blank").content)
     response = client.post(
         "/academic-data/spreadsheet/import",
-        files={"file": ("dades.xlsx", workbook.read_bytes(), "application/octet-stream")},
+        files={"file": ("dades.xlsx", workbook_bytes, "application/octet-stream")},
     )
     assert response.status_code == 200
 

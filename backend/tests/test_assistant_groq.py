@@ -123,3 +123,37 @@ def test_https_uses_a_context_that_does_not_depend_on_the_python_certificates():
 
     context = _ssl_context()
     assert context is not None and context.verify_mode.name == "CERT_REQUIRED"
+
+
+def test_rate_limit_wait_is_read_from_the_service_message():
+    from backend.application.assistant_use_cases import _error_message, _retry_delay_seconds
+
+    body = '{"error":{"message":"Rate limit reached on tokens per minute (TPM): Limit 8000. Please try again in 4.5s."}}'
+    assert "tokens per minute" in _error_message(body)
+    assert _retry_delay_seconds(_error_message(body)) == 4.5
+    assert _retry_delay_seconds("Please try again in 1m30s.") == 90
+    assert _retry_delay_seconds("Please try again in 250ms.") == 0.25
+    assert _retry_delay_seconds("sense temps", "7") == 7.0
+    assert _retry_delay_seconds("sense temps") is None
+
+
+def test_long_tool_results_are_trimmed_for_free_services():
+    from backend.application.assistant_use_cases import MAX_TOOL_RESULT_CHARS_FREE
+
+    big = {"rows": ["x" * 100] * 200}
+    calls = []
+    assistant, _ = _assistant([_reply(tool_calls=[_call("get_schedule", {"group": "1A"})]), _reply("ok")], calls)
+    toolbox_calls = []
+
+    import backend.application.assistant_tools as tools
+
+    original = tools.AssistantToolbox.call
+    tools.AssistantToolbox.call = lambda self, name, args: big
+    try:
+        assistant.ask(None, "Resumeix")
+    finally:
+        tools.AssistantToolbox.call = original
+
+    tool_message = calls[1]["payload"]["messages"][-1]["content"]
+    assert len(tool_message) < MAX_TOOL_RESULT_CHARS_FREE + 120
+    assert "truncat" in tool_message
