@@ -127,6 +127,15 @@ def suggest_slots_for_unscheduled(proposal_id: str, activity_id: int):
         raise HTTPException(status_code=404, detail="proposal_not_found")
 
 
+@router.get("/proposal/{proposal_id}/activity/{activity_id}/make-room")
+def suggest_make_room_for_unscheduled(proposal_id: str, activity_id: int):
+    use_cases = get_scheduler_use_cases()
+    try:
+        return use_cases.suggest_make_room_for_unscheduled(proposal_id, activity_id)
+    except LookupError:
+        raise HTTPException(status_code=404, detail="proposal_not_found")
+
+
 @router.post("/compact")
 def compact_active_schedule():
     """Elimina els forats (franges buides) de l'horari actiu, reubicant les

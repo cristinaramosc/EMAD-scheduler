@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time as _time
 import zlib
 from datetime import datetime, time
 from typing import Any, Dict, List, Optional, Tuple
@@ -8,12 +9,12 @@ try:
     from backend.scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, quarter_suffix, parent_and_quarter as _parent_and_quarter
     from backend.scheduler_engine.teacher_utils import teacher_label, teacher_names
     from backend.time_units import hours_to_blocks
-    from backend.scheduler_engine.subject_utils import is_non_lective_tutoria
+    from backend.scheduler_engine.subject_utils import is_non_class_subject, is_non_lective_tutoria
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.quarter_utils import group_names, is_valid_quarter_pair, normalize_group_name, quarter_suffix, parent_and_quarter as _parent_and_quarter
     from scheduler_engine.teacher_utils import teacher_label, teacher_names
     from time_units import hours_to_blocks
-    from scheduler_engine.subject_utils import is_non_lective_tutoria
+    from scheduler_engine.subject_utils import is_non_class_subject, is_non_lective_tutoria
 
 try:
     from models.teaching_block import TeachingBlock
@@ -890,6 +891,130 @@ class SchedulerUseCases:
         )
 
         return {"ok": True, "suggested_slots": suggestions}
+
+    _MAKE_ROOM_BUDGET_SECONDS = 8.0
+    _MAKE_ROOM_SOFT_CONFLICTS = {"group_conflict", "teacher_conflict", "room_conflict"}
+
+    def _make_room_options(
+        self, base_activities: List[Activity], target: Activity, max_results: int = 3
+    ) -> List[Dict[str, Any]]:
+        """Per a una classe sense franja: franges on només l'impedeixen 1 o 2 altres
+        classes, i un lloc vàlid on moure-les. Només es toca el que es pot moure (ni
+        classes fixes, ni parelles 1Q/2Q, ni activitats que no són classe), i només
+        es proposa si TOT el resultat final queda sense cap conflicte nou."""
+        started = _time.monotonic()
+        day_names = self._time_labels.get("day_names", [])
+        hour_names = self._time_labels.get("hour_names", [])
+        length = max(int(target.duration or 1), 1)
+        restricted = self._restricted_slots_for(target.teacher, target.group)
+        by_id = {item.id: item for item in base_activities}
+
+        def keys(activities: List[Activity]) -> set:
+            return {
+                self._conflict_key(conflict)
+                for conflict in self._scheduler_engine.validate(self._build_schedule(activities))
+            }
+
+        baseline_keys = keys(base_activities)
+        candidates: List[tuple] = []
+        for day_position, day in enumerate(day_names):
+            for position, start in enumerate(hour_names[:-1]):
+                if (day, start) in restricted or position + length > len(hour_names) - 1:
+                    continue
+                placed = Activity(
+                    id=target.id, teacher=target.teacher, subject=target.subject, group=target.group,
+                    room=target.room, day=day, start=start, duration=target.duration,
+                )
+                new = [
+                    conflict
+                    for conflict in self._scheduler_engine.validate(self._build_schedule(base_activities + [placed]))
+                    if self._conflict_key(conflict) not in baseline_keys
+                ]
+                if not new or any(conflict.type not in self._MAKE_ROOM_SOFT_CONFLICTS for conflict in new):
+                    continue  # lliure (ja es suggereix a part) o impossible de resoldre movent altres
+                blocker_ids = {i for conflict in new for i in (conflict.activities or []) if i != target.id}
+                blockers = [by_id[i] for i in blocker_ids if i in by_id]
+                if not blockers or len(blockers) != len(blocker_ids) or len(blockers) > 2:
+                    continue
+                if any(
+                    item.fixed
+                    or is_non_class_subject(item.subject)
+                    or quarter_suffix(item.subject) is not None
+                    or quarter_suffix(item.group) is not None
+                    for item in blockers
+                ):
+                    continue
+                candidates.append((len(blockers), day_position, position, placed, blockers))
+        candidates.sort(key=lambda item: item[:3])
+
+        options: List[Dict[str, Any]] = []
+        for _count, _day_position, _position, placed, blockers in candidates[:12]:
+            if _time.monotonic() - started > self._MAKE_ROOM_BUDGET_SECONDS:
+                break
+            blocker_ids = {item.id for item in blockers}
+            working = [item for item in base_activities if item.id not in blocker_ids] + [placed]
+            moves: List[Dict[str, Any]] = []
+            feasible = True
+            for blocker in blockers:
+                free = Activity(
+                    id=blocker.id, teacher=blocker.teacher, subject=blocker.subject, group=blocker.group,
+                    room=blocker.room, day="", start="", duration=blocker.duration,
+                )
+                alternatives = self._suggest_alternative_slots(
+                    working, free, {(blocker.day, blocker.start)}, keys(working), max_results=1
+                )
+                if not alternatives:
+                    feasible = False
+                    break
+                destination = alternatives[0]
+                working.append(
+                    Activity(
+                        id=blocker.id, teacher=blocker.teacher, subject=blocker.subject, group=blocker.group,
+                        room=blocker.room, day=destination["day"], start=destination["start"],
+                        duration=blocker.duration,
+                    )
+                )
+                moves.append(
+                    {
+                        "activity_id": blocker.id,
+                        "subject": blocker.subject,
+                        "group": blocker.group,
+                        "teacher": blocker.teacher,
+                        "from": {"day": blocker.day, "start": blocker.start},
+                        "to": destination,
+                    }
+                )
+            if not feasible or any(key not in baseline_keys for key in keys(working)):
+                continue
+            options.append({"day": placed.day, "start": placed.start, "moves": moves})
+            if len(options) >= max_results:
+                break
+        return options
+
+    def suggest_make_room_for_unscheduled(
+        self, proposal_id: str, activity_id: int, max_results: int = 3
+    ) -> Dict[str, Any]:
+        """Opcions per ubicar una classe pendent movent-ne 1 o 2 d'altres."""
+        proposal = self._proposal_store.get(proposal_id)
+        if proposal is None:
+            raise LookupError("proposal_not_found")
+        unscheduled = list((proposal.metadata or {}).get("unscheduled_activities", []))
+        pending = next((item for item in unscheduled if item.get("id") == activity_id), None)
+        if pending is None:
+            return {"ok": False, "error": "activity_not_found"}
+        current = [
+            Activity(
+                id=item.id, teacher=item.teacher, subject=item.subject, group=item.group, room=item.room,
+                day=item.day, start=item.start, duration=item.duration, fixed=bool(getattr(item, "fixed", False)),
+            )
+            for item in proposal.activities
+        ]
+        target = Activity(
+            id=pending["id"], teacher=pending.get("teacher", ""), subject=pending.get("subject", ""),
+            group=pending.get("group", ""), room=pending.get("room", ""), day="", start="",
+            duration=pending.get("duration", 1),
+        )
+        return {"ok": True, "options": self._make_room_options(current, target, max_results=max_results)}
 
     def _scheduled_to_activity(
         self,

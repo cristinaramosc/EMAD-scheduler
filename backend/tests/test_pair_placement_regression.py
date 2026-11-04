@@ -442,3 +442,50 @@ def test_suggested_slots_always_fit_in_the_day_and_never_for_afternoon_groups_in
     # de GI o enganxada a la d'abans).
     first = suggestions[0]
     assert first["day"] != "Dilluns" or first["start"] == "17:00"
+
+
+def _make_room_setup(blocker_is_fixed=False):
+    """La Ana només pot fer classe dilluns de 8:00 a 9:00, i aquesta franja ja la té
+    ocupada el Bruno amb 1A: l'única manera de col·locar la Foto és moure el Bruno."""
+    from backend.scheduler_engine.models import Activity
+
+    use_cases = _fresh_use_cases()
+    hours = [f"{h}:{m}" for h in range(8, 22) for m in ("00", "30")][:-1]
+    allowed = {("Dilluns", "8:00"), ("Dilluns", "8:30")}
+    blocked = [
+        f"{day}-{hour}"
+        for day in ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"]
+        for hour in hours
+        if (day, hour) not in allowed
+    ]
+    use_cases._academic_data_repo.upsert_teacher_restriction({"teacher": "Ana", "unavailable_slots": blocked})
+    blocker = Activity(1, "Bruno", "Hist", "1A", "", "Dilluns", "8:00", 2, blocker_is_fixed)
+    target = Activity(2, "Ana", "Foto", "1A", "", "", "", 2)
+    return use_cases, blocker, target
+
+
+def test_make_room_moves_the_blocking_class_to_a_valid_slot_so_the_pending_one_fits():
+    use_cases, blocker, target = _make_room_setup()
+
+    options = use_cases._make_room_options([blocker], target)
+
+    assert len(options) == 1
+    option = options[0]
+    assert (option["day"], option["start"]) == ("Dilluns", "8:00")
+    assert [move["activity_id"] for move in option["moves"]] == [1]
+    destination = option["moves"][0]["to"]
+    assert (destination["day"], destination["start"]) != ("Dilluns", "8:00")
+
+    # Aplicat tot plegat, l'horari queda sense cap conflicte.
+    from backend.scheduler_engine.models import Activity
+
+    moved = Activity(1, "Bruno", "Hist", "1A", "", destination["day"], destination["start"], 2)
+    placed = Activity(2, "Ana", "Foto", "1A", "", option["day"], option["start"], 2)
+    schedule = use_cases._build_schedule([moved, placed])
+    assert use_cases._scheduler_engine.validate(schedule) == []
+
+
+def test_make_room_never_proposes_moving_a_fixed_class():
+    use_cases, blocker, target = _make_room_setup(blocker_is_fixed=True)
+
+    assert use_cases._make_room_options([blocker], target) == []
