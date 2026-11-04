@@ -715,6 +715,7 @@ export default function App() {
   const [isAssistantThinking, setIsAssistantThinking] = useState(false);
   const [assistantStatus, setAssistantStatus] = useState(null);
   const [suggestionsByActivity, setSuggestionsByActivity] = useState({});
+  const [roomOptionsByActivity, setRoomOptionsByActivity] = useState({});
   const [isTogglingBreak, setIsTogglingBreak] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const [error, setError] = useState("");
@@ -2422,6 +2423,30 @@ export default function App() {
     }
   }
 
+  // Opcions per ubicar una classe pendent movent-ne 1 o 2 d'altres.
+  async function fetchRoomOptions(activityId) {
+    if (!proposal?.id) return;
+    setRoomOptionsByActivity((prev) => ({ ...prev, [activityId]: { loading: true, options: [] } }));
+    try {
+      const response = await fetch(`${API_URL}/scheduler/proposal/${proposal.id}/activity/${activityId}/make-room`);
+      const data = await response.json();
+      setRoomOptionsByActivity((prev) => ({ ...prev, [activityId]: { loading: false, options: data.options || [] } }));
+    } catch {
+      setRoomOptionsByActivity((prev) => ({ ...prev, [activityId]: { loading: false, options: [] } }));
+    }
+  }
+
+  // Primer es mouen les classes que estorben (cadascuna es valida) i, només si tot va bé,
+  // es col·loca la pendent.
+  async function applyRoomOption(activityId, option) {
+    for (const move of option.moves || []) {
+      const moved = await moveActivity(move.activity_id, move.to.day, move.to.start);
+      if (!moved) return;
+    }
+    await moveActivity(activityId, option.day, option.start);
+    setRoomOptionsByActivity((prev) => ({ ...prev, [activityId]: undefined }));
+  }
+
   async function moveActivity(activityId, day, start) {
     const prevActivities = activities ? activities.slice() : [];
     const prevConflicts = conflicts ? conflicts.slice() : [];
@@ -2474,7 +2499,7 @@ export default function App() {
         } else {
           setError("No s'ha pogut moure l'activitat.");
         }
-        return;
+        return false;
       }
 
       setSuccessMessage("Moviment desat.");
@@ -2492,11 +2517,13 @@ export default function App() {
       setActivities(nextActivities);
       setConflicts(rawConflicts);
       setSelectedActivityId(null);
+      return true;
     } catch (err) {
       setActivities(prevActivities);
       setConflicts(prevConflicts);
       setSelectedActivityId(prevSelectedActivityId);
       setError("No s'ha pogut desar el moviment.");
+      return false;
     } finally {
       setIsSaving(false);
       setDraggedActivityId(null);
@@ -5992,6 +6019,58 @@ export default function App() {
                                     Cap franja disponible.
                                   </div>
                                 )}
+
+                              <div style={{ marginTop: "8px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => fetchRoomOptions(warning.id)}
+                                  disabled={roomOptionsByActivity[warning.id]?.loading}
+                                  title="Cerca franges on només estorben 1 o 2 classes que es poden moure a un altre lloc vàlid"
+                                  style={{
+                                    fontSize: "0.8rem",
+                                    padding: "4px 10px",
+                                    borderRadius: "6px",
+                                    border: `1px solid ${style.border}`,
+                                    background: "white",
+                                    color: style.text,
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  {roomOptionsByActivity[warning.id]?.loading ? "Cercant..." : "Fer lloc movent altres classes"}
+                                </button>
+
+                                {roomOptionsByActivity[warning.id]?.options?.map((option, optionIndex) => (
+                                  <div
+                                    key={optionIndex}
+                                    style={{ border: "1px solid #ccc", borderRadius: "6px", marginTop: "6px", padding: "6px 8px", background: "#fafafa", fontSize: "0.8rem" }}
+                                  >
+                                    <strong>{option.day} {option.start}</strong>
+                                    <ul style={{ margin: "4px 0", paddingLeft: "18px" }}>
+                                      {option.moves.map((move) => (
+                                        <li key={move.activity_id}>
+                                          Moure «{move.subject}» ({move.group}) de {move.from.day} {move.from.start} a {move.to.day} {move.to.start}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                    <button
+                                      type="button"
+                                      onClick={() => applyRoomOption(warning.id, option)}
+                                      disabled={isSaving}
+                                      style={{ fontSize: "0.8rem", padding: "3px 10px", borderRadius: "6px", border: "1px solid #888", background: "white", cursor: "pointer" }}
+                                    >
+                                      Aplica
+                                    </button>
+                                  </div>
+                                ))}
+
+                                {roomOptionsByActivity[warning.id] &&
+                                  !roomOptionsByActivity[warning.id].loading &&
+                                  roomOptionsByActivity[warning.id].options.length === 0 && (
+                                    <div style={{ fontSize: "0.8rem", marginTop: "6px", color: style.text }}>
+                                      Cap opció movent una o dues classes: les tardes d'aquests grups són massa plenes. Caldria alliberar hores o fer més flexibles els horaris.
+                                    </div>
+                                  )}
+                              </div>
                             </div>
                           </article>
                         );
