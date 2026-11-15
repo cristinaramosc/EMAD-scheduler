@@ -16,6 +16,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from services.block_generator import BlockGenerator
 from .models import Activity, Conflict, GenerationContext, GenerationResult, ScheduleProposal, ScheduledActivity, TimeSlot
 from .placement_strategy import GreedyPlacementStrategy, PlacementStrategy
+from .preference_policy import SchedulePreferencePolicy
 from .quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter, quarter_suffix
 from .teacher_utils import teacher_label, teacher_names
 from .proposal_scorer import ProposalScorer
@@ -78,15 +79,32 @@ class SchedulerGenerator:
             context.configuration["use_preferred_days"] = use_preferred_days
             scheduled_activities, placement_warnings = self._generate_for_ordering(ordering, context)
             backtracking_used = False
-            if allow_backtracking and (
-                placement_warnings
-                or self._count_unjoined_pairs(scheduled_activities, context) > 0
-            ):
+            initial_metrics = self._preference_metrics(scheduled_activities, context)
+            current_rank = self._activity_preference_rank(
+                initial_metrics,
+                unplaced_activities=len(placement_warnings),
+                ignores_preferred_days=not use_preferred_days,
+            )
+            needs_preference_search = any(
+                initial_metrics[key] > 0
+                for key in (
+                    "unjoined_consecutive_count",
+                    "shared_group_outside_preference_count",
+                    "shared_group_not_friday_count",
+                    "shared_group_not_edge_count",
+                    "preferred_day_misses",
+                )
+            )
+            if allow_backtracking and (placement_warnings or needs_preference_search):
                 searched_activities = self._bounded_backtracking_search(ordering, context)
                 if searched_activities is not None:
-                    searched_unjoined = self._count_unjoined_pairs(searched_activities, context)
-                    current_unjoined = self._count_unjoined_pairs(scheduled_activities, context)
-                    if placement_warnings or searched_unjoined < current_unjoined:
+                    searched_metrics = self._preference_metrics(searched_activities, context)
+                    searched_rank = self._activity_preference_rank(
+                        searched_metrics,
+                        unplaced_activities=0,
+                        ignores_preferred_days=not use_preferred_days,
+                    )
+                    if searched_rank < current_rank:
                         scheduled_activities = searched_activities
                         placement_warnings = []
                         backtracking_used = True
@@ -104,11 +122,12 @@ class SchedulerGenerator:
             breakdown = self._scorer.calculate(proposal, context)
             proposal.score = breakdown.total_score
             proposal.score_breakdown = breakdown
+            preference_metrics = self._preference_metrics(scheduled_activities, context)
             proposal.metadata = {
                 **(proposal.metadata or {}),
                 "score_breakdown": breakdown,
                 "ignores_preferred_days": not use_preferred_days,
-                "unjoined_consecutive_count": self._count_unjoined_pairs(scheduled_activities, context),
+                **preference_metrics,
                 "bounded_backtracking": backtracking_used,
             }
             proposals.append(proposal)
@@ -159,11 +178,18 @@ class SchedulerGenerator:
         context.configuration["use_preferred_days"] = True
 
         proposals.sort(
-            key=lambda proposal: (
-                len(proposal.warnings),
-                (proposal.metadata or {}).get("unjoined_consecutive_count", 0),
-                1 if (proposal.metadata or {}).get("ignores_preferred_days") else 0,
-                -proposal.score,
+            key=lambda proposal: SchedulePreferencePolicy.ranking_key(
+                hard_conflicts=len(proposal.conflicts),
+                unplaced_activities=len(proposal.warnings),
+                unjoined_consecutive_pairs=(proposal.metadata or {}).get("unjoined_consecutive_count", 0),
+                shared_group_outside_preference=(proposal.metadata or {}).get(
+                    "shared_group_outside_preference_count", 0
+                ),
+                shared_group_not_friday=(proposal.metadata or {}).get("shared_group_not_friday_count", 0),
+                shared_group_not_edge=(proposal.metadata or {}).get("shared_group_not_edge_count", 0),
+                preferred_day_misses=(proposal.metadata or {}).get("preferred_day_misses", 0),
+                ignores_preferred_days=(proposal.metadata or {}).get("ignores_preferred_days", False),
+                quality_score=proposal.score,
             )
         )
         del proposals[max_proposals + 2:]
@@ -580,6 +606,61 @@ class SchedulerGenerator:
             if not joined:
                 unjoined += 1
         return unjoined
+
+    def _preference_metrics(
+        self,
+        activities: Sequence[ScheduledActivity],
+        context: GenerationContext,
+    ) -> dict:
+        day_names = context.configuration.get("day_names") or []
+        preferences = []
+        shared_group_activities = []
+        for activity in activities:
+            metadata = activity.teaching_block.metadata or {}
+            preferences.append((activity.day, metadata.get("preferred_days")))
+            shared_group_activities.append(
+                (
+                    activity.group_id or metadata.get("group_id") or metadata.get("group") or "",
+                    activity.day,
+                    activity.start_timeslot.period,
+                    activity.duration,
+                )
+            )
+
+        shared_counts = SchedulePreferencePolicy.shared_group_preference_counts(
+            shared_group_activities,
+            context.school_calendar.periods_per_day,
+            day_names,
+        )
+        return {
+            "unjoined_consecutive_count": self._count_unjoined_pairs(activities, context),
+            "shared_group_outside_preference_count": shared_counts[0],
+            "shared_group_not_friday_count": shared_counts[1],
+            "shared_group_not_edge_count": shared_counts[2],
+            "preferred_day_misses": SchedulePreferencePolicy.preferred_day_misses(
+                preferences,
+                day_names,
+            ),
+        }
+
+    @staticmethod
+    def _activity_preference_rank(
+        metrics: dict,
+        *,
+        unplaced_activities: int,
+        ignores_preferred_days: bool,
+    ) -> tuple:
+        return SchedulePreferencePolicy.ranking_key(
+            hard_conflicts=0,
+            unplaced_activities=unplaced_activities,
+            unjoined_consecutive_pairs=metrics["unjoined_consecutive_count"],
+            shared_group_outside_preference=metrics["shared_group_outside_preference_count"],
+            shared_group_not_friday=metrics["shared_group_not_friday_count"],
+            shared_group_not_edge=metrics["shared_group_not_edge_count"],
+            preferred_day_misses=metrics["preferred_day_misses"],
+            ignores_preferred_days=ignores_preferred_days,
+            quality_score=0,
+        )
 
     @staticmethod
     def _consecutive_ids(pair_partners: dict) -> set:
@@ -1614,7 +1695,7 @@ class SchedulerGenerator:
         place_pair_partner = getattr(strategy, "place_pair_partner", None)
         expected_block_ids = {block.id for block in ordering}
         best_schedule: Optional[List[ScheduledActivity]] = None
-        best_unjoined = float("inf")
+        best_rank: Optional[tuple] = None
         visited_states = 0
 
         def candidate_placements(
@@ -1682,7 +1763,7 @@ class SchedulerGenerator:
             placed_ids: set,
             used_days_by_requirement: dict[str, set],
         ) -> Optional[List[ScheduledActivity]]:
-            nonlocal best_schedule, best_unjoined, visited_states
+            nonlocal best_schedule, best_rank, visited_states
             if visited_states >= self._BACKTRACKING_MAX_STATES:
                 return None
             visited_states += 1
@@ -1690,11 +1771,18 @@ class SchedulerGenerator:
             if index >= len(ordering):
                 if not expected_block_ids.issubset(placed_ids):
                     return None
-                unjoined = self._count_unjoined_pairs(scheduled, context)
-                if unjoined < best_unjoined:
+                metrics = self._preference_metrics(scheduled, context)
+                rank = self._activity_preference_rank(
+                    metrics,
+                    unplaced_activities=0,
+                    ignores_preferred_days=not context.configuration.get("use_preferred_days", True),
+                )
+                if best_rank is None or rank < best_rank:
                     best_schedule = list(scheduled)
-                    best_unjoined = unjoined
-                return list(scheduled) if unjoined == 0 else None
+                    best_rank = rank
+                if rank[:7] == (0, 0, 0, 0, 0, 0, 0):
+                    return list(scheduled)
+                return None
 
             block = ordering[index]
             if block.id in placed_ids:
