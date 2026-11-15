@@ -43,6 +43,10 @@ def serialize_proposal(proposal: ScheduleProposal | None) -> Dict[str, Any] | No
         "score": proposal.score,
         "warnings": proposal.warnings,
         "conflicts": [serialize_conflict(conflict) for conflict in proposal.conflicts],
+        # Parelles "Consecutiva amb" que no han quedat una darrere l'altra, i classes que
+        # cauen fora del seu dia preferit.
+        "unjoined_consecutive": list((proposal.metadata or {}).get("unjoined_consecutive") or []),
+        "preferred_day_misses": int((proposal.metadata or {}).get("preferred_day_misses") or 0),
     }
 
 

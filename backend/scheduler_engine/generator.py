@@ -22,12 +22,9 @@ from .proposal_scorer import ProposalScorer
 
 
 class SchedulerGenerator:
-    """A simple, deterministic first-pass scheduler.
+    """Deterministic scheduler with a bounded fallback search."""
 
-    This implementation does not optimize, score, or backtrack. It only places
-    teaching blocks into available school slots in a single pass and returns a
-    generation result that contains one or more schedule proposals.
-    """
+    _BACKTRACKING_MAX_STATES = 5000
 
     def __init__(self, placement_strategy: Optional[PlacementStrategy] = None, scorer: Optional[ProposalScorer] = None) -> None:
         self._placement_strategy = placement_strategy or GreedyPlacementStrategy()
@@ -44,9 +41,11 @@ class SchedulerGenerator:
         warnings: List[dict] = []
         generated_scheduled_activities: List[ScheduledActivity] = []
 
+        requirements_input = None
         if teaching_blocks and isinstance(teaching_blocks[0], TeachingRequirement):
-            teaching_blocks = sorted(teaching_blocks, key=lambda requirement: requirement.priority)
-            teaching_blocks = self._build_blocks_from_requirements(teaching_blocks, context)
+            requirements_input = sorted(teaching_blocks, key=lambda requirement: requirement.priority)
+            context.configuration["use_preferred_days"] = True
+            teaching_blocks = self._build_blocks_from_requirements(requirements_input, context)
 
         total_blocks = len(teaching_blocks)
 
@@ -66,10 +65,31 @@ class SchedulerGenerator:
         # 1Q/2Q del mateix professor): el col·locador les fa servir per
         # triar, per a la primera peça, una franja on la segona també hi càpiga.
         context.configuration["pair_partners"] = self._build_pair_partners(teaching_blocks, context)
+        self._consecutive_block_ids = self._consecutive_ids(context.configuration["pair_partners"])
 
         orderings = self._build_orderings(teaching_blocks, context)
-        for ordering in orderings[:max_proposals]:
+
+        def run(
+            ordering,
+            use_preferred_days: bool,
+            allow_backtracking: bool = False,
+        ) -> Optional[int]:
+            nonlocal generated_scheduled_activities
+            context.configuration["use_preferred_days"] = use_preferred_days
             scheduled_activities, placement_warnings = self._generate_for_ordering(ordering, context)
+            backtracking_used = False
+            if allow_backtracking and (
+                placement_warnings
+                or self._count_unjoined_pairs(scheduled_activities, context) > 0
+            ):
+                searched_activities = self._bounded_backtracking_search(ordering, context)
+                if searched_activities is not None:
+                    searched_unjoined = self._count_unjoined_pairs(searched_activities, context)
+                    current_unjoined = self._count_unjoined_pairs(scheduled_activities, context)
+                    if placement_warnings or searched_unjoined < current_unjoined:
+                        scheduled_activities = searched_activities
+                        placement_warnings = []
+                        backtracking_used = True
             scheduled_activities = self._repair_group_gaps(scheduled_activities, context)
             scheduled_activities = self._balance_group_days(scheduled_activities, context)
             scheduled_activities = self._arrange_quarter_activities(scheduled_activities, context)
@@ -77,19 +97,76 @@ class SchedulerGenerator:
             scheduled_activities = self._repair_group_gaps(scheduled_activities, context)
             if not scheduled_activities and placement_warnings:
                 warnings.extend(placement_warnings)
-                continue
+                return None
 
             proposal = self._build_proposal(scheduled_activities, placement_warnings, "phase-1", context)
             proposal.conflicts = self._detect_conflicts(proposal)
             breakdown = self._scorer.calculate(proposal, context)
             proposal.score = breakdown.total_score
             proposal.score_breakdown = breakdown
-            proposal.metadata = {**(proposal.metadata or {}), "score_breakdown": breakdown}
+            proposal.metadata = {
+                **(proposal.metadata or {}),
+                "score_breakdown": breakdown,
+                "ignores_preferred_days": not use_preferred_days,
+                "unjoined_consecutive_count": self._count_unjoined_pairs(scheduled_activities, context),
+                "bounded_backtracking": backtracking_used,
+            }
             proposals.append(proposal)
-            if not generated_scheduled_activities and scheduled_activities:
+            if (
+                scheduled_activities
+                and (
+                    not generated_scheduled_activities
+                    or backtracking_used
+                )
+            ):
                 generated_scheduled_activities = list(scheduled_activities)
+            return len(proposal.warnings)
 
-        proposals.sort(key=lambda proposal: (len(proposal.warnings), -proposal.score))
+        primary_warnings: dict = {}
+        for position, ordering in enumerate(orderings[:max_proposals]):
+            result = run(ordering, True)
+            primary_warnings[position] = 10 ** 6 if result is None else result
+
+        def most_promising(candidates: List[List[TeachingBlock]], how_many: int) -> List[List[TeachingBlock]]:
+            """Els reintents comencen pels ordres que millor han anat a la primera ronda."""
+            ranked = sorted(range(min(len(candidates), len(primary_warnings))), key=lambda i: (primary_warnings[i], i))
+            return [candidates[i] for i in ranked[:how_many]]
+
+        if not proposals or any(
+            item.warnings
+            or (item.metadata or {}).get("unjoined_consecutive_count", 0) > 0
+            for item in proposals
+        ):
+            for ordering in most_promising(orderings[:max_proposals], 3):
+                run(ordering, True, allow_backtracking=True)
+
+        # Les preferències de dia no poden deixar una classe sense ubicar: si la millor
+        # proposta amb preferències té avisos, es generen també propostes sense.
+        has_preferences = any((block.metadata or {}).get("preferred_days") for block in teaching_blocks)
+        if has_preferences and (not proposals or min(len(item.warnings) for item in proposals) > 0):
+            # També els blocs es reconstrueixen sense preferència: la distribució de cada
+            # assignatura en sessions es tria amb una col·locació provisional que ja la feia servir.
+            context.configuration["use_preferred_days"] = False
+            fallback_blocks = (
+                self._build_blocks_from_requirements(requirements_input, context)
+                if requirements_input is not None
+                else teaching_blocks
+            )
+            context.configuration["pair_partners"] = self._build_pair_partners(fallback_blocks, context)
+            self._consecutive_block_ids = self._consecutive_ids(context.configuration["pair_partners"])
+            for ordering in most_promising(self._build_orderings(fallback_blocks, context), 3):
+                run(ordering, False, allow_backtracking=True)
+        context.configuration["use_preferred_days"] = True
+
+        proposals.sort(
+            key=lambda proposal: (
+                len(proposal.warnings),
+                (proposal.metadata or {}).get("unjoined_consecutive_count", 0),
+                1 if (proposal.metadata or {}).get("ignores_preferred_days") else 0,
+                -proposal.score,
+            )
+        )
+        del proposals[max_proposals + 2:]
         result_warnings = proposals[0].warnings if proposals else warnings
         elapsed_ms = round((time.perf_counter() - started_at) * 1000, 3)
         valid = len(proposals) > 0
@@ -159,6 +236,7 @@ class SchedulerGenerator:
             metadata = {
                 "requirement_id": requirement.id,
                 "max_distribution_days": requirement.max_distribution_days,
+                "preferred_days": requirement.preferred_days,
                 "priority": requirement.priority,
                 "group_id": requirement.group_id,
                 "subject_id": requirement.subject_id,
@@ -471,16 +549,57 @@ class SchedulerGenerator:
                     add(first, second, "quarter")
         return partners
 
+    def _count_unjoined_pairs(self, activities: Sequence[ScheduledActivity], context: GenerationContext) -> int:
+        """Comptabilitza assignacions consecutives col·locades sense quedar seguides."""
+        by_assignment: dict = {}
+        for activity in activities:
+            metadata = activity.teaching_block.metadata or {}
+            key = (
+                str(metadata.get("subject") or "").strip().casefold(),
+                str(metadata.get("group_id") or metadata.get("group") or "").strip().casefold(),
+                str(metadata.get("teacher") or "").strip().casefold(),
+            )
+            by_assignment.setdefault(key, []).append(activity)
+
+        unjoined = 0
+        for pair in context.configuration.get("consecutive_pairs") or []:
+            first_key = tuple(str(part or "").strip().casefold() for part in pair["a"])
+            second_key = tuple(str(part or "").strip().casefold() for part in pair["b"])
+            firsts, seconds = by_assignment.get(first_key, []), by_assignment.get(second_key, [])
+            if not firsts or not seconds:
+                continue
+            joined = any(
+                first.day == second.day
+                and (
+                    first.start_timeslot.period + first.duration == second.start_timeslot.period
+                    or second.start_timeslot.period + second.duration == first.start_timeslot.period
+                )
+                for first in firsts
+                for second in seconds
+            )
+            if not joined:
+                unjoined += 1
+        return unjoined
+
+    @staticmethod
+    def _consecutive_ids(pair_partners: dict) -> set:
+        return {
+            block_id
+            for block_id, partners in pair_partners.items()
+            if any(kind == "consecutive" for kind, _ in partners)
+        }
+
     def _fixed_day_first(self, blocks: Sequence[TeachingBlock]) -> List[TeachingBlock]:
         """Manté l'ordre relatiu de cada llista (sort estable) però posa
         primer els blocs amb dia fix, perquè el motor els col·loqui abans
-        que les activitats flexibles puguin ocupar-los la franja, i després
-        els de prioritat 1 (aula assignada, professor amb màxim de dies,
-        restriccions), perquè cap ordenació els relegui al final."""
+        que les activitats flexibles puguin ocupar-los la franja. Després
+        col·loca les parelles "Consecutiva amb" abans de la resta i ordena
+        cada grup per prioritat."""
         return sorted(
             blocks,
             key=lambda block: (
                 0 if getattr(block, "fixed", False) else 1,
+                0 if block.id in getattr(self, "_consecutive_block_ids", ()) else 1,
                 int((block.metadata or {}).get("priority") or 2),
             ),
         )
@@ -1478,6 +1597,171 @@ class SchedulerGenerator:
                         used_days_by_requirement.setdefault(partner_requirement, set()).add(partner_placement.day)
 
         return scheduled_activities, warnings
+
+    def _bounded_backtracking_search(
+        self,
+        ordering: Sequence[TeachingBlock],
+        context: GenerationContext,
+    ) -> Optional[List[ScheduledActivity]]:
+        """Cerca una col·locació completa explorant alternatives de franja
+        fins a un límit fix d'estats, sempre amb les validacions del strategy."""
+        strategy = self._placement_strategy
+        place_at_slot = getattr(strategy, "place_at_slot", None)
+        if not callable(place_at_slot):
+            return None
+
+        pair_partners = context.configuration.get("pair_partners") or {}
+        place_pair_partner = getattr(strategy, "place_pair_partner", None)
+        expected_block_ids = {block.id for block in ordering}
+        best_schedule: Optional[List[ScheduledActivity]] = None
+        best_unjoined = float("inf")
+        visited_states = 0
+
+        def candidate_placements(
+            block: TeachingBlock,
+            scheduled: Sequence[ScheduledActivity],
+            excluded_days: Optional[set],
+        ) -> List[ScheduledActivity]:
+            candidates: dict[tuple[int, int], ScheduledActivity] = {}
+            preferred = (
+                strategy.place(block, context, scheduled, excluded_days=excluded_days)
+                if excluded_days
+                else strategy.place(block, context, scheduled)
+            )
+            if preferred is not None:
+                candidates[(preferred.day, preferred.start_timeslot.period)] = preferred
+
+            for day in context.school_calendar.days:
+                if excluded_days and day in excluded_days:
+                    continue
+                for slot in context.school_calendar.periods_for_day(day):
+                    key = (slot.day, slot.period)
+                    if key not in candidates:
+                        placement = place_at_slot(block, context, scheduled, slot)
+                        if placement is not None:
+                            candidates[key] = placement
+
+            preferred_key = (
+                (preferred.day, preferred.start_timeslot.period)
+                if preferred is not None
+                else None
+            )
+            remaining = [
+                candidate
+                for key, candidate in candidates.items()
+                if key != preferred_key
+            ]
+            preference_key = getattr(strategy, "_slot_preference_key", None)
+            all_activities = (
+                list(context.existing_scheduled_activities)
+                + list(context.fixed_activities)
+                + list(scheduled)
+            )
+            if callable(preference_key):
+                remaining.sort(
+                    key=lambda candidate: preference_key(
+                        block,
+                        candidate.day,
+                        candidate.start_timeslot,
+                        all_activities,
+                        context,
+                    )
+                )
+            else:
+                remaining.sort(
+                    key=lambda candidate: (
+                        candidate.day,
+                        candidate.start_timeslot.period,
+                    )
+                )
+            return ([preferred] if preferred is not None else []) + remaining
+
+        def search(
+            index: int,
+            scheduled: List[ScheduledActivity],
+            placed_ids: set,
+            used_days_by_requirement: dict[str, set],
+        ) -> Optional[List[ScheduledActivity]]:
+            nonlocal best_schedule, best_unjoined, visited_states
+            if visited_states >= self._BACKTRACKING_MAX_STATES:
+                return None
+            visited_states += 1
+
+            if index >= len(ordering):
+                if not expected_block_ids.issubset(placed_ids):
+                    return None
+                unjoined = self._count_unjoined_pairs(scheduled, context)
+                if unjoined < best_unjoined:
+                    best_schedule = list(scheduled)
+                    best_unjoined = unjoined
+                return list(scheduled) if unjoined == 0 else None
+
+            block = ordering[index]
+            if block.id in placed_ids:
+                return search(index + 1, scheduled, placed_ids, used_days_by_requirement)
+
+            requirement_id = (block.metadata or {}).get("requirement_id")
+            excluded_days = (
+                used_days_by_requirement.get(requirement_id)
+                if requirement_id
+                else None
+            )
+            candidates = candidate_placements(block, scheduled, excluded_days)
+            if not candidates and excluded_days:
+                candidates = candidate_placements(block, scheduled, None)
+
+            for placement in candidates:
+                next_scheduled = scheduled + [placement]
+                next_placed_ids = set(placed_ids)
+                next_placed_ids.add(block.id)
+                next_used_days = {
+                    key: set(days)
+                    for key, days in used_days_by_requirement.items()
+                }
+                if requirement_id:
+                    next_used_days.setdefault(requirement_id, set()).add(placement.day)
+
+                if callable(place_pair_partner):
+                    for _kind, partner in pair_partners.get(block.id, []):
+                        if partner.id in next_placed_ids:
+                            continue
+                        partner_requirement = (partner.metadata or {}).get("requirement_id")
+                        partner_excluded_days = (
+                            next_used_days.get(partner_requirement)
+                            if partner_requirement
+                            else None
+                        )
+                        partner_placement = place_pair_partner(
+                            partner,
+                            context,
+                            next_scheduled,
+                            partner_excluded_days,
+                        )
+                        if partner_placement is None:
+                            continue
+                        next_scheduled.append(partner_placement)
+                        next_placed_ids.add(partner.id)
+                        if partner_requirement:
+                            next_used_days.setdefault(partner_requirement, set()).add(
+                                partner_placement.day
+                            )
+
+                result = search(
+                    index + 1,
+                    next_scheduled,
+                    next_placed_ids,
+                    next_used_days,
+                )
+                if result is not None:
+                    return result
+                if visited_states >= self._BACKTRACKING_MAX_STATES:
+                    break
+
+            return None
+
+        result = search(0, [], set(), {})
+        return result if result is not None else best_schedule
+
     def _build_proposal(
         self,
         scheduled_activities: Sequence[ScheduledActivity],

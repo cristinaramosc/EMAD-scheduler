@@ -123,3 +123,54 @@ def test_the_validation_also_checks_the_time_window_of_each_group_of_a_combined_
     assert "group_time_window" not in [
         c.type for c in use_cases._scheduler_engine.validate(use_cases._build_schedule(afternoon))
     ]
+
+
+def _fresh_client_with_school():
+    reset_dependencies()
+    client = TestClient(app)
+    blank = client.get("/academic-data/spreadsheet/blank").content
+    response = client.post(
+        "/academic-data/spreadsheet/import",
+        files={"file": ("dades.xlsx", build_workbook(blank), "application/octet-stream")},
+    )
+    assert response.status_code == 200
+    return client
+
+
+def test_shared_gi_gp_classes_prefer_friday_by_default_and_an_explicit_day_wins():
+    from backend.dependencies import get_scheduler_use_cases
+
+    use_cases = get_scheduler_use_cases()
+    assert use_cases._preferred_days_for({"group": "GI, GP", "preferred_day": ""}) == "Divendres"
+    assert use_cases._preferred_days_for({"group": "GP, GI"}) == "Divendres"
+    assert use_cases._preferred_days_for({"group": "GI, GP", "preferred_day": "Dimarts"}) == "Dimarts"
+    assert use_cases._preferred_days_for({"group": "GI"}) is None
+    assert use_cases._preferred_days_for({"group": "GP"}) is None
+
+
+def test_the_preferred_day_survives_the_excel_round_trip():
+    client = _fresh_client_with_school()
+    assignment = next(a for a in client.get("/academic-data/assignments").json() if a["subject"] == "Xerrades")
+    assert client.patch(f"/academic-data/assignments/{assignment['id']}", json={"preferred_day": "Dimecres"}).status_code == 200
+
+    exported = client.get("/academic-data/spreadsheet/current").content
+    reset_dependencies()
+    other = TestClient(app)
+    assert other.post(
+        "/academic-data/spreadsheet/import", files={"file": ("dades.xlsx", exported, "application/octet-stream")}
+    ).status_code == 200
+
+    again = next(a for a in other.get("/academic-data/assignments").json() if a["subject"] == "Xerrades")
+    assert again["preferred_day"] == "Dimecres"
+
+
+def test_a_class_is_placed_on_its_preferred_day_when_there_is_room():
+    client = _fresh_client_with_school()
+    assignment = next(a for a in client.get("/academic-data/assignments").json() if a["subject"] == "Xerrades")
+    client.patch(f"/academic-data/assignments/{assignment['id']}", json={"preferred_day": "Dimecres"})
+
+    result = client.post("/scheduler/generate", json={"requirement_ids": []}).json()
+
+    best = result["best_proposal"]
+    days = [a["day"] for a in best["activities"] if a["subject"] == "Xerrades"]
+    assert days == ["Dimecres"]

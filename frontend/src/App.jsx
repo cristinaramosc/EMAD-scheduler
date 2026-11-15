@@ -788,9 +788,9 @@ export default function App() {
   const [roomEditValues, setRoomEditValues] = useState({ name: "", capacity: "", unavailable_slots: [] });
   const [roomUnavailableSelectionAnchor, setRoomUnavailableSelectionAnchor] = useState(null);
 
-  const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+  const [assignmentDraft, setAssignmentDraft] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", preferred_room: "", fixed_day: "", fixed_start: "", preferred_day: "", max_session_days: "", consecutive_group: "" });
   const [assignmentEdit, setAssignmentEdit] = useState(null);
-  const [assignmentEditValues, setAssignmentEditValues] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", allowed_session_lengths: "", preferred_room: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+  const [assignmentEditValues, setAssignmentEditValues] = useState({ teacher: "", subject: "", group: "", weekly_hours: "", allowed_session_lengths: "", preferred_room: "", fixed_day: "", fixed_start: "", preferred_day: "", max_session_days: "", consecutive_group: "" });
 
   function parseSessionLengths(value) {
     return value
@@ -5175,7 +5175,7 @@ export default function App() {
                   ).length}{" "}
                   de {teachingAssignments.length} assignacions
                 </p>
-                <table className="academic-table academic-table-sticky">
+                <table className="academic-table academic-table-sticky academic-table-assignments">
                   <thead>
                     <tr>
                       <th style={{ cursor: "pointer" }} onClick={() => toggleAcademicSort("teacher", setAcademicSort)}>Professor{sortIndicator("teacher", academicSort)}</th>
@@ -5187,6 +5187,7 @@ export default function App() {
                       <th>Màx. dies per repartir</th>
                       <th>Consecutiva amb (etiqueta)</th>
                       <th>Horari fix</th>
+                      <th title="Dia que es prefereix per a aquesta assignatura (no és obligatori: si no hi ha lloc, es posa un altre dia). Les compartides per GI i GP prefereixen divendres.">Dia preferit</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
@@ -5355,6 +5356,25 @@ export default function App() {
                         </td>
                         <td>
                           {assignmentEdit === a.id ? (
+                            <select
+                              value={assignmentEditValues.preferred_day || ""}
+                              onChange={(event) => setAssignmentEditValues({ ...assignmentEditValues, preferred_day: event.target.value })}
+                            >
+                              <option value="">Cap</option>
+                              {DAYS.map((day) => (
+                                <option key={day} value={day}>{day}</option>
+                              ))}
+                            </select>
+                          ) : a.preferred_day ? (
+                            a.preferred_day
+                          ) : String(a.group || "").split(",").map((part) => part.trim().toLowerCase()).sort().join(",") === "gi,gp" ? (
+                            <span className="muted">Divendres (per defecte)</span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td>
+                          {assignmentEdit === a.id ? (
                             <>
                               <button onClick={async () => {
                                 const payload = {
@@ -5364,6 +5384,7 @@ export default function App() {
                                   weekly_hours: parseFloat(assignmentEditValues.weekly_hours) || 0,
                                   fixed_day: assignmentEditValues.fixed_day,
                                   fixed_start: assignmentEditValues.fixed_start,
+                                  preferred_day: assignmentEditValues.preferred_day || "",
                                   max_session_days: assignmentEditValues.max_session_days,
                                   consecutive_group: assignmentEditValues.consecutive_group,
                                 };
@@ -5402,6 +5423,7 @@ export default function App() {
                                   preferred_room: a.preferred_room || "",
                                   fixed_day: a.fixed_day || "",
                                   fixed_start: a.fixed_start || "",
+                                  preferred_day: a.preferred_day || "",
                                   max_session_days: a.max_session_days || "",
                                   consecutive_group: resolveConsecutiveGroupValue(a.consecutive_group, a.group, teachingAssignments),
                                 });
@@ -5530,6 +5552,18 @@ export default function App() {
                         </select>
                       </td>
                       <td>
+                        <select
+                          value={assignmentDraft.preferred_day || ""}
+                          onChange={(event) => setAssignmentDraft({ ...assignmentDraft, preferred_day: event.target.value })}
+                          title="Dia que es prefereix (no obligatori)"
+                        >
+                          <option value="">Cap</option>
+                          {DAYS.map((day) => (
+                            <option key={day} value={day}>{day}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
                         <button onClick={async () => {
                           if (!assignmentDraft.teacher || !assignmentDraft.subject || !assignmentDraft.group) {
                             alert("Cal indicar professor, assignatura i grup");
@@ -5542,11 +5576,12 @@ export default function App() {
                             weekly_hours: parseFloat(assignmentDraft.weekly_hours) || 0,
                             fixed_day: assignmentDraft.fixed_day,
                             fixed_start: assignmentDraft.fixed_start,
+                            preferred_day: assignmentDraft.preferred_day || "",
                             max_session_days: assignmentDraft.max_session_days,
                             consecutive_group: assignmentDraft.consecutive_group,
                           });
                           if (res.ok) {
-                            setAssignmentDraft({ teacher: "", subject: "", group: "", weekly_hours: "", fixed_day: "", fixed_start: "", max_session_days: "", consecutive_group: "" });
+                            setAssignmentDraft({ teacher: "", subject: "", group: "", weekly_hours: "", fixed_day: "", fixed_start: "", preferred_day: "", max_session_days: "", consecutive_group: "" });
                             await refreshAcademicLists();
                           } else {
                             alert(res.data?.detail || "No s'ha pogut crear l'assignació docent.");
@@ -5817,7 +5852,11 @@ export default function App() {
                   style={{ flex: 1, minWidth: 0 }}
                 >
                   {proposals.map((p) => (
-                    <option key={p.id} value={p.id}>{`${p.id} · score ${Math.round(p.score || 0)}`}</option>
+                    <option key={p.id} value={p.id}>
+                      {`${p.id} · score ${Math.round(p.score || 0)}${
+                        (p.unjoined_consecutive || []).length ? ` · ${(p.unjoined_consecutive || []).length} parella(es) sense ajuntar` : ""
+                      }`}
+                    </option>
                   ))}
                 </select>
               </label>
@@ -5831,6 +5870,24 @@ export default function App() {
                   <span className="metric-label">Puntuació</span>
                   <strong>{proposal.score ?? "-"}</strong>
                 </div>
+                {(proposal.unjoined_consecutive || []).length > 0 && (
+                  <div className="proposal-metric" style={{ gridColumn: "1 / -1" }}>
+                    <span className="metric-label">
+                      ⚠ Parelles «Consecutiva amb» sense ajuntar ({proposal.unjoined_consecutive.length})
+                    </span>
+                    <ul style={{ margin: "4px 0 0", paddingLeft: 18, fontSize: 12 }}>
+                      {proposal.unjoined_consecutive.map((pair) => (
+                        <li key={pair}>{pair}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {proposal.preferred_day_misses > 0 && (
+                  <div className="proposal-metric" style={{ gridColumn: "1 / -1" }}>
+                    <span className="metric-label">Classes fora del seu dia preferit</span>
+                    <strong>{proposal.preferred_day_misses}</strong>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={acceptProposal}

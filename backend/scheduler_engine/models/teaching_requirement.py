@@ -36,6 +36,8 @@ class TeachingRequirement:
     priority: int = 2
     fixed_day: Optional[str] = None
     fixed_start: Optional[str] = None
+    # Dies preferits (preferència, no restricció): p.ex. "Divendres" o "Dilluns, Divendres".
+    preferred_days: Optional[str] = None
 
     def __post_init__(self):
         if self.min_distribution_days is None:

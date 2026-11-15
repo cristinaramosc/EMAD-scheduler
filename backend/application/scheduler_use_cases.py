@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import time as _time
 import zlib
 from datetime import datetime, time
@@ -418,7 +419,81 @@ class SchedulerUseCases:
             self._center_unequal_quarter_pairs(proposal.activities)
             self._spread_group_days(proposal.activities, assignments)
             proposal.conflicts = self._scheduler_engine.validate(self._build_schedule(list(proposal.activities)))
-        proposals.sort(key=lambda proposal: (len(proposal.warnings), -proposal.score))
+        preferred_by_assignment: Dict[tuple, set] = {}
+        for assignment in assignments:
+            wanted = self._preferred_days_for(assignment)
+            if wanted:
+                key = (
+                    str(assignment.get("subject") or "").strip().casefold(),
+                    str(assignment.get("group") or "").strip().casefold(),
+                    str(assignment.get("teacher") or "").strip().casefold(),
+                )
+                preferred_by_assignment[key] = {
+                    item.strip().casefold() for item in re.split(r"[,;/+]", wanted) if item.strip()
+                }
+
+        def preferred_day_misses(proposal: ScheduleProposal) -> int:
+            """Classes que cauen fora del seu dia preferit (no compta si no en tenen)."""
+            return sum(
+                1
+                for item in proposal.activities
+                if preferred_by_assignment.get(
+                    (str(item.subject).strip().casefold(), str(item.group).strip().casefold(), str(item.teacher).strip().casefold())
+                )
+                and str(item.day).strip().casefold()
+                not in preferred_by_assignment[
+                    (str(item.subject).strip().casefold(), str(item.group).strip().casefold(), str(item.teacher).strip().casefold())
+                ]
+            )
+
+        consecutive_pairs = self._resolve_consecutive_pairs(assignments)
+
+        def unjoined_pairs(proposal: ScheduleProposal) -> List[str]:
+            """Parelles "Consecutiva amb" les dues sessions de les quals no queden una darrere l'altra."""
+            hour_index = {name: position for position, name in enumerate(self._time_labels.get("hour_names", []))}
+
+            def sessions(assignment: Dict[str, Any]) -> List[Activity]:
+                wanted = (
+                    str(assignment.get("subject") or "").strip().casefold(),
+                    str(assignment.get("group") or "").strip().casefold(),
+                    str(assignment.get("teacher") or "").strip().casefold(),
+                )
+                return [
+                    item for item in proposal.activities
+                    if (str(item.subject).strip().casefold(), str(item.group).strip().casefold(), str(item.teacher).strip().casefold()) == wanted
+                ]
+
+            unjoined: List[str] = []
+            for first, second in consecutive_pairs:
+                first_sessions, second_sessions = sessions(first), sessions(second)
+                if not first_sessions or not second_sessions:
+                    continue  # una de les dues no s'ha col·locat: ja surt com a avís
+                joined = any(
+                    a.day == b.day
+                    and a.start in hour_index and b.start in hour_index
+                    and (hour_index[a.start] + a.duration == hour_index[b.start]
+                         or hour_index[b.start] + b.duration == hour_index[a.start])
+                    for a in first_sessions for b in second_sessions
+                )
+                if not joined:
+                    unjoined.append(f"{first.get('subject')} · {first.get('group')} ({first.get('teacher')} / {second.get('teacher')})")
+            return unjoined
+
+        for proposal in proposals:
+            pending_pairs = unjoined_pairs(proposal)
+            proposal.metadata = {
+                **(proposal.metadata or {}),
+                "preferred_day_misses": preferred_day_misses(proposal),
+                "unjoined_consecutive": pending_pairs,
+            }
+        proposals.sort(
+            key=lambda proposal: (
+                len(proposal.warnings),
+                len((proposal.metadata or {}).get("unjoined_consecutive") or []),
+                (proposal.metadata or {}).get("preferred_day_misses", 0),
+                -proposal.score,
+            )
+        )
 
         for proposal in proposals:
             self._proposal_store[proposal.id] = proposal
@@ -1506,7 +1581,21 @@ class SchedulerUseCases:
             ),
             fixed_day=assignment.get("fixed_day") or None,
             fixed_start=assignment.get("fixed_start") or None,
+            preferred_days=self._preferred_days_for(assignment),
         )
+
+    # Les assignatures compartides per GI i GP es prioritzen divendres: hi ha alumnes
+    # que ja les han cursat i no vénen. És una preferència (no una restricció) i es pot
+    # canviar a cada assignatura amb el camp "Dia preferit".
+    _SHARED_GI_GP_DEFAULT_DAY = "Divendres"
+
+    def _preferred_days_for(self, assignment: Dict[str, Any]) -> Optional[str]:
+        explicit = str(assignment.get("preferred_day") or "").strip()
+        if explicit:
+            return explicit
+        if set(group_names(assignment.get("group"))) == {"gi", "gp"}:
+            return self._SHARED_GI_GP_DEFAULT_DAY
+        return None
 
     def _expand_preferred_availability_to_blocked_slots(
         self,

@@ -205,6 +205,7 @@ class AssignmentDTO(BaseModel):
     preferred_room: Optional[str] = ""
     notes: Optional[str] = ""
     fixed_day: Optional[str] = ""
+    preferred_day: Optional[str] = ""
     fixed_start: Optional[str] = ""
     max_session_days: Optional[str] = ""
     consecutive_group: Optional[str] = ""
@@ -219,6 +220,7 @@ class AssignmentUpdateDTO(BaseModel):
     preferred_room: Optional[str] = None
     notes: Optional[str] = None
     fixed_day: Optional[str] = None
+    preferred_day: Optional[str] = None
     fixed_start: Optional[str] = None
     max_session_days: Optional[str] = None
     consecutive_group: Optional[str] = None

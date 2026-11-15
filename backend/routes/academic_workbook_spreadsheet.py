@@ -80,6 +80,7 @@ SUBJECT_COLUMNS = [
     ("fixed_start", "Hora fixa (opcional, p.ex. 9:00)"),
     ("consecutive_subject", "Consecutiva amb - Assignatura (opcional)"),
     ("consecutive_teacher", "Consecutiva amb - Professor (opcional, per desdoblats)"),
+    ("preferred_day", "Dia preferit (opcional, p.ex. Divendres)"),
 ]
 
 ROOM_COLUMNS = [
@@ -275,6 +276,7 @@ def _subject_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
             "fixed_start": assignment.get("fixed_start", ""),
             "consecutive_subject": consecutive_subject,
             "consecutive_teacher": consecutive_teacher,
+            "preferred_day": assignment.get("preferred_day", ""),
         })
     return rows
 
@@ -462,6 +464,7 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
             "fixed_day": str(row.get("fixed_day") or "").strip(),
             "fixed_start": str(row.get("fixed_start") or "").strip(),
             "consecutive_group": _text_to_consecutive_group(row.get("consecutive_subject"), row.get("consecutive_teacher")),
+            "preferred_day": str(row.get("preferred_day") or "").strip(),
         })
         assignments_created += 1
 

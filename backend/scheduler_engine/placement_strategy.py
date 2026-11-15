@@ -174,6 +174,19 @@ class GreedyPlacementStrategy(PlacementStrategy):
 
         return None
 
+    @staticmethod
+    def _preferred_day_penalty(teaching_block: TeachingBlock, day: int, context: GenerationContext) -> int:
+        """0 si el dia és un dels preferits de l'assignatura (o si no en té), 1 si no.
+        És una preferència: el col·locador només la fa servir per triar entre franges
+        vàlides, mai per rebutjar-ne cap, i no accepta per això un forat de més d'una franja."""
+        preferred = str((teaching_block.metadata or {}).get("preferred_days") or "").strip()
+        if not preferred or not (context.configuration or {}).get("use_preferred_days", True):
+            return 0
+        day_names = [str(name).strip().casefold() for name in (context.configuration or {}).get("day_names") or []]
+        wanted = {item.strip().casefold() for item in re.split(r"[,;/+]", preferred) if item.strip()}
+        indexes = {position for position, name in enumerate(day_names) if name in wanted}
+        return 0 if not indexes or day in indexes else 1
+
     def _slot_preference_key(
         self,
         teaching_block: TeachingBlock,
@@ -186,6 +199,37 @@ class GreedyPlacementStrategy(PlacementStrategy):
         if teaching_block.metadata:
             group_id = teaching_block.metadata.get("group_id") or teaching_block.metadata.get("group")
 
+        if self._is_shared_gp_gi_group(group_id):
+            preferred_day = self._preferred_day_penalty(teaching_block, day, context)
+            gap_slots, _ = self._daily_gap_counts(
+                group_id, day, slot, teaching_block.duration_blocks or 1, all_activities
+            )
+            is_day_edge = (
+                slot.period == 0
+                or slot.period + (teaching_block.duration_blocks or 1)
+                >= context.school_calendar.periods_per_day
+            )
+            preferred_start = self._preferred_group_start_period(group_id, context)
+            if preferred_start is not None:
+                afternoon_rank = 0 if slot.period == preferred_start else 1 if slot.period > preferred_start else 2
+                delta = abs(slot.period - preferred_start)
+            else:
+                afternoon_rank = 1
+                delta = 0
+
+            return (
+                0 if preferred_day == 0 or is_day_edge else 1,
+                preferred_day,
+                0 if is_day_edge else 1,
+                1 if gap_slots > 1 else 0,
+                gap_slots,
+                self._teacher_split_day_penalty(teaching_block, day, slot, all_activities, context),
+                afternoon_rank,
+                delta,
+                day,
+                slot.period,
+            )
+
         # Preferència (no restricció dura): que un professor no tingui, el
         # mateix dia, classes de matí i de tarda (dia partit).
         teacher_split = self._teacher_split_day_penalty(teaching_block, day, slot, all_activities, context)
@@ -195,7 +239,8 @@ class GreedyPlacementStrategy(PlacementStrategy):
             morning_rank = 0 if slot.period <= morning_latest else 1
             morning_delta = abs(slot.period - morning_latest)
             gap_slots, _ = self._daily_gap_counts(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
-            return (morning_rank, gap_slots, morning_delta, teacher_split, day, slot.period)
+            preferred_day = self._preferred_day_penalty(teaching_block, day, context)
+            return (morning_rank, 1 if gap_slots > 1 else 0, preferred_day, gap_slots, morning_delta, teacher_split, day, slot.period)
 
         preferred_start = self._preferred_group_start_period(group_id, context)
         if preferred_start is not None:
@@ -206,7 +251,12 @@ class GreedyPlacementStrategy(PlacementStrategy):
             delta = 0
 
         gap_slots, _ = self._daily_gap_counts(group_id, day, slot, teaching_block.duration_blocks or 1, all_activities)
-        return (afternoon_rank, gap_slots, delta, teacher_split, day, slot.period)
+        preferred_day = self._preferred_day_penalty(teaching_block, day, context)
+        return (afternoon_rank, 1 if gap_slots > 1 else 0, preferred_day, gap_slots, delta, teacher_split, day, slot.period)
+
+    @staticmethod
+    def _is_shared_gp_gi_group(group_id: Optional[str]) -> bool:
+        return set(group_names(group_id)) == {"gi", "gp"}
 
     def _morning_group_latest_start_period(
         self,
@@ -382,7 +432,15 @@ class GreedyPlacementStrategy(PlacementStrategy):
         general (que aniria omplint des de la primera franja lliure
         qualsevol). Això evita deixar l'assignatura enmig del dia, on
         deixaria un forat estrany quan no s'imparteix (és de mig curs)."""
-        for day in context.school_calendar.days:
+        days = context.school_calendar.days
+        group_id = (teaching_block.metadata or {}).get("group_id") or (teaching_block.metadata or {}).get("group")
+        if self._is_shared_gp_gi_group(group_id):
+            days = sorted(
+                days,
+                key=lambda day: (self._preferred_day_penalty(teaching_block, day, context), day),
+            )
+
+        for day in days:
             if excluded_days and day in excluded_days:
                 continue
             if teaching_block.fixed_day and not teaching_block.fixed_start and self._day_name(day) != teaching_block.fixed_day.strip().lower():
