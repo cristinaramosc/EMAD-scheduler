@@ -6,10 +6,20 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 try:
-    from backend.dependencies import get_academic_data_repo
+    from backend.dependencies import (
+        get_academic_data_repo,
+        get_live_schedule_use_cases,
+        get_requirement_repo,
+        get_scheduler_use_cases,
+    )
     from backend.services.contract_hours import contract_hours, parse_dedication_pct
 except ModuleNotFoundError:  # pragma: no cover
-    from dependencies import get_academic_data_repo
+    from dependencies import (
+        get_academic_data_repo,
+        get_live_schedule_use_cases,
+        get_requirement_repo,
+        get_scheduler_use_cases,
+    )
     from services.contract_hours import contract_hours, parse_dedication_pct
 
 
@@ -64,6 +74,29 @@ def _normalized_max_days(value) -> Optional[int]:
 @router.get("/summary")
 def academic_data_summary():
     return get_academic_data_repo().summary()
+
+
+@router.delete("/clear-all")
+def clear_all_data():
+    schedule_result = get_live_schedule_use_cases().load([])
+    repo = get_academic_data_repo()
+    previous_summary = repo.summary()
+    repo.clear_all()
+
+    requirement_repo = get_requirement_repo()
+    requirements = requirement_repo.list()
+    for requirement in requirements:
+        requirement_repo.delete(requirement.id)
+
+    get_scheduler_use_cases().clear_proposals()
+    return {
+        "ok": True,
+        "cleared": {
+            **previous_summary,
+            "requirements": len(requirements),
+            "scheduled_activities": schedule_result["loaded"],
+        },
+    }
 
 
 class TeacherDTO(BaseModel):

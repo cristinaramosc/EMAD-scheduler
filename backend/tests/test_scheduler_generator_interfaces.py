@@ -214,6 +214,191 @@ def test_bounded_backtracking_moves_a_chain_of_blocks_to_fit_everything():
     assert placements == {"flexible-a": 1, "flexible-c": 2, "restricted-b": 0}
 
 
+@pytest.mark.parametrize("group_id", ["GI", "GP"])
+def test_bounded_backtracking_can_fill_temporary_gaps_for_group(group_id):
+    generator = SchedulerGenerator()
+
+    def block(block_id, duration_blocks, fixed=False):
+        return TeachingBlock(
+            id=block_id,
+            duration=duration_blocks / 2,
+            order=1,
+            duration_blocks=duration_blocks,
+            fixed=fixed,
+            metadata={"group": group_id, "group_id": group_id},
+        )
+
+    fixed_activities = (
+        ScheduledActivity(
+            teaching_block=block("fixed-left", 1, fixed=True),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=0),
+            duration=1,
+            group_id=group_id,
+        ),
+        ScheduledActivity(
+            teaching_block=block("fixed-right", 1, fixed=True),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=5),
+            duration=1,
+            group_id=group_id,
+        ),
+    )
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=6),
+        fixed_activities=fixed_activities,
+        configuration={},
+    )
+
+    result = generator.generate(
+        [block("fill-a", 2), block("fill-b", 2)],
+        context,
+        max_proposals=1,
+    )
+
+    assert result.schedule_proposal is not None
+    assert result.schedule_proposal.warnings == []
+    assert result.schedule_proposal.metadata["bounded_backtracking"] is True
+    assert sorted(
+        (activity.start_timeslot.period, activity.duration)
+        for activity in result.generated_scheduled_activities
+    ) == [(1, 2), (3, 2)]
+
+
+@pytest.mark.parametrize(
+    ("candidate_subject", "existing_subject", "configuration"),
+    [
+        ("Math", "Art", {}),
+        (
+            "Math",
+            "Math",
+            {
+                "consecutive_pairs": [
+                    {
+                        "a": ["Math", "G", "Teacher A"],
+                        "b": ["Math", "G", "Teacher B"],
+                    }
+                ]
+            },
+        ),
+        ("Physics 1Q", "Physics 2Q", {}),
+        ("Art", "Design", {"split_groups": {"G"}}),
+    ],
+)
+def test_precomputed_group_conflicts_match_slot_validation(
+    candidate_subject, existing_subject, configuration
+):
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    candidate = TeachingBlock(
+        id="candidate",
+        duration=0.5,
+        order=1,
+        duration_blocks=1,
+        preferred_teacher_id="Teacher A",
+        preferred_room_id="Room A",
+        metadata={"group": "G", "group_id": "G", "subject": candidate_subject},
+    )
+    existing_block = TeachingBlock(
+        id="existing",
+        duration=0.5,
+        order=1,
+        duration_blocks=1,
+        preferred_teacher_id="Teacher B",
+        preferred_room_id="Room B",
+        metadata={"group": "G", "group_id": "G", "subject": existing_subject},
+    )
+    existing = ScheduledActivity(
+        teaching_block=existing_block,
+        day=0,
+        start_timeslot=TimeSlot(day=0, period=2),
+        duration=1,
+        teacher_id="Teacher B",
+        room_id="Room B",
+        group_id="G",
+    )
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=4),
+        configuration=configuration,
+    )
+    relevant = strategy._group_relevant_activities(candidate, [existing])
+    precomputed = strategy._group_conflict_slots(candidate, context, relevant)
+    expected = {
+        (day, slot.period)
+        for day in context.school_calendar.days
+        for slot in context.school_calendar.periods_for_day(day)
+        if strategy._group_conflict_exists(
+            candidate,
+            slot,
+            relevant.get(day, ()),
+            context,
+            group_overlap_prechecked=True,
+        )
+    }
+
+    assert precomputed == expected
+
+
+def test_precomputed_teacher_conflicts_match_slot_validation():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    candidate = TeachingBlock(
+        id="candidate",
+        duration=1.0,
+        order=1,
+        duration_blocks=2,
+        preferred_teacher_id="Teacher A",
+        metadata={"group": "G", "group_id": "G", "subject": "Physics 1Q"},
+    )
+    existing_blocks = [
+        TeachingBlock(
+            id="quarter-exception",
+            duration=0.5,
+            order=1,
+            duration_blocks=1,
+            metadata={"subject": "Physics 2Q"},
+        ),
+        TeachingBlock(
+            id="same-quarter",
+            duration=0.5,
+            order=1,
+            duration_blocks=1,
+            metadata={"subject": "Physics 1Q"},
+        ),
+    ]
+    activities = [
+        ScheduledActivity(
+            teaching_block=block,
+            day=day,
+            start_timeslot=TimeSlot(day=day, period=period),
+            duration=1,
+            teacher_id="Teacher A",
+        )
+        for block, day, period in [
+            (existing_blocks[0], 0, 1),
+            (existing_blocks[1], 1, 2),
+        ]
+    ]
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=4),
+    )
+    precomputed = strategy._teacher_conflict_slots(candidate, context, activities)
+    expected = {
+        (day, slot.period)
+        for day in context.school_calendar.days
+        for slot in context.school_calendar.periods_for_day(day)
+        if strategy._teacher_conflict_exists(
+            candidate,
+            slot,
+            activities,
+        )
+    }
+
+    assert precomputed == expected
+
+
 def test_scheduler_generator_handles_empty_input():
     generator = SchedulerGenerator()
     context = GenerationContext(
@@ -831,6 +1016,60 @@ def test_shared_gp_gi_prefer_friday_or_first_or_last_period():
     assert placement.start_timeslot.period in {0, 7}
 
 
+def test_generator_ignores_friday_preference_when_it_leaves_a_block_unplaced():
+    class FridaySensitiveStrategy:
+        def place(self, teaching_block, context, current_scheduled_activities, excluded_days=None):
+            if (
+                context.configuration.get("use_preferred_days", True)
+                and teaching_block.id == "remaining"
+            ):
+                return None
+
+            day = 4 if context.configuration.get("use_preferred_days", True) else 0
+            return ScheduledActivity(
+                teaching_block=teaching_block,
+                day=day,
+                start_timeslot=TimeSlot(day=day, period=len(current_scheduled_activities)),
+                duration=teaching_block.duration_blocks,
+                teacher_id=teaching_block.preferred_teacher_id,
+                group_id=(teaching_block.metadata or {}).get("group"),
+            )
+
+    blocks = [
+        TeachingBlock(
+            id="shared",
+            duration=0.5,
+            order=1,
+            duration_blocks=1,
+            metadata={"group": "GI, GP", "preferred_days": "Divendres"},
+        ),
+        TeachingBlock(
+            id="remaining",
+            duration=0.5,
+            order=2,
+            duration_blocks=1,
+            metadata={"group": "Other"},
+        ),
+    ]
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1, 2, 3, 4], periods_per_day=3),
+        configuration={
+            "day_names": ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"],
+        },
+    )
+
+    result = SchedulerGenerator(placement_strategy=FridaySensitiveStrategy()).generate(
+        blocks,
+        context,
+        max_proposals=1,
+    )
+
+    assert result.schedule_proposal is not None
+    assert result.schedule_proposal.warnings == []
+    assert len(result.schedule_proposal.activities) == 2
+    assert result.schedule_proposal.metadata["ignores_preferred_days"] is True
+
+
 def test_shared_gp_gi_quarter_class_checks_friday_edges_first():
     from scheduler_engine.placement_strategy import GreedyPlacementStrategy
 
@@ -859,6 +1098,94 @@ def test_shared_gp_gi_quarter_class_checks_friday_edges_first():
     assert placement is not None
     assert placement.day == 4
     assert placement.start_timeslot.period in {0, 7}
+
+
+def test_shared_group_assignment_is_placed_at_the_edge_of_both_group_days():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=5),
+        configuration={},
+    )
+
+    def block(block_id, group, teacher):
+        return TeachingBlock(
+            id=block_id,
+            duration=0.5,
+            order=1,
+            duration_blocks=1,
+            preferred_teacher_id=teacher,
+            metadata={"group": group, "group_id": group, "teacher": teacher},
+        )
+
+    existing = [
+        ScheduledActivity(
+            teaching_block=block("gi-first", "GI", "T1"),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=0),
+            duration=1,
+            teacher_id="T1",
+            group_id="GI",
+        ),
+        ScheduledActivity(
+            teaching_block=block("gi-second", "GI", "T2"),
+            day=0,
+            start_timeslot=TimeSlot(day=0, period=2),
+            duration=1,
+            teacher_id="T2",
+            group_id="GI",
+        ),
+    ]
+
+    placement = strategy.place(block("shared", "GI, GP", "T3"), context, existing)
+
+    assert placement is not None
+    assert placement.start_timeslot.period == 3
+
+
+def test_adding_a_group_class_cannot_turn_a_shared_assignment_into_a_middle_class():
+    from scheduler_engine.placement_strategy import GreedyPlacementStrategy
+
+    strategy = GreedyPlacementStrategy()
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=6),
+        configuration={},
+    )
+
+    def block(block_id, group, teacher, duration_blocks=1):
+        return TeachingBlock(
+            id=block_id,
+            duration=duration_blocks / 2,
+            order=1,
+            duration_blocks=duration_blocks,
+            preferred_teacher_id=teacher,
+            metadata={"group": group, "group_id": group, "teacher": teacher},
+        )
+
+    shared = ScheduledActivity(
+        teaching_block=block("shared", "GI, GP", "T1", duration_blocks=2),
+        day=0,
+        start_timeslot=TimeSlot(day=0, period=2),
+        duration=2,
+        teacher_id="T1",
+        group_id="GI, GP",
+    )
+    early_gi = ScheduledActivity(
+        teaching_block=block("early-gi", "GI", "T2"),
+        day=0,
+        start_timeslot=TimeSlot(day=0, period=0),
+        duration=1,
+        teacher_id="T2",
+        group_id="GI",
+    )
+
+    assert strategy.place_at_slot(
+        block("late-gi", "GI", "T3"),
+        context,
+        [shared, early_gi],
+        TimeSlot(day=0, period=4),
+    ) is None
 
 
 def test_group_daily_gap_limit_allows_one_empty_slot_and_blocks_larger_gaps():

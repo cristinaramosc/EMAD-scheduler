@@ -137,15 +137,49 @@ def _fresh_client_with_school():
     return client
 
 
-def test_shared_gi_gp_classes_prefer_friday_by_default_and_an_explicit_day_wins():
+def test_shared_gi_gp_classes_have_no_default_day_and_keep_explicit_preferences():
     from backend.dependencies import get_scheduler_use_cases
 
     use_cases = get_scheduler_use_cases()
-    assert use_cases._preferred_days_for({"group": "GI, GP", "preferred_day": ""}) == "Divendres"
-    assert use_cases._preferred_days_for({"group": "GP, GI"}) == "Divendres"
+    assert use_cases._preferred_days_for({"group": "GI, GP", "preferred_day": ""}) is None
+    assert use_cases._preferred_days_for({"group": "GP, GI"}) is None
     assert use_cases._preferred_days_for({"group": "GI, GP", "preferred_day": "Dimarts"}) == "Dimarts"
+    assert use_cases._preferred_days_for({"group": "GI, GP", "preferred_day": "Cap"}) is None
     assert use_cases._preferred_days_for({"group": "GI"}) is None
     assert use_cases._preferred_days_for({"group": "GP"}) is None
+
+
+def test_a_shared_assignment_can_keep_an_explicit_no_day_preference():
+    client = _fresh_client_with_school()
+    assignment = next(
+        a for a in client.get("/academic-data/assignments").json()
+        if a["group"] == "GI, GP"
+    )
+    response = client.patch(
+        f"/academic-data/assignments/{assignment['id']}",
+        json={"preferred_day": "Cap"},
+    )
+    assert response.status_code == 200
+
+    updated = next(
+        a for a in client.get("/academic-data/assignments").json()
+        if a["id"] == assignment["id"]
+    )
+    assert updated["preferred_day"] == "Cap"
+
+    exported = client.get("/academic-data/spreadsheet/current").content
+    reset_dependencies()
+    other = TestClient(app)
+    assert other.post(
+        "/academic-data/spreadsheet/import",
+        files={"file": ("dades.xlsx", exported, "application/octet-stream")},
+    ).status_code == 200
+
+    imported = next(
+        a for a in other.get("/academic-data/assignments").json()
+        if a["group"] == "GI, GP"
+    )
+    assert imported["preferred_day"] == "Cap"
 
 
 def test_the_preferred_day_survives_the_excel_round_trip():

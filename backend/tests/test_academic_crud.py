@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 from backend.bootstrap import reset_dependencies
-from backend.dependencies import get_academic_data_repo, get_scheduler_use_cases
+from backend.dependencies import (
+    get_academic_data_repo,
+    get_live_schedule_use_cases,
+    get_proposal_store,
+    get_requirement_repo,
+    get_scheduler_use_cases,
+)
 from backend.main import app
+from backend.scheduler_engine.models.teaching_requirement import TeachingRequirement
 from fastapi.testclient import TestClient
 
 
@@ -34,6 +41,57 @@ def test_create_assignment_and_sessions_and_generate():
     use_cases = get_scheduler_use_cases()
     body = use_cases.generate_proposals([])
     assert body["statistics"]["source"] == "academic_workbook"
+
+
+def test_clear_all_removes_schedule_academic_data_and_requirements():
+    reset_dependencies()
+    repo = get_academic_data_repo()
+    repo.apply_snapshot({
+        "teachers": [{"name": "Ada"}],
+        "groups": [{"name": "1A"}],
+        "subjects": [{"name": "Disseny"}],
+        "rooms": [{"name": "A-01"}],
+        "teacher_restrictions": [{"teacher": "Ada"}],
+        "group_restrictions": [{"group": "1A"}],
+    })
+    repo.create_canonical_assignment({
+        "teacher": "Ada",
+        "subject": "Disseny",
+        "group": "1A",
+        "weekly_hours": 2.0,
+    })
+    get_requirement_repo().create(TeachingRequirement(
+        id="legacy-requirement",
+        group_id="1A",
+        subject_id="Disseny",
+        teacher_id="Ada",
+        weekly_hours=1.0,
+        min_days=1,
+        max_days=1,
+        min_block_duration=0.5,
+        max_consecutive_hours=1.0,
+        allow_half_hour_blocks=False,
+    ))
+    get_live_schedule_use_cases().load([{
+        "id": 1,
+        "teacher": "Ada",
+        "subject": "Disseny",
+        "group": "1A",
+        "room": "A-01",
+        "day": "Dilluns",
+        "start": "8:00",
+        "duration": 1,
+    }])
+    get_proposal_store()["old-proposal"] = object()
+
+    response = TestClient(app).delete("/academic-data/clear-all")
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+    assert repo.summary()["teaching_assignments"] == 0
+    assert get_requirement_repo().list() == []
+    assert get_live_schedule_use_cases().state()["activities"] == []
+    assert get_proposal_store() == {}
 
 
 def test_change_assignment_teacher_updates_sessions():

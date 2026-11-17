@@ -3,7 +3,10 @@ import { DataSheetGrid, textColumn, floatColumn, checkboxColumn, keyColumn } fro
 import "react-datasheet-grid/dist/style.css";
 import "./App.css";
 
-const API_URL = "http://127.0.0.1:8000";
+const API_URL = (
+  import.meta.env.VITE_API_URL?.trim()
+  || (import.meta.env.DEV ? "http://127.0.0.1:8000" : "")
+).replace(/\/+$/, "");
 
 const DAYS = ["Dilluns", "Dimarts", "Dimecres", "Dijous", "Divendres"];
 // Ordre fix dels grups a tota l'aplicació; els que no hi són van al final.
@@ -677,6 +680,7 @@ export default function App() {
   const workbookInputRef = useRef(null);
   const academicSpreadsheetInputRef = useRef(null);
   const [isImportingSpreadsheet, setIsImportingSpreadsheet] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
   const [activities, setActivities] = useState([]);
   const [conflicts, setConflicts] = useState([]);
   const [academicSummary, setAcademicSummary] = useState(null);
@@ -985,6 +989,54 @@ export default function App() {
     } catch (err) {
       setError(err.message || "No s'ha pogut buidar l'horari.");
     } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function clearAllData() {
+    if (!window.confirm(
+      "Aquesta acció esborrarà totes les dades acadèmiques, l'horari actiu, les propostes i els requisits. No es pot desfer. Vols continuar?"
+    )) {
+      return;
+    }
+
+    setIsClearingAll(true);
+    setIsLoading(true);
+    setError("");
+    setSuccessMessage("");
+    try {
+      const response = await fetch(`${API_URL}/academic-data/clear-all`, { method: "DELETE" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.detail || response.statusText || `HTTP ${response.status}`);
+      }
+
+      setProposals([]);
+      setSelectedProposalId(null);
+      setProposal(null);
+      setActivities([]);
+      setConflicts([]);
+      setGenerationStats(null);
+      setGeneratedUnscheduledActivities([]);
+      setTeacherRestrictions([]);
+      setGroupRestrictions([]);
+      setGroupRestrictionDraft(createGroupRestrictionDraft(""));
+      setSelectedGroup("");
+      setTimetableEntity("");
+      setTeacherFilter("");
+      setRoomFilter("");
+      setTeacherScheduleActivities([]);
+      setRoomScheduleActivities([]);
+      await refreshAcademicLists();
+      setSuccessMessage("S'han esborrat totes les dades acadèmiques i de l'horari.");
+    } catch (error) {
+      setError(
+        `No s'han pogut esborrar totes les dades: ${
+          error instanceof Error ? error.message : "error desconegut"
+        }`
+      );
+    } finally {
+      setIsClearingAll(false);
       setIsLoading(false);
     }
   }
@@ -1699,16 +1751,26 @@ export default function App() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) {
-        setError(data.detail || "No s'ha pogut importar el full de càlcul.");
-        return;
+        throw new Error(data.detail || response.statusText || `HTTP ${response.status}`);
       }
       setSuccessMessage(
         `Importat: ${data.teachers} professors, ${data.groups} grups, ${data.assignments} assignacions, ${data.rooms} aules.`
       );
       await refreshAcademicLists();
       await loadTeacherRestrictions();
-    } catch {
-      setError("No s'ha pogut importar el full de càlcul.");
+    } catch (error) {
+      if (error instanceof TypeError) {
+        setError(
+          `No s'ha pogut contactar amb l'API (${API_URL || "mateix origen"}). ` +
+          "Comprova la configuració VITE_API_URL del desplegament."
+        );
+      } else {
+        setError(
+          `No s'ha pogut importar el full de càlcul: ${
+            error instanceof Error ? error.message : "error desconegut"
+          }`
+        );
+      }
     } finally {
       setIsImportingSpreadsheet(false);
     }
@@ -4014,6 +4076,22 @@ export default function App() {
               >
                 🗑️ Buida l'horari
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMoreMenuOpen(false);
+                  clearAllData();
+                }}
+                disabled={
+                  isLoading || isSaving || isGenerating || isImportingSpreadsheet || isImportingWorkbook
+                  || isSavingSpreadsheet || Object.values(isSavingEntitySheet).some(Boolean)
+                  || isSavingTeacherRestrictions || isSavingGroupRestrictions
+                  || Boolean(savingWeeklyFlag) || isSavingActivityRestriction || isClearingAll
+                }
+                title="Esborra les dades acadèmiques, les propostes, els requisits i l'horari actiu"
+              >
+                {isClearingAll ? "Esborrant-ho tot..." : "🗑️ Esborra-ho tot"}
+              </button>
             </div>
           </details>
 
@@ -5360,11 +5438,14 @@ export default function App() {
                               value={assignmentEditValues.preferred_day || ""}
                               onChange={(event) => setAssignmentEditValues({ ...assignmentEditValues, preferred_day: event.target.value })}
                             >
-                              <option value="">Cap</option>
+                              <option value="">Per defecte</option>
+                              <option value="Cap">Cap (sense preferència)</option>
                               {DAYS.map((day) => (
                                 <option key={day} value={day}>{day}</option>
                               ))}
                             </select>
+                          ) : String(a.preferred_day || "").trim().toLowerCase() === "cap" ? (
+                            "Cap (sense preferència)"
                           ) : a.preferred_day ? (
                             a.preferred_day
                           ) : String(a.group || "").split(",").map((part) => part.trim().toLowerCase()).sort().join(",") === "gi,gp" ? (
@@ -5557,7 +5638,8 @@ export default function App() {
                           onChange={(event) => setAssignmentDraft({ ...assignmentDraft, preferred_day: event.target.value })}
                           title="Dia que es prefereix (no obligatori)"
                         >
-                          <option value="">Cap</option>
+                          <option value="">Per defecte</option>
+                          <option value="Cap">Cap (sense preferència)</option>
                           {DAYS.map((day) => (
                             <option key={day} value={day}>{day}</option>
                           ))}

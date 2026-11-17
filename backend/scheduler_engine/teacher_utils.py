@@ -1,9 +1,25 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import Tuple
 
 
+@lru_cache(maxsize=2048)
+def _teacher_names_for_text(value: str) -> Tuple[str, ...]:
+    unique = []
+    seen = set()
+    for part in value.split(","):
+        candidate = part.strip()
+        if candidate and candidate not in seen:
+            seen.add(candidate)
+            unique.append(candidate)
+    return tuple(unique)
+
+
 def teacher_names(value) -> Tuple[str, ...]:
+    if isinstance(value, str):
+        return _teacher_names_for_text(value.strip())
+
     names = []
 
     def add(item) -> None:

@@ -80,7 +80,7 @@ SUBJECT_COLUMNS = [
     ("fixed_start", "Hora fixa (opcional, p.ex. 9:00)"),
     ("consecutive_subject", "Consecutiva amb - Assignatura (opcional)"),
     ("consecutive_teacher", "Consecutiva amb - Professor (opcional, per desdoblats)"),
-    ("preferred_day", "Dia preferit (opcional, p.ex. Divendres)"),
+    ("preferred_day", "Dia preferit (opcional; Cap = sense preferència explícita)"),
 ]
 
 ROOM_COLUMNS = [

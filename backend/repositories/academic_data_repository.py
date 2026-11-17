@@ -171,6 +171,18 @@ class AcademicDataRepository:
             "group_restrictions": len(active_group_restrictions),
         }
 
+    def clear_all(self) -> None:
+        self._teachers.clear()
+        self._groups.clear()
+        self._subjects.clear()
+        self._assignments.clear()
+        self._rooms.clear()
+        self._teacher_restrictions.clear()
+        self._group_restrictions.clear()
+        self._canonical_assignments.clear()
+        self._breaks = []
+        self._next_assignment_id = 1
+
     def active_teaching_assignments(self) -> List[Record]:
         return self._active_records(self._assignments)
 

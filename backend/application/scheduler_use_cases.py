@@ -154,6 +154,11 @@ class SchedulerUseCases:
         if academic_data_repo is not None:
             self._scheduler_engine.configuration_provider = self._build_configuration
 
+    def clear_proposals(self) -> None:
+        self._proposal_store.clear()
+        self._move_history.clear()
+        self._redo_history.clear()
+
     def _generate_empty_generation_result(self) -> Dict[str, Any]:
         """Return an explicit empty state until an academic workbook is imported."""
         return {
@@ -1584,18 +1589,11 @@ class SchedulerUseCases:
             preferred_days=self._preferred_days_for(assignment),
         )
 
-    # Les assignatures compartides per GI i GP es prioritzen divendres: hi ha alumnes
-    # que ja les han cursat i no vénen. És una preferència (no una restricció) i es pot
-    # canviar a cada assignatura amb el camp "Dia preferit".
-    _SHARED_GI_GP_DEFAULT_DAY = "Divendres"
-
     def _preferred_days_for(self, assignment: Dict[str, Any]) -> Optional[str]:
         explicit = str(assignment.get("preferred_day") or "").strip()
-        if explicit:
-            return explicit
-        if set(group_names(assignment.get("group"))) == {"gi", "gp"}:
-            return self._SHARED_GI_GP_DEFAULT_DAY
-        return None
+        if explicit.casefold() == "cap":
+            return None
+        return explicit or None
 
     def _expand_preferred_availability_to_blocked_slots(
         self,

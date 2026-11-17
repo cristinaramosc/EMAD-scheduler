@@ -13,6 +13,7 @@ per a un altre grup. `quarter_utils.py` concentra la regla dels quadrimestres.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 from typing import List, Optional
 
 #: Paraules que identifiquen una hora de tutoria dins el nom de l'assignatura.
@@ -25,6 +26,7 @@ def _subject_tokens(subject: Optional[str]) -> List[str]:
     return [token for token in re.split(r"[^\w]+", str(subject or "").casefold()) if token]
 
 
+@lru_cache(maxsize=2048)
 def is_tutoria_subject(subject: Optional[str]) -> bool:
     """Retorna True si el nom de l'assignatura és (o conté com a paraula)
     `Tutoria`/`Tutories`: `Tutoria`, `PFI Tutoria`, `Tutoria famílies`,
@@ -36,6 +38,7 @@ def is_tutoria_subject(subject: Optional[str]) -> bool:
     return any(token in _TUTORIA_TOKENS for token in _subject_tokens(subject))
 
 
+@lru_cache(maxsize=2048)
 def is_non_lective_tutoria(subject: Optional[str], group: Optional[str]) -> bool:
     """PFI Tutoria is lective for PFI; other tutoring activities are not."""
     if not is_tutoria_subject(subject):
@@ -55,6 +58,7 @@ FIXED_MEETING_DAY = "Dimecres"
 FIXED_MEETING_BLOCKS = [("Reunió", "14:00"), ("Coordinació", "15:00")]
 
 
+@lru_cache(maxsize=2048)
 def is_non_class_subject(subject: Optional[str]) -> bool:
     """Cert si l'activitat és una coordinació (qualsevol, p.ex. `Coordinació
     ED`), una reunió/claustre, hores de centre o un descans: presència del

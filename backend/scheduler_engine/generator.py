@@ -18,6 +18,7 @@ from .models import Activity, Conflict, GenerationContext, GenerationResult, Sch
 from .placement_strategy import GreedyPlacementStrategy, PlacementStrategy
 from .preference_policy import SchedulePreferencePolicy
 from .quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+from .subject_utils import is_non_class_subject, is_non_lective_tutoria
 from .teacher_utils import teacher_label, teacher_names
 from .proposal_scorer import ProposalScorer
 
@@ -89,8 +90,6 @@ class SchedulerGenerator:
                 initial_metrics[key] > 0
                 for key in (
                     "unjoined_consecutive_count",
-                    "shared_group_outside_preference_count",
-                    "shared_group_not_friday_count",
                     "shared_group_not_edge_count",
                     "preferred_day_misses",
                 )
@@ -182,10 +181,6 @@ class SchedulerGenerator:
                 hard_conflicts=len(proposal.conflicts),
                 unplaced_activities=len(proposal.warnings),
                 unjoined_consecutive_pairs=(proposal.metadata or {}).get("unjoined_consecutive_count", 0),
-                shared_group_outside_preference=(proposal.metadata or {}).get(
-                    "shared_group_outside_preference_count", 0
-                ),
-                shared_group_not_friday=(proposal.metadata or {}).get("shared_group_not_friday_count", 0),
                 shared_group_not_edge=(proposal.metadata or {}).get("shared_group_not_edge_count", 0),
                 preferred_day_misses=(proposal.metadata or {}).get("preferred_day_misses", 0),
                 ignores_preferred_days=(proposal.metadata or {}).get("ignores_preferred_days", False),
@@ -618,25 +613,36 @@ class SchedulerGenerator:
         for activity in activities:
             metadata = activity.teaching_block.metadata or {}
             preferences.append((activity.day, metadata.get("preferred_days")))
+
+        all_activities = (
+            list(context.existing_scheduled_activities)
+            + list(context.fixed_activities)
+            + list(activities)
+        )
+        for activity in all_activities:
+            metadata = activity.teaching_block.metadata or {}
+            group_id = activity.group_id or metadata.get("group_id") or metadata.get("group") or ""
+            subject = metadata.get("subject")
+            if (
+                metadata.get("synthetic")
+                or is_non_class_subject(subject)
+                or is_non_lective_tutoria(subject, group_id)
+            ):
+                continue
             shared_group_activities.append(
                 (
-                    activity.group_id or metadata.get("group_id") or metadata.get("group") or "",
+                    group_id,
                     activity.day,
                     activity.start_timeslot.period,
                     activity.duration,
                 )
             )
 
-        shared_counts = SchedulePreferencePolicy.shared_group_preference_counts(
-            shared_group_activities,
-            context.school_calendar.periods_per_day,
-            day_names,
-        )
         return {
             "unjoined_consecutive_count": self._count_unjoined_pairs(activities, context),
-            "shared_group_outside_preference_count": shared_counts[0],
-            "shared_group_not_friday_count": shared_counts[1],
-            "shared_group_not_edge_count": shared_counts[2],
+            "shared_group_not_edge_count": SchedulePreferencePolicy.shared_group_day_edge_violations(
+                shared_group_activities
+            ),
             "preferred_day_misses": SchedulePreferencePolicy.preferred_day_misses(
                 preferences,
                 day_names,
@@ -654,8 +660,6 @@ class SchedulerGenerator:
             hard_conflicts=0,
             unplaced_activities=unplaced_activities,
             unjoined_consecutive_pairs=metrics["unjoined_consecutive_count"],
-            shared_group_outside_preference=metrics["shared_group_outside_preference_count"],
-            shared_group_not_friday=metrics["shared_group_not_friday_count"],
             shared_group_not_edge=metrics["shared_group_not_edge_count"],
             preferred_day_misses=metrics["preferred_day_misses"],
             ignores_preferred_days=ignores_preferred_days,
@@ -1702,13 +1706,30 @@ class SchedulerGenerator:
             block: TeachingBlock,
             scheduled: Sequence[ScheduledActivity],
             excluded_days: Optional[set],
+            all_activities: Sequence[ScheduledActivity],
+            activities_by_day: dict[int, list[ScheduledActivity]],
+            group_activities_by_day: Optional[dict[int, list[ScheduledActivity]]],
+            group_conflict_slots: Optional[set[tuple[int, int]]],
+            teacher_conflict_slots: Optional[set[tuple[int, int]]],
+            group_used_days: Optional[set[int]],
+            assignment_used_days: Optional[set[int]],
         ) -> List[ScheduledActivity]:
             candidates: dict[tuple[int, int], ScheduledActivity] = {}
-            preferred = (
-                strategy.place(block, context, scheduled, excluded_days=excluded_days)
-                if excluded_days
-                else strategy.place(block, context, scheduled)
+
+            metadata = block.metadata or {}
+            has_special_placement = (
+                bool(pair_partners.get(block.id))
+                or quarter_suffix(metadata.get("subject")) is not None
+                or quarter_suffix(metadata.get("group_id") or metadata.get("group")) is not None
             )
+            if type(strategy) is not GreedyPlacementStrategy or has_special_placement:
+                preferred = (
+                    strategy.place(block, context, scheduled, excluded_days=excluded_days)
+                    if excluded_days
+                    else strategy.place(block, context, scheduled)
+                )
+            else:
+                preferred = None
             if preferred is not None:
                 candidates[(preferred.day, preferred.start_timeslot.period)] = preferred
 
@@ -1718,7 +1739,24 @@ class SchedulerGenerator:
                 for slot in context.school_calendar.periods_for_day(day):
                     key = (slot.day, slot.period)
                     if key not in candidates:
-                        placement = place_at_slot(block, context, scheduled, slot)
+                        if type(strategy) is GreedyPlacementStrategy:
+                            placement = place_at_slot(
+                                block,
+                                context,
+                                scheduled,
+                                slot,
+                                skip_group_gap_check=True,
+                                all_activities=all_activities,
+                                activities_by_day=activities_by_day,
+                                group_activities_by_day=group_activities_by_day,
+                                group_overlap_prechecked=group_activities_by_day is not None,
+                                group_conflict_slots=group_conflict_slots,
+                                teacher_conflict_slots=teacher_conflict_slots,
+                                group_used_days=group_used_days,
+                                assignment_used_days=assignment_used_days,
+                            )
+                        else:
+                            placement = place_at_slot(block, context, scheduled, slot)
                         if placement is not None:
                             candidates[key] = placement
 
@@ -1733,11 +1771,6 @@ class SchedulerGenerator:
                 if key != preferred_key
             ]
             preference_key = getattr(strategy, "_slot_preference_key", None)
-            all_activities = (
-                list(context.existing_scheduled_activities)
-                + list(context.fixed_activities)
-                + list(scheduled)
-            )
             if callable(preference_key):
                 remaining.sort(
                     key=lambda candidate: preference_key(
@@ -1794,9 +1827,68 @@ class SchedulerGenerator:
                 if requirement_id
                 else None
             )
-            candidates = candidate_placements(block, scheduled, excluded_days)
+            all_activities = (
+                list(context.existing_scheduled_activities)
+                + list(context.fixed_activities)
+                + list(scheduled)
+            )
+            activities_by_day: dict[int, list[ScheduledActivity]] = {}
+            group_activities_by_day = None
+            group_conflict_slots = None
+            teacher_conflict_slots = None
+            group_used_days = None
+            assignment_used_days = None
+            if type(strategy) is GreedyPlacementStrategy:
+                for activity in all_activities:
+                    activities_by_day.setdefault(activity.day, []).append(activity)
+                group_activities_by_day = strategy._group_relevant_activities(
+                    block, all_activities
+                )
+                group_used_days = {
+                    activity.day
+                    for activities in group_activities_by_day.values()
+                    for activity in activities
+                    if not strategy._is_synthetic_activity(activity)
+                }
+                group_conflict_slots = strategy._group_conflict_slots(
+                    block, context, group_activities_by_day
+                )
+                teacher_conflict_slots = strategy._teacher_conflict_slots(
+                    block, context, all_activities
+                )
+                requirement_id = (block.metadata or {}).get("requirement_id")
+                if requirement_id:
+                    assignment_used_days = {
+                        activity.day
+                        for activity in all_activities
+                        if (activity.teaching_block.metadata or {}).get("requirement_id")
+                        == requirement_id
+                    }
+            candidates = candidate_placements(
+                block,
+                scheduled,
+                excluded_days,
+                all_activities,
+                activities_by_day,
+                group_activities_by_day,
+                group_conflict_slots,
+                teacher_conflict_slots,
+                group_used_days,
+                assignment_used_days,
+            )
             if not candidates and excluded_days:
-                candidates = candidate_placements(block, scheduled, None)
+                candidates = candidate_placements(
+                    block,
+                    scheduled,
+                    None,
+                    all_activities,
+                    activities_by_day,
+                    group_activities_by_day,
+                    group_conflict_slots,
+                    teacher_conflict_slots,
+                    group_used_days,
+                    assignment_used_days,
+                )
 
             for placement in candidates:
                 next_scheduled = scheduled + [placement]

@@ -12,6 +12,40 @@ def _read_bytes(path: Path) -> bytes:
     return path.read_bytes()
 
 
+def test_clear_all_removes_every_academic_record():
+    repo = AcademicDataRepository()
+    repo.apply_snapshot({
+        "teachers": [{"name": "Ada"}],
+        "groups": [{"name": "1A"}],
+        "subjects": [{"name": "Disseny"}],
+        "rooms": [{"name": "A-01"}],
+        "teacher_restrictions": [{"teacher": "Ada"}],
+        "group_restrictions": [{"group": "1A"}],
+    })
+    repo.create_canonical_assignment({
+        "teacher": "Ada",
+        "subject": "Disseny",
+        "group": "1A",
+        "weekly_hours": 2.0,
+    })
+
+    repo.clear_all()
+
+    assert repo.summary() == {
+        "teachers": 0,
+        "groups": 0,
+        "subjects": 0,
+        "teaching_assignments": 0,
+        "weekly_teaching_hours": 0,
+        "rooms": 0,
+        "restrictions": 0,
+        "teacher_restrictions": 0,
+        "group_restrictions": 0,
+    }
+    assert repo.active_teaching_assignments() == []
+    assert repo.active_canonical_assignments() == []
+
+
 def _build_valid_templates(tmp_dir: str) -> list[tuple[str, bytes]]:
     root = Path(tmp_dir)
 
