@@ -5265,7 +5265,7 @@ export default function App() {
                       <th>Màx. dies per repartir</th>
                       <th>Consecutiva amb (etiqueta)</th>
                       <th>Horari fix</th>
-                      <th title="Dia que es prefereix per a aquesta assignatura (no és obligatori: si no hi ha lloc, es posa un altre dia). Les compartides per GI i GP prefereixen divendres.">Dia preferit</th>
+                      <th title="Dia que es prefereix per a aquesta assignatura (no és obligatori: si no hi ha lloc, es posa un altre dia). Les compartides per GI i GP prefereixen principi o final de dia.">Dia preferit</th>
                       <th>Accions</th>
                     </tr>
                   </thead>
@@ -5449,7 +5449,7 @@ export default function App() {
                           ) : a.preferred_day ? (
                             a.preferred_day
                           ) : String(a.group || "").split(",").map((part) => part.trim().toLowerCase()).sort().join(",") === "gi,gp" ? (
-                            <span className="muted">Divendres (per defecte)</span>
+                            <span className="muted">Principi o final de dia</span>
                           ) : (
                             "—"
                           )}

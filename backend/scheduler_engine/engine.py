@@ -30,7 +30,9 @@ class SchedulerEngine:
         self.configuration_provider = None
         self.constraints = [
             GroupConflictConstraint(),
-            SharedGroupDayEdgeConstraint(),
+            # SharedGroupDayEdgeConstraint no es valida com a restricció: que les
+            # compartides GI+GP vagin a principi o final de dia és una preferència
+            # (es compta a SchedulePreferencePolicy), no un conflicte.
             AvailabilityConstraint(),
             GroupTimeWindowConstraint(),
             GroupMaxDaysConstraint(),

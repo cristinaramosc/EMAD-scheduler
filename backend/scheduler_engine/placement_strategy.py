@@ -146,11 +146,6 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 ):
                     continue
 
-                if self._shared_group_day_edge_conflict_exists(
-                    teaching_block, slot, required_slots, day_activities
-                ):
-                    continue
-
                 if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, day_activities, context):
                     continue
 
@@ -170,7 +165,16 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if self._room_conflict_exists(teaching_block, slot, day_activities, context):
                     continue
 
-                key = self._slot_preference_key(teaching_block, day, slot, day_activities, context)
+                # Preferència (no restricció): les compartides GI+GP van a principi o
+                # final de jornada, però si no hi ha lloc es col·loquen on es pugui.
+                edge_penalty = (
+                    1
+                    if self._shared_group_day_edge_conflict_exists(
+                        teaching_block, slot, required_slots, day_activities
+                    )
+                    else 0
+                )
+                key = (edge_penalty, *self._slot_preference_key(teaching_block, day, slot, day_activities, context))
                 if best_key is None or key < best_key:
                     best_key = key
                     best_candidate = ScheduledActivity(
@@ -1115,14 +1119,6 @@ class GreedyPlacementStrategy(PlacementStrategy):
                     add(f"L'assignatura {subject_label} ja està programada per al grup {group_label} {day_name}.")
                 elif self._group_conflict_exists(teaching_block, slot, all_activities, context):
                     add(f"El grup {group_label} ja té una altra activitat {day_name} en aquesta franja.")
-
-                if self._shared_group_day_edge_conflict_exists(
-                    teaching_block, slot, required_slots, all_activities
-                ):
-                    add(
-                        "Una assignatura compartida entre GI i GP ha d'anar a l'inici o "
-                        "al final de la jornada dels dos grups."
-                    )
 
                 if self._group_daily_gap_limit_conflict_exists(teaching_block, slot, all_activities, context):
                     add(f"El grup {group_label} no pot quedar amb més d'una franja lliure {day_name}.")
