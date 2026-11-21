@@ -14,6 +14,7 @@
 from backend.models.teaching_block import TeachingBlock
 from backend.scheduler_engine.generator import SchedulerGenerator
 from backend.scheduler_engine.models import GenerationContext, SchoolCalendar
+from backend.scheduler_engine.models.teaching_requirement import TeachingRequirement
 
 
 def _block(block_id, subject, group, teacher, duration_blocks):
@@ -49,6 +50,68 @@ def _find(proposal, subject, group):
         item for item in proposal.activities
         if item.subject == subject and item.group == group
     )
+
+
+def test_consecutive_requirements_are_built_before_unlinked_requirements():
+    paired_first = TeachingRequirement(
+        id="paired-first",
+        group_id="GI",
+        subject_id="Projecte A",
+        teacher_id="Ana",
+        weekly_hours=1.0,
+        min_days=1,
+        max_days=1,
+        min_block_duration=0.5,
+        max_consecutive_hours=1.0,
+        allow_half_hour_blocks=True,
+        priority=3,
+    )
+    paired_second = TeachingRequirement(
+        id="paired-second",
+        group_id="GI",
+        subject_id="Projecte B",
+        teacher_id="Biel",
+        weekly_hours=1.0,
+        min_days=1,
+        max_days=1,
+        min_block_duration=0.5,
+        max_consecutive_hours=1.0,
+        allow_half_hour_blocks=True,
+        priority=2,
+    )
+    unrelated = TeachingRequirement(
+        id="unrelated",
+        group_id="GI",
+        subject_id="Dibuix",
+        teacher_id="Carla",
+        weekly_hours=1.0,
+        min_days=1,
+        max_days=1,
+        min_block_duration=0.5,
+        max_consecutive_hours=1.0,
+        allow_half_hour_blocks=True,
+        priority=1,
+    )
+    context = _context(
+        {
+            "consecutive_pairs": [
+                {
+                    "a": ("Projecte A", "GI", "Ana"),
+                    "b": ("Projecte B", "GI", "Biel"),
+                }
+            ]
+        }
+    )
+
+    ordered = SchedulerGenerator._prioritize_consecutive_requirements(
+        [unrelated, paired_first, paired_second], context
+    )
+
+    assert [requirement.id for requirement in ordered] == [
+        "paired-second",
+        "paired-first",
+        "unrelated",
+    ]
 
 
 def test_consecutive_pair_with_the_same_subject_name_lands_back_to_back():

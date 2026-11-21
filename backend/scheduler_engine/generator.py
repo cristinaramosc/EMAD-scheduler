@@ -45,7 +45,9 @@ class SchedulerGenerator:
 
         requirements_input = None
         if teaching_blocks and isinstance(teaching_blocks[0], TeachingRequirement):
-            requirements_input = sorted(teaching_blocks, key=lambda requirement: requirement.priority)
+            requirements_input = self._prioritize_consecutive_requirements(
+                teaching_blocks, context
+            )
             context.configuration["use_preferred_days"] = True
             teaching_blocks = self._build_blocks_from_requirements(requirements_input, context)
 
@@ -206,6 +208,36 @@ class SchedulerGenerator:
             valid=valid,
             schedule_proposal=proposals[0] if proposals else None,
         )
+
+    @staticmethod
+    def _prioritize_consecutive_requirements(
+        requirements: Sequence[TeachingRequirement],
+        context: GenerationContext,
+    ) -> List[TeachingRequirement]:
+        """Build the linked assignments' distributions before unrelated ones."""
+        consecutive_keys = set()
+        for pair in (context.configuration or {}).get("consecutive_pairs") or []:
+            for side in ("a", "b"):
+                key = pair.get(side)
+                if key:
+                    subject, group, teacher = key
+                    consecutive_keys.add(
+                        (
+                            str(subject or "").strip().casefold(),
+                            str(group or "").strip().casefold(),
+                            ", ".join(name.casefold() for name in teacher_names(teacher)),
+                        )
+                    )
+
+        def sort_key(requirement: TeachingRequirement) -> tuple:
+            key = (
+                str(requirement.subject_id or "").strip().casefold(),
+                str(requirement.group_id or "").strip().casefold(),
+                ", ".join(name.casefold() for name in teacher_names(requirement.teacher_id)),
+            )
+            return (0 if key in consecutive_keys else 1, requirement.priority)
+
+        return sorted(requirements, key=sort_key)
 
     def _order_distributions_by_preference(self, distributions: Sequence[List]) -> List[List]:
         """Ordena les distribucions possibles evitant concentrar totes les
