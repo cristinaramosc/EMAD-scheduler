@@ -16,6 +16,7 @@ def _rank(**overrides):
 
 
 def test_ranking_keeps_hard_constraints_and_consecutive_pairs_ahead_of_quality():
+    assert _rank(unplaced_activities=1) > _rank(shared_group_not_edge=1)
     assert _rank(unplaced_activities=1, quality_score=1000) > _rank(
         unjoined_consecutive_pairs=1, quality_score=-1000
     )

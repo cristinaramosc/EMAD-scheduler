@@ -1405,14 +1405,7 @@ class SchedulerUseCases:
         blocked_activities: List[ScheduledActivity],
         max_days_teacher_names: set,
     ) -> List[TeachingRequirement]:
-        """Dins de cada prioritat, col·loca primer les assignatures de
-        professors amb màxim de dies que només poden anar pocs dies (segons la
-        seva disponibilitat i la del grup). Així, per exemple, la classe de
-        tarda d'un professor que només pot venir el divendres a la tarda es
-        col·loca abans que les de matí i no es queda sense dia. Després van
-        les classes conjuntes de diversos grups (p.ex. "GI, GP"), que són les
-        més difícils de fer encaixar. La resta conserva l'ordre original
-        (ordenació estable)."""
+        """Prioritza franges escasses dels professors amb un màxim de dies."""
         teacher_blocked: Dict[str, set] = {}
         group_blocked: Dict[str, set] = {}
         for activity in blocked_activities:
@@ -1436,7 +1429,6 @@ class SchedulerUseCases:
                 blocked |= teacher_blocked.get(name, set())
             for name in groups:
                 blocked |= group_blocked.get(name, set())
-
             lengths = [length for length in (requirement.allowed_session_lengths or []) if length and length > 0]
             needed = max(1, hours_to_blocks(min(lengths or [requirement.min_block_duration])))
             days = 0
@@ -1450,13 +1442,18 @@ class SchedulerUseCases:
             return days
 
         def joint_groups(requirement: TeachingRequirement) -> int:
-            # Una classe conjunta (p.ex. "GI, GP") necessita una franja lliure
-            # alhora a tots els grups i al professor: és la més difícil de
-            # col·locar i s'ha de fer abans que els grups s'omplin.
             return len(group_names(requirement.group_id) or [requirement.group_id])
 
         keyed = [
-            ((requirement.priority, available_days(requirement), -joint_groups(requirement), position), requirement)
+            (
+                (
+                    requirement.priority,
+                    available_days(requirement),
+                    -joint_groups(requirement),
+                    position,
+                ),
+                requirement,
+            )
             for position, requirement in enumerate(requirements)
         ]
         return [requirement for _, requirement in sorted(keyed, key=lambda item: item[0])]

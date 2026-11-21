@@ -1144,7 +1144,7 @@ def test_shared_group_assignment_is_placed_at_the_edge_of_both_group_days():
     assert placement.start_timeslot.period == 3
 
 
-def test_adding_a_group_class_cannot_turn_a_shared_assignment_into_a_middle_class():
+def test_adding_a_group_class_can_make_a_shared_assignment_non_edge_when_needed():
     from scheduler_engine.placement_strategy import GreedyPlacementStrategy
 
     strategy = GreedyPlacementStrategy()
@@ -1185,7 +1185,7 @@ def test_adding_a_group_class_cannot_turn_a_shared_assignment_into_a_middle_clas
         context,
         [shared, early_gi],
         TimeSlot(day=0, period=4),
-    ) is None
+    ) is not None
 
 
 def test_group_daily_gap_limit_allows_one_empty_slot_and_blocks_larger_gaps():

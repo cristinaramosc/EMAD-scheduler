@@ -279,19 +279,28 @@ def _scarce_days_fixture():
         academic_data_repo=AcademicDataRepository(),
     )
 
-    def requirement(req_id, teacher, group, priority=1):
+    def requirement(
+        req_id,
+        teacher,
+        group,
+        priority=1,
+        weekly_hours=1.0,
+        max_days=1,
+        preferred_rooms=None,
+    ):
         return TeachingRequirement(
             id=req_id,
             group_id=group,
             subject_id=req_id,
             teacher_id=teacher,
-            weekly_hours=1.0,
+            weekly_hours=weekly_hours,
             min_days=1,
-            max_days=1,
+            max_days=max_days,
             min_block_duration=1.0,
-            max_consecutive_hours=1.0,
+            max_consecutive_hours=weekly_hours,
             allow_half_hour_blocks=False,
             priority=priority,
+            preferred_rooms=preferred_rooms or [],
         )
 
     def blocked(group_id=None, teacher_id=None, days=(), periods=range(8)):
@@ -344,7 +353,6 @@ def test_scarce_days_ordering_is_noop_without_max_days_teachers_and_respects_pri
     blocked_activities = blocked(group_id="Tarda", days=(0, 1, 2, 3))
 
     assert use_cases._order_requirements_by_scarce_days([first, scarce], blocked_activities, set()) == [first, scarce]
-
     ordered = use_cases._order_requirements_by_scarce_days(
         [first, scarce, urgent], blocked_activities, {"alfred"}
     )

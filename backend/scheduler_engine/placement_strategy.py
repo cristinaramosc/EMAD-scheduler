@@ -165,8 +165,6 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 if self._room_conflict_exists(teaching_block, slot, day_activities, context):
                     continue
 
-                # Preferència (no restricció): les compartides GI+GP van a principi o
-                # final de jornada, però si no hi ha lloc es col·loquen on es pugui.
                 edge_penalty = (
                     1
                     if self._shared_group_day_edge_conflict_exists(
@@ -174,7 +172,10 @@ class GreedyPlacementStrategy(PlacementStrategy):
                     )
                     else 0
                 )
-                key = (edge_penalty, *self._slot_preference_key(teaching_block, day, slot, day_activities, context))
+                key = (
+                    edge_penalty,
+                    *self._slot_preference_key(teaching_block, day, slot, day_activities, context),
+                )
                 if best_key is None or key < best_key:
                     best_key = key
                     best_candidate = ScheduledActivity(
@@ -1006,10 +1007,6 @@ class GreedyPlacementStrategy(PlacementStrategy):
                 return None
         elif (slot.day, slot.period) in group_conflict_slots:
             return None
-        if self._shared_group_day_edge_conflict_exists(
-            teaching_block, slot, required_slots, day_activities
-        ):
-            return None
         if not skip_group_gap_check and self._group_daily_gap_limit_conflict_exists(
             teaching_block, slot, day_activities, context
         ):
@@ -1033,7 +1030,6 @@ class GreedyPlacementStrategy(PlacementStrategy):
             return None
         if self._room_conflict_exists(teaching_block, slot, day_activities, context):
             return None
-
         metadata = teaching_block.metadata or {}
         return ScheduledActivity(
             teaching_block=teaching_block,

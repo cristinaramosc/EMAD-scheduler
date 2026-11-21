@@ -7,7 +7,6 @@ try:
     from backend.scheduler_engine.constraints.teacher_max_days import TeacherMaxDaysConstraint
     from backend.scheduler_engine.constraints.teacher_conflict import TeacherConflictConstraint
     from backend.scheduler_engine.constraints.room_conflict import RoomConflictConstraint
-    from backend.scheduler_engine.constraints.shared_group_day_edge import SharedGroupDayEdgeConstraint
 except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.models.schedule import Schedule
     from scheduler_engine.constraints.availability import AvailabilityConstraint
@@ -17,7 +16,6 @@ except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.constraints.teacher_max_days import TeacherMaxDaysConstraint
     from scheduler_engine.constraints.teacher_conflict import TeacherConflictConstraint
     from scheduler_engine.constraints.room_conflict import RoomConflictConstraint
-    from scheduler_engine.constraints.shared_group_day_edge import SharedGroupDayEdgeConstraint
 
 
 class SchedulerEngine:
@@ -30,9 +28,6 @@ class SchedulerEngine:
         self.configuration_provider = None
         self.constraints = [
             GroupConflictConstraint(),
-            # SharedGroupDayEdgeConstraint no es valida com a restricció: que les
-            # compartides GI+GP vagin a principi o final de dia és una preferència
-            # (es compta a SchedulePreferencePolicy), no un conflicte.
             AvailabilityConstraint(),
             GroupTimeWindowConstraint(),
             GroupMaxDaysConstraint(),
