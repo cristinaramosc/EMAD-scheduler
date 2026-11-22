@@ -1,0 +1,123 @@
+
+=== Grup 1R APGI ===
+Dilluns    8:00-10:30  Multimèdia UF2 · Bego · 1r APGI
+Dilluns    10:30-12:30  Hª del DG · Josep · 1r APGI
+Dilluns    12:30-14:30  FOL UF1 · Carme · 1r APGI
+Dimarts    8:00-10:00  Foto 1Q · Noëlle · 1r APGI
+Dimarts    8:00-10:00  Metodologia 2Q · Sònia · 1r APGI
+Dimarts    10:00-11:00  Fonaments DG · Noëlle · 1r APGI
+Dimarts    11:00-13:00  Mitjans informàtics · Alfred · 1r APGI
+Dimarts    13:00-15:00  Anglès UF1 Influences 2Q · Borja · 1r APGI
+Dimarts    13:00-15:00  Multimèdia UF1 1Q · Sònia · 1r APGI
+Dimecres   8:00-9:00  Edició web · Inno · 1r APGI
+Dimecres   9:00-11:00  Dx Tècnic · Bet · 1r APGI
+Dijous     11:00-13:00  Fonaments DG · Noëlle · 1r APGI
+Divendres  8:00-10:30  Edició web · Inno · 1r APGI
+Divendres  10:30-12:30  Tipografia · Noëlle · 1r APGI
+Divendres  13:00-15:00  Dx artístic · Bet · 1r APGI
+
+=== Grup 1R COM ===
+Dilluns    8:00-9:00  Taller · Marc F., Joan Carles · 1r COM
+Dilluns    9:00-11:00  FOL UF1 · Carme · 1r COM
+Dilluns    12:30-14:30  Dx artístic · Eulàlia · 1r COM
+Dimarts    9:30-11:30  Volum UF2 · Eulàlia · 1r COM
+Dimarts    12:00-14:00  Dx Tècnic · Bet · 1r COM
+Dimecres   9:00-11:00  Mitjans informàtics · Núria · 1r COM
+Dimecres   16:30-18:30  Hª de l'art UF1 · Bet · 1r COM
+Dimecres   18:30-19:30  Materials UF2 · Jordi · 1r COM
+Dijous     8:30-10:30  Taller · Jordi, Marc F. · 1r COM
+Dijous     10:30-12:30  Anglès UF2 Influences 2Q · Borja · 1r COM
+Divendres  8:00-11:00  Taller · Marc F., Joan Carles · 1r COM
+Divendres  11:00-12:00  Materials UF1 · Joan Carles · 1r COM
+Divendres  12:00-14:00  Projectes · Eli · 1r COM
+
+=== Grup 2N APGI ===
+Dilluns    8:30-10:30  Obra Final · Inno · 2n APGI
+Dilluns    10:30-11:30  Obra Final · Bego · 2n APGI
+Dilluns    12:00-15:00  Multimèdia UF3 i UF4 · Bego · 2n APGI
+Dimarts    9:00-10:00  Tipografia · Alfred · 2n APGI
+Dimarts    10:00-11:00  Dx artístic · Bet · 2n APGI
+Dimarts    12:30-14:30  ANG UF1 Behance my friend 1Q · Borja · 2n APGI
+Dimarts    12:30-14:30  Foto 2Q · Sònia · 2n APGI
+Dijous     10:00-13:00  Edició web · Inno · 2n APGI
+Divendres  8:30-11:30  GPP · Alfred · 2n APGI
+Divendres  11:30-12:30  FOL UF3 · Inno · 2n APGI
+Divendres  12:30-14:30  Mitjans informàtics 1Q · Alfred · 2n APGI
+Divendres  12:30-14:30  Packaging 2Q · Alfred · 2n APGI
+
+=== Grup 2N COM ===
+Dilluns    8:00-10:00  Volum UF1 2Q · Eulàlia · 2n COM
+Dilluns    9:00-11:00  Espais 1Q · Cristina · 2n COM
+Dilluns    11:00-13:00  Render de producte · Núria · 2n COM
+Dilluns    13:00-15:00  Impressió 3D 2Q · Cristina · 2n COM
+Dimecres   8:30-11:00  Taller · Jordi, Joan Carles · 2n COM
+Dimecres   11:30-13:30  Obra Final · Eli · 2n COM
+Dijous     8:00-9:30  Dx artístic · Eulàlia · 2n COM
+Dijous     9:30-11:30  ANG UF2 Behance my friend 1Q · Borja · 2n COM
+Dijous     11:30-15:00  Taller · Jordi, Joan Carles · 2n COM
+Divendres  8:00-10:00  GPP · Eli · 2n COM
+Divendres  10:00-11:00  GPP · Jordi · 2n COM
+Divendres  11:00-12:00  FOL UF3 · Bet · 2n COM
+Divendres  12:00-16:00  Taller · Jordi, Joan Carles · 2n COM
+
+=== Grup COMÚ ===
+Dilluns    15:00-17:30  Ll. Tec. Audio UF1 · Bego · Comú
+Dilluns    18:30-20:30  FOL UF1 · Carme · Comú
+Dilluns    20:30-21:30  Hª de la imatge UF1 · Noëlle · Comú
+Dimarts    15:00-17:00  Ll. disp. Taller producció · Eulàlia · Comú
+Dimarts    17:00-19:00  Foto UF1 i 2 · Noëlle · Comú
+Dimarts    19:30-21:30  Mitjans informàtics · Sònia · Comú
+Dimecres   15:00-16:30  Tipografia · Noëlle · Comú
+Dimecres   16:30-17:30  Mitjans informàtics · Sònia · Comú
+Dimecres   17:30-18:30  Màrqueting · Marc · Comú
+Dimecres   18:30-21:30  Fonaments expressió · Bet · Comú
+Dijous     15:00-17:00  Teoria de la  imatge · Bego · Comú
+Dijous     17:30-20:00  Projectes UF2 · Inno · Comú
+Dijous     20:00-21:30  Tipografia · Noëlle · Comú
+Divendres  15:00-17:00  Art Experience 2Q · Alfred · Comú
+Divendres  15:00-17:00  Proj UF1 1Q · Alfred · Comú
+Divendres  19:00-21:00  Ll. programació · Inno · Comú
+
+=== Grup GI ===
+Dilluns    15:00-17:00  Projecte Integrat · Sònia · GI
+Dilluns    17:00-18:00  Projecte Integrat · Cristina · GI
+Dilluns    18:00-19:00  FOL GPP · Bego · GI
+Dilluns    19:00-21:30  GPP · Marc · GI
+Dimarts    15:00-16:30  Interfícies gràfiques · Sònia · GI
+Dimarts    16:30-17:30  GPP · Bego · GI
+Dimarts    17:30-21:30  Ll. Tec. Audio UF3 1Q · Bego · GI
+Dimecres   16:00-18:00  Hª del DG · Josep · GI
+Dimecres   18:00-19:30  Interfícies gràfiques · Sònia · GI
+Dimecres   19:30-21:30  Ll. disp. comunicació projecte 2Q · Sònia · GI, GP
+Dijous     15:00-17:00  Ll. programació · Inno · GI
+Dijous     17:30-20:00  Projectes UF3 · Marc · GI
+Dijous     20:00-21:30  GPP · Bego · GI
+Divendres  16:30-19:30  Ll. Tec. Audio UF3 2Q · Bego · GI, GP
+Divendres  17:30-19:30  Projectes UF4 1Q · Sònia · GI
+Divendres  19:30-21:30  Foto UF3 · Noëlle · GI, GP
+
+=== Grup GP ===
+Dilluns    15:00-16:00  FOL UF3 · Inno · GP
+Dilluns    16:00-18:00  GPP · Josep · GP
+Dilluns    18:00-21:00  GPP · Cristina · GP
+Dimarts    15:00-19:00  Fonaments DG · Bet · GP
+Dimarts    19:30-21:30  Teoria publ i mkt · Marc · GP
+Dimecres   16:30-18:30  Projecte Integrat · Cristina · GP
+Dimecres   18:30-19:30  Projecte Integrat · Eli · GP
+Dimecres   19:30-21:30  Ll. disp. comunicació projecte 2Q · Sònia · GI, GP
+Dimecres   19:30-21:30  Projectes UF4 1Q · Cristina · GP
+Dijous     15:00-17:30  Projectes UF3 · Josep · GP
+Dijous     17:30-19:30  Tipografia · Josep · GP
+Dijous     19:30-21:30  Hª del DG · Josep · GP
+Divendres  16:30-19:30  Ll. Tec. Audio UF3 2Q · Bego · GI, GP
+Divendres  19:30-21:30  Foto UF3 · Noëlle · GI, GP
+
+=== Grup PFI ===
+Dilluns    9:30-11:30  Projecte · Sara · PFI
+Dimarts    11:30-12:30  MFG4 Mon Professional · Sara · PFI
+Dimarts    12:30-14:00  MFG2 Social · Imma · PFI
+Dimecres   8:00-9:30  MFG1 Comunicació · Imma · PFI
+Dimecres   9:30-11:30  PFI M3 Mates · Judit · PFI
+Dijous     11:00-13:00  MFG1 Comunicació · Imma · PFI
+Divendres  10:30-12:30  MPRL · Sara · PFI
+Divendres  12:30-14:00  PFI M3 Mates · Judit · PFI
