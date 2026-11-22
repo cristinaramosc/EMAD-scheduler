@@ -133,7 +133,9 @@ class SchedulerGenerator:
             scheduled_activities = self._arrange_consecutive_pairs(scheduled_activities, context)
             scheduled_activities = self._repair_group_gaps(scheduled_activities, context)
             if not scheduled_activities and placement_warnings:
-                warnings.extend(placement_warnings)
+                # Totes les passades fallen sobre els mateixos blocs: es
+                # substitueix en lloc d'afegir, o les incidències es dupliquen.
+                warnings[:] = list(placement_warnings)
                 return None
 
             proposal = self._build_proposal(scheduled_activities, placement_warnings, "phase-1", context)
