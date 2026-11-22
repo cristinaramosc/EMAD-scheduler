@@ -27,6 +27,9 @@ class SchedulerGenerator:
     """Deterministic scheduler with a bounded fallback search."""
 
     _BACKTRACKING_MAX_STATES = 5000
+    # Temps total (segons) que poden gastar, entre totes, les cerques amb
+    # backtracking d'una generació. Quan s'esgota, es deixa de reintentar.
+    _BACKTRACKING_TIME_BUDGET_S = 5.0
 
     def __init__(self, placement_strategy: Optional[PlacementStrategy] = None, scorer: Optional[ProposalScorer] = None) -> None:
         self._placement_strategy = placement_strategy or GreedyPlacementStrategy()
@@ -72,6 +75,10 @@ class SchedulerGenerator:
         self._consecutive_block_ids = self._consecutive_ids(context.configuration["pair_partners"])
 
         orderings = self._build_orderings(teaching_blocks, context)
+        backtracking_deadline = time.perf_counter() + self._BACKTRACKING_TIME_BUDGET_S
+        # El voraç és determinista: el resultat de la 1a ronda es reaprofita
+        # a la 2a en lloc de tornar-lo a calcular.
+        greedy_cache: dict = {}
 
         def run(
             ordering,
@@ -80,7 +87,13 @@ class SchedulerGenerator:
         ) -> Optional[int]:
             nonlocal generated_scheduled_activities
             context.configuration["use_preferred_days"] = use_preferred_days
-            scheduled_activities, placement_warnings = self._generate_for_ordering(ordering, context)
+            cache_key = (id(ordering), use_preferred_days)
+            if cache_key in greedy_cache:
+                cached_activities, cached_warnings = greedy_cache[cache_key]
+                scheduled_activities, placement_warnings = list(cached_activities), list(cached_warnings)
+            else:
+                scheduled_activities, placement_warnings = self._generate_for_ordering(ordering, context)
+                greedy_cache[cache_key] = (list(scheduled_activities), list(placement_warnings))
             backtracking_used = False
             initial_metrics = self._preference_metrics(scheduled_activities, context)
             current_rank = self._activity_preference_rank(
@@ -96,7 +109,12 @@ class SchedulerGenerator:
                     "preferred_day_misses",
                 )
             )
-            if allow_backtracking and (placement_warnings or needs_preference_search):
+            if (
+                allow_backtracking
+                and (placement_warnings or needs_preference_search)
+                and time.perf_counter() < backtracking_deadline
+            ):
+                self._backtracking_deadline = backtracking_deadline
                 searched_activities = self._bounded_backtracking_search(ordering, context)
                 if searched_activities is not None:
                     searched_metrics = self._preference_metrics(searched_activities, context)
@@ -1830,6 +1848,10 @@ class SchedulerGenerator:
         ) -> Optional[List[ScheduledActivity]]:
             nonlocal best_schedule, best_rank, visited_states
             if visited_states >= self._BACKTRACKING_MAX_STATES:
+                return None
+            deadline = getattr(self, "_backtracking_deadline", None)
+            if deadline is not None and time.perf_counter() >= deadline:
+                visited_states = self._BACKTRACKING_MAX_STATES
                 return None
             visited_states += 1
 
