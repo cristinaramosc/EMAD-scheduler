@@ -18,6 +18,7 @@ from .models import Activity, Conflict, GenerationContext, GenerationResult, Sch
 from .placement_strategy import GreedyPlacementStrategy, PlacementStrategy
 from .preference_policy import SchedulePreferencePolicy
 from .quarter_utils import group_names, is_valid_quarter_pair, parent_and_quarter, quarter_suffix
+from .solver_repair import solve_requirements, solver_available
 from .subject_utils import is_non_class_subject, is_non_lective_tutoria
 from .teacher_utils import teacher_label, teacher_names
 from .proposal_scorer import ProposalScorer
@@ -30,6 +31,9 @@ class SchedulerGenerator:
     # Temps total (segons) que poden gastar, entre totes, les cerques amb
     # backtracking d'una generació. Quan s'esgota, es deixa de reintentar.
     _BACKTRACKING_TIME_BUDGET_S = 5.0
+    # Temps màxim (segons) del solver exacte que intenta col·locar els blocs
+    # que el voraç no ha pogut col·locar. Sense `ortools` no es fa res.
+    _SOLVER_REPAIR_TIME_LIMIT_S = 20.0
 
     def __init__(self, placement_strategy: Optional[PlacementStrategy] = None, scorer: Optional[ProposalScorer] = None) -> None:
         self._placement_strategy = placement_strategy or GreedyPlacementStrategy()
@@ -198,6 +202,15 @@ class SchedulerGenerator:
                 run(ordering, False, allow_backtracking=True)
         context.configuration["use_preferred_days"] = True
 
+        # Si la millor proposta del voraç deixa blocs sense col·locar, es
+        # prova de resoldre el problema sencer amb un solver exacte. La
+        # proposta resultant entra al rànquing com qualsevol altra.
+        repaired: Optional[ScheduleProposal] = None
+        if requirements_input is not None and (not proposals or min(len(p.warnings) for p in proposals) > 0):
+            repaired = self._try_solver_repair(requirements_input, context, proposals)
+            if repaired is not None:
+                proposals.append(repaired)
+
         proposals.sort(
             key=lambda proposal: SchedulePreferencePolicy.ranking_key(
                 hard_conflicts=len(proposal.conflicts),
@@ -209,6 +222,14 @@ class SchedulerGenerator:
                 quality_score=proposal.score,
             )
         )
+        # Una proposta completa del solver passa al davant: el rànquing del
+        # generador compta conflictes amb un detector bàsic i podria deixar
+        # per davant una proposta amb blocs sense col·locar.
+        if repaired is not None and not repaired.warnings:
+            if proposals[0] is not repaired:
+                proposals.remove(repaired)
+                proposals.insert(0, repaired)
+            generated_scheduled_activities = list((repaired.metadata or {}).get("scheduled_activities", []))
         del proposals[max_proposals + 2:]
         result_warnings = proposals[0].warnings if proposals else warnings
         elapsed_ms = round((time.perf_counter() - started_at) * 1000, 3)
@@ -412,6 +433,98 @@ class SchedulerGenerator:
 
             blocks.extend(chosen_teaching_blocks)
         return blocks
+
+    def _try_solver_repair(
+        self,
+        requirements: Sequence[TeachingRequirement],
+        context: GenerationContext,
+        proposals: Sequence[ScheduleProposal],
+    ) -> Optional[ScheduleProposal]:
+        """Intenta una proposta completa amb el solver exacte (opcional)."""
+        if not solver_available():
+            return None
+        best = min(proposals, key=lambda item: len(item.warnings)) if proposals else None
+        index_by_id = {requirement.id: index for index, requirement in enumerate(requirements)}
+        hint = {}
+        for activity in ((best.metadata or {}).get("scheduled_activities", []) if best is not None else []):
+            block_metadata = activity.teaching_block.metadata or {}
+            index = index_by_id.get(block_metadata.get("requirement_id"))
+            if index is not None:
+                hint[(index, activity.teaching_block.order)] = (activity.day, activity.start_timeslot.period)
+
+        index_by_key = {
+            (str(r.subject_id).strip(), str(r.group_id).strip(), str(r.teacher_id).strip()): index
+            for index, r in enumerate(requirements)
+        }
+        pairs = []
+        for pair in context.configuration.get("consecutive_pairs") or []:
+            first, second = index_by_key.get(tuple(pair["a"])), index_by_key.get(tuple(pair["b"]))
+            if first is not None and second is not None:
+                pairs.append((first, second))
+
+        try:
+            placements = solve_requirements(
+                requirements,
+                context,
+                time_limit_s=self._SOLVER_REPAIR_TIME_LIMIT_S,
+                hint=hint,
+                consecutive_pairs=pairs,
+            )
+        except Exception:  # el solver és opcional: mai ha de trencar la generació
+            return None
+        if not placements:
+            return None
+
+        scheduled_activities: List[ScheduledActivity] = []
+        for index, order, duration, day, period in sorted(placements):
+            requirement = requirements[index]
+            block = TeachingBlock(
+                id=f"solver-{requirement.id}-{order}",
+                duration=0.5,
+                order=order,
+                duration_blocks=duration,
+                preferred_room_id=(requirement.preferred_rooms[0] if requirement.preferred_rooms else None),
+                preferred_teacher_id=requirement.teacher_id,
+                fixed=False,
+                metadata={
+                    "requirement_id": requirement.id,
+                    "max_distribution_days": requirement.max_distribution_days,
+                    "preferred_days": requirement.preferred_days,
+                    "priority": requirement.priority,
+                    "group_id": requirement.group_id,
+                    "subject_id": requirement.subject_id,
+                    "teacher_id": requirement.teacher_id,
+                    "group": str(requirement.group_id),
+                    "subject": str(requirement.subject_id),
+                    "teacher": teacher_label(requirement.teacher_id),
+                },
+            )
+            scheduled_activities.append(
+                ScheduledActivity(
+                    teaching_block=block,
+                    day=day,
+                    start_timeslot=TimeSlot(day=day, period=period),
+                    duration=duration,
+                    room_id=block.preferred_room_id,
+                    teacher_id=block.preferred_teacher_id,
+                    group_id=str(requirement.group_id),
+                )
+            )
+
+        proposal = self._build_proposal(scheduled_activities, [], "phase-1", context)
+        proposal.conflicts = self._detect_conflicts(proposal)
+        breakdown = self._scorer.calculate(proposal, context)
+        proposal.score = breakdown.total_score
+        proposal.score_breakdown = breakdown
+        proposal.metadata = {
+            **(proposal.metadata or {}),
+            "score_breakdown": breakdown,
+            "ignores_preferred_days": False,
+            **self._preference_metrics(scheduled_activities, context),
+            "bounded_backtracking": False,
+            "solver_repaired": True,
+        }
+        return proposal
 
     def _detect_conflicts(self, proposal: ScheduleProposal) -> List[Conflict]:
         conflicts: List[Conflict] = []

@@ -9,3 +9,4 @@ reportlab
 anthropic
 python-multipart
 truststore
+ortools
