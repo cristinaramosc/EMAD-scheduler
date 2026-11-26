@@ -229,6 +229,30 @@ class RoomUpdateDTO(BaseModel):
     unavailable_slots: Optional[List[str]] = None
 
 
+class CoordinationMeetingDTO(BaseModel):
+    name: str
+    active: Optional[bool] = True
+    coordinator: str
+    participants: Optional[List[str]] = []
+    hours: Optional[float] = Field(default=1.0, gt=0)
+    preferred_day: Optional[str] = "Dimecres"
+    window_start: Optional[str] = "8:00"
+    window_end: Optional[str] = "14:00"
+    series: Optional[str] = ""
+
+
+class CoordinationMeetingUpdateDTO(BaseModel):
+    name: Optional[str] = None
+    active: Optional[bool] = None
+    coordinator: Optional[str] = None
+    participants: Optional[List[str]] = None
+    hours: Optional[float] = Field(default=None, gt=0)
+    preferred_day: Optional[str] = None
+    window_start: Optional[str] = None
+    window_end: Optional[str] = None
+    series: Optional[str] = None
+
+
 class AssignmentDTO(BaseModel):
     teacher: str
     subject: str
@@ -597,6 +621,55 @@ def delete_room(name: str):
         repo.delete_room(name)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    return {"ok": True}
+
+
+def _check_meeting_teachers(repo, record: dict) -> None:
+    known = {str(t.get("name") or "").strip().casefold() for t in repo.list_teachers()}
+    for member in [record.get("coordinator"), *(record.get("participants") or [])]:
+        if member and str(member).strip().casefold() not in known:
+            raise HTTPException(status_code=400, detail=f"teacher_not_found: {member}")
+
+
+@router.get("/coordination-meetings")
+def list_coordination_meetings():
+    return get_academic_data_repo().list_coordination_meetings()
+
+
+@router.post("/coordination-meetings")
+def create_coordination_meeting(payload: CoordinationMeetingDTO):
+    repo = get_academic_data_repo()
+    record = payload.model_dump()
+    _check_meeting_teachers(repo, record)
+    try:
+        repo.create_coordination_meeting(record)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"ok": True}
+
+
+@router.patch("/coordination-meetings/{name}")
+def update_coordination_meeting(name: str, payload: CoordinationMeetingUpdateDTO):
+    repo = get_academic_data_repo()
+    current = next((m for m in repo.list_coordination_meetings() if m["name"].casefold() == name.casefold()), None)
+    if current is None:
+        raise HTTPException(status_code=404, detail="coordination_meeting_not_found")
+    updated = {**current, **{k: v for k, v in payload.model_dump().items() if v is not None}}
+    _check_meeting_teachers(repo, updated)
+    try:
+        repo.update_coordination_meeting(current["name"], updated)
+    except (KeyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"ok": True}
+
+
+@router.delete("/coordination-meetings/{name}")
+def delete_coordination_meeting(name: str):
+    repo = get_academic_data_repo()
+    try:
+        repo.delete_coordination_meeting(name)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
     return {"ok": True}
 
 

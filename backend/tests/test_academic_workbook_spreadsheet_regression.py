@@ -122,7 +122,7 @@ def test_export_then_import_round_trips_tutor_split_capacity_lengths_and_consecu
     repo2 = AcademicDataRepository()
     result = import_workbook(repo2, buffer.getvalue())
 
-    assert result == {"teachers": 2, "groups": 1, "rooms": 1, "assignments": 2}
+    assert result == {"teachers": 2, "groups": 1, "rooms": 1, "assignments": 2, "coordination_meetings": 0}
 
     group = next(g for g in repo2.list_groups() if g["name"] == "2n COM")
     assert group["tutor"] == "Jordi"

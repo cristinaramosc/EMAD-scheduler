@@ -89,6 +89,18 @@ ROOM_COLUMNS = [
     ("capacity", "Capacitat"),
 ]
 
+MEETING_COLUMNS = [
+    ("name", "Nom de la reunió"),
+    ("active", "Activa (Sí/No)"),
+    ("coordinator", "Coordinador/a"),
+    ("participants", "Participants (separats per coma)"),
+    ("hours", "Durada (hores)"),
+    ("preferred_day", "Dia preferit"),
+    ("window_start", "Franja preferida: de (p.ex. 8:00)"),
+    ("window_end", "Franja preferida: fins (p.ex. 14:00)"),
+    ("series", "Seguides amb (mateix nom de sèrie)"),
+]
+
 
 def _bool_to_text(value: Any) -> str:
     return "Sí" if value else "No"
@@ -292,6 +304,23 @@ def _room_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
     ]
 
 
+def _meeting_rows(repo: AcademicDataRepository) -> List[Dict[str, Any]]:
+    return [
+        {
+            "name": meeting.get("name", ""),
+            "active": _bool_to_text(meeting.get("active", True)),
+            "coordinator": meeting.get("coordinator", ""),
+            "participants": ", ".join(meeting.get("participants") or []),
+            "hours": _format_hours(meeting.get("hours")),
+            "preferred_day": meeting.get("preferred_day", ""),
+            "window_start": meeting.get("window_start", ""),
+            "window_end": meeting.get("window_end", ""),
+            "series": meeting.get("series", ""),
+        }
+        for meeting in repo.list_coordination_meetings()
+    ]
+
+
 def build_workbook(repo: AcademicDataRepository | None, blank: bool) -> BytesIO:
     """Construeix el full de càlcul. Si blank=True, només hi ha les
     capçaleres (per començar de zero); si no, s'omple amb les dades actuals."""
@@ -302,6 +331,7 @@ def build_workbook(repo: AcademicDataRepository | None, blank: bool) -> BytesIO:
     group_rows = [] if blank else _group_rows(repo)
     subject_rows = [] if blank else _subject_rows(repo)
     room_rows = [] if blank else _room_rows(repo)
+    meeting_rows = [] if blank else _meeting_rows(repo)
 
     _write_sheet(
         workbook, "Professors", TEACHER_COLUMNS, teacher_rows,
@@ -317,6 +347,14 @@ def build_workbook(repo: AcademicDataRepository | None, blank: bool) -> BytesIO:
     )
     _write_sheet(
         workbook, "Aules", ROOM_COLUMNS, room_rows,
+    )
+    _write_sheet(
+        workbook, "Coordinacions", MEETING_COLUMNS, meeting_rows,
+        note=(
+            "Reunions de coordinació conjuntes: cada fila és una hora que fan juntes el coordinador/a i els "
+            "participants. Les reunions amb el mateix nom de sèrie s'intenten posar seguides, el dia i la "
+            "franja preferits. Per canviar de coordinador/a o de durada, edita la fila."
+        ),
     )
 
     buffer = BytesIO()
@@ -369,6 +407,8 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
     group_rows = _read_sheet_rows(workbook, "Grups", GROUP_COLUMNS)
     subject_rows = _read_sheet_rows(workbook, "Assignatures", SUBJECT_COLUMNS)
     room_rows = _read_sheet_rows(workbook, "Aules", ROOM_COLUMNS)
+    has_meetings_sheet = "Coordinacions" in workbook.sheetnames
+    meeting_rows = _read_sheet_rows(workbook, "Coordinacions", MEETING_COLUMNS) if has_meetings_sheet else []
 
     for existing in list(repo.active_canonical_assignments()):
         repo.delete_canonical_assignment(existing["id"])
@@ -468,11 +508,24 @@ def import_workbook(repo: AcademicDataRepository, file_bytes: bytes) -> Dict[str
         })
         assignments_created += 1
 
+    # Un Excel antic sense el full "Coordinacions" no esborra les reunions que
+    # ja hi ha; si el full hi és (encara que sigui buit), les substitueix.
+    meetings_created = 0
+    if has_meetings_sheet:
+        for existing in list(repo.list_coordination_meetings()):
+            repo.delete_coordination_meeting(existing["name"])
+        for row in meeting_rows:
+            if not str(row.get("name") or "").strip():
+                continue
+            repo.create_coordination_meeting(row)
+            meetings_created += 1
+
     return {
         "teachers": teachers_created,
         "groups": groups_created,
         "rooms": rooms_created,
         "assignments": assignments_created,
+        "coordination_meetings": meetings_created,
     }
 
 
@@ -512,4 +565,5 @@ async def import_spreadsheet(file: UploadFile = File(...)):
         "groups": result["groups"],
         "assignments": result["assignments"],
         "rooms": result["rooms"],
+        "coordination_meetings": result["coordination_meetings"],
     }

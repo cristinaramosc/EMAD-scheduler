@@ -28,6 +28,7 @@ class AcademicImportReport:
     teacher_restrictions: DatasetDelta
     group_restrictions: DatasetDelta
     warnings: List[str] = field(default_factory=list)
+    coordination_meetings: DatasetDelta = field(default_factory=lambda: DatasetDelta())
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -38,6 +39,7 @@ class AcademicImportReport:
             "rooms": _delta_to_dict(self.rooms),
             "teacher_restrictions": _delta_to_dict(self.teacher_restrictions),
             "group_restrictions": _delta_to_dict(self.group_restrictions),
+            "coordination_meetings": _delta_to_dict(self.coordination_meetings),
             "warnings": list(self.warnings),
             "summary": {
                 "teachers_imported": self.teachers.imported,
@@ -59,6 +61,12 @@ def _delta_to_dict(delta: DatasetDelta) -> Dict[str, Any]:
     }
 
 
+try:
+    from backend.services.coordination_meetings import normalize_meeting
+except ModuleNotFoundError:  # pragma: no cover
+    from services.coordination_meetings import normalize_meeting
+
+
 def _normalize_key(value: str) -> str:
     return value.strip().lower()
 
@@ -72,6 +80,8 @@ class AcademicDataRepository:
         self._rooms: Store = {}
         self._teacher_restrictions: Store = {}
         self._group_restrictions: Store = {}
+        # reunions de coordinació conjuntes (vegeu services/coordination_meetings.py)
+        self._coordination_meetings: Store = {}
         # canonical assignments represent weekly loads per assignment row
         self._canonical_assignments: Store = {}
         self._next_assignment_id = 1
@@ -123,6 +133,14 @@ class AcademicDataRepository:
                 lambda record: _normalize_key(record["group"]),
             )
 
+        coordination_meetings = DatasetDelta()
+        if "coordination_meetings" in snapshot:
+            coordination_meetings = self._apply_dataset(
+                self._coordination_meetings,
+                [normalize_meeting(record) for record in snapshot.get("coordination_meetings", [])],
+                lambda record: _normalize_key(record["name"]),
+            )
+
         return AcademicImportReport(
             teachers=teachers,
             groups=groups,
@@ -132,6 +150,7 @@ class AcademicDataRepository:
             teacher_restrictions=teacher_restrictions,
             group_restrictions=group_restrictions,
             warnings=list(warnings or []),
+            coordination_meetings=coordination_meetings,
         )
 
     def summary(self) -> Dict[str, Any]:
@@ -169,6 +188,7 @@ class AcademicDataRepository:
             "restrictions": len(active_teacher_restrictions) + len(active_group_restrictions),
             "teacher_restrictions": len(active_teacher_restrictions),
             "group_restrictions": len(active_group_restrictions),
+            "coordination_meetings": len(self._active_records(self._coordination_meetings)),
         }
 
     def clear_all(self) -> None:
@@ -179,6 +199,7 @@ class AcademicDataRepository:
         self._rooms.clear()
         self._teacher_restrictions.clear()
         self._group_restrictions.clear()
+        self._coordination_meetings.clear()
         self._canonical_assignments.clear()
         self._breaks = []
         self._next_assignment_id = 1
@@ -459,6 +480,14 @@ class AcademicDataRepository:
         if restriction and restriction.get("active", False):
             restriction["record"]["teacher"] = new_name
             self._teacher_restrictions[new_key] = restriction
+        for entry in self._coordination_meetings.values():
+            record = entry.get("record", {})
+            if _normalize_key(str(record.get("coordinator") or "")) == old_key:
+                record["coordinator"] = new_name
+            record["participants"] = [
+                new_name if _normalize_key(str(name)) == old_key else name
+                for name in record.get("participants") or []
+            ]
 
     def list_groups(self) -> List[Record]:
         return self._active_records(self._groups)
@@ -584,6 +613,38 @@ class AcademicDataRepository:
             if record.get("preferred_room") == old_name:
                 record["preferred_room"] = new_name
                 self._rebuild_sessions_for_canonical(record["id"])
+
+    def list_coordination_meetings(self) -> List[Record]:
+        return [normalize_meeting(record) for record in self._active_records(self._coordination_meetings)]
+
+    def create_coordination_meeting(self, record: Record) -> None:
+        record = normalize_meeting(record)
+        key = _normalize_key(record["name"])
+        if not key:
+            raise ValueError("coordination_meeting_name_required")
+        if self._coordination_meetings.get(key) and self._coordination_meetings[key].get("active", False):
+            raise KeyError("coordination_meeting_already_exists")
+        self._coordination_meetings[key] = {"record": record, "active": True}
+
+    def update_coordination_meeting(self, old_name: str, record: Record) -> None:
+        old_key = _normalize_key(old_name)
+        existing = self._coordination_meetings.get(old_key)
+        if existing is None or not existing.get("active", False):
+            raise KeyError("coordination_meeting_not_found")
+        record = normalize_meeting(record)
+        new_key = _normalize_key(record["name"])
+        if not new_key:
+            raise ValueError("coordination_meeting_name_required")
+        if new_key != old_key and self._coordination_meetings.get(new_key) and self._coordination_meetings[new_key].get("active", False):
+            raise KeyError("coordination_meeting_already_exists")
+        self._coordination_meetings.pop(old_key)
+        self._coordination_meetings[new_key] = {"record": record, "active": True}
+
+    def delete_coordination_meeting(self, name: str) -> None:
+        existing = self._coordination_meetings.get(_normalize_key(name))
+        if existing is None or not existing.get("active", False):
+            raise KeyError("coordination_meeting_not_found")
+        existing["active"] = False
 
     def list_teacher_restrictions(self) -> List[Record]:
         return self._active_records(self._teacher_restrictions)

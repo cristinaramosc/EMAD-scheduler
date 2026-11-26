@@ -20,7 +20,9 @@ from backend.scheduler_engine.models import (
 from backend.scheduler_engine.solver_repair import solve_requirements
 
 
-def _requirement(req_id: str, group: str, teacher: str, hours: float = 2.0) -> TeachingRequirement:
+def _requirement(
+    req_id: str, group: str, teacher: str, hours: float = 2.0, room: str = ""
+) -> TeachingRequirement:
     return TeachingRequirement(
         id=req_id,
         group_id=group,
@@ -32,6 +34,7 @@ def _requirement(req_id: str, group: str, teacher: str, hours: float = 2.0) -> T
         min_block_duration=0.5,
         max_consecutive_hours=hours,
         allow_half_hour_blocks=False,
+        preferred_rooms=[room] if room else [],
     )
 
 
@@ -181,3 +184,115 @@ def test_solver_puts_a_quarter_pair_of_the_same_teacher_in_the_same_slot():
     assert placements is not None
     starts = {(day, start) for _i, _o, _duration, day, start in placements}
     assert len(starts) == 1
+
+
+def test_solver_prefers_to_start_as_early_as_possible():
+    pytest.importorskip("ortools")
+
+    placements = solve_requirements([_requirement("a", "G1", "Marta", hours=1.0)], _context(periods=8), time_limit_s=10)
+
+    assert placements is not None
+    assert [start for _i, _o, _d, _day, start in placements] == [0]
+
+
+def test_solver_packs_blocks_from_the_start_of_the_day():
+    pytest.importorskip("ortools")
+    requirements = [_requirement("a", "G1", "Marta", hours=1.0), _requirement("b", "G1", "Pere", hours=1.0)]
+
+    placements = solve_requirements(requirements, _context(periods=8), time_limit_s=10)
+
+    assert placements is not None
+    assert sorted(start for _i, _o, _d, _day, start in placements) == [0, 2]
+
+
+def test_solver_does_not_put_two_activities_in_the_same_room_at_once():
+    pytest.importorskip("ortools")
+    requirements = [
+        _requirement("a", "G1", "Marta", hours=1.0, room="Taller"),
+        _requirement("b", "G2", "Pere", hours=1.0, room="Taller"),
+    ]
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0], periods_per_day=8),
+        existing_scheduled_activities=(),
+        configuration={"room_constraints_enabled": True},
+    )
+
+    placements = solve_requirements(requirements, context, time_limit_s=10)
+
+    assert placements is not None
+    (_first_start, first_end), (second_start, _second_end) = _intervals(placements)
+    assert first_end <= second_start
+
+
+def test_solver_does_not_count_a_fixed_coordination_as_a_class_day():
+    pytest.importorskip("ortools")
+    meeting = ScheduledActivity(
+        teaching_block=TeachingBlock(
+            id="fixed-meeting",
+            duration=1.0,
+            order=0,
+            duration_blocks=2,
+            fixed=True,
+            metadata={"subject": "Coordinació conjunta · Gràfic", "teacher": "Marta"},
+        ),
+        day=1,
+        start_timeslot=TimeSlot(day=1, period=0),
+        duration=2,
+        teacher_id="Marta",
+        group_id="",
+        metadata={"subject": "Coordinació conjunta · Gràfic"},
+    )
+    # El dia 1 només té lliures les franges de la reunió: la classe només cap el dia 0.
+    rest_of_day_1 = ScheduledActivity(
+        teaching_block=TeachingBlock(
+            id="blocked-rest",
+            duration=0.5,
+            order=0,
+            duration_blocks=1,
+            metadata={"synthetic": True, "constraint": "teacher_not_available"},
+        ),
+        day=1,
+        start_timeslot=TimeSlot(day=1, period=2),
+        duration=6,
+        teacher_id="Marta",
+        group_id="",
+        metadata={"synthetic": True, "constraint": "teacher_not_available"},
+    )
+    context = GenerationContext(
+        school_calendar=SchoolCalendar(days=[0, 1], periods_per_day=8),
+        existing_scheduled_activities=(meeting, rest_of_day_1),
+        fixed_activities=(meeting,),
+        configuration={"teacher_max_days_constraints": {"marta": 1}},
+    )
+
+    placements = solve_requirements([_requirement("a", "G1", "Marta", hours=1.0)], context, time_limit_s=10)
+
+    assert placements is not None
+    assert all(day == 0 for _i, _o, _d, day, _start in placements)
+
+
+def test_a_quarter_pair_counts_as_together_when_it_starts_or_ends_at_the_same_time():
+    from backend.scheduler_engine.solver_repair import _quarter_aligned
+
+    assert _quarter_aligned((0, 4), (0, 4), 8, 6)  # mateix inici
+    assert _quarter_aligned((0, 2), (0, 4), 8, 6)  # una de 4 h i una de 3 h que acaben a la vegada
+    assert not _quarter_aligned((0, 2), (0, 5), 8, 6)
+    assert not _quarter_aligned((0, 4), (1, 4), 8, 8)  # un altre dia
+    assert not _quarter_aligned(None, (0, 4), 8, 6)
+
+
+@pytest.mark.parametrize("order", [("F", "2Q"), ("2Q", "F")])
+def test_a_class_that_only_runs_one_semester_goes_after_the_full_year_class(order):
+    pytest.importorskip("ortools")
+    by_id = {
+        "F": _requirement("F", "G1", "Marta", hours=1.0),
+        "2Q": _requirement("2Q", "G1", "Pere", hours=1.0),
+    }
+    requirements = [by_id[key] for key in order]
+
+    placements = solve_requirements(requirements, _context(periods=8), time_limit_s=10)
+
+    assert placements is not None
+    start = {requirements[i].id: begin for i, _o, _d, _day, begin in placements}
+    # així, durant el 1r quadrimestre el grup comença a la primera franja
+    assert start["F"] == 0 and start["2Q"] == 2

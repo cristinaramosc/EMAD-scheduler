@@ -34,6 +34,7 @@ from reportlab.pdfgen import canvas
 if __package__ and __package__.startswith("backend"):
     from backend.scheduler_engine.quarter_utils import parent_and_quarter, strip_quarter_suffix
     from backend.services.contract_hours import contract_hours
+    from backend.services.coordination_meetings import is_joint_coordination_subject
     from backend.services.group_order import group_sort_key
     from backend.services.schedule_exporter import (
         _LOGO_PATH,
@@ -45,6 +46,7 @@ if __package__ and __package__.startswith("backend"):
 else:  # pragma: no cover
     from scheduler_engine.quarter_utils import parent_and_quarter, strip_quarter_suffix
     from services.contract_hours import contract_hours
+    from services.coordination_meetings import is_joint_coordination_subject
     from services.group_order import group_sort_key
     from services.schedule_exporter import (
         _LOGO_PATH,
@@ -400,6 +402,10 @@ def _block_texts(sheet_kind: str, kind: str, activity: Dict[str, Any], coordinat
     if kind == "coordination_fixed":
         return "Coordinació", ""
     if kind == "coordination":
+        if is_joint_coordination_subject(subject):
+            # Reunió conjunta: es mostra amb el seu propi nom (p. ex. "Coordinació
+            # conjunta · Gràfic") i no amb el de la coordinació habitual del professor.
+            return subject, ""
         name = coordination_names.get(_norm(teacher), "")
         return name or "Coordinació", ""
     if kind == "tutoria":

@@ -41,6 +41,7 @@ def test_clear_all_removes_every_academic_record():
         "restrictions": 0,
         "teacher_restrictions": 0,
         "group_restrictions": 0,
+        "coordination_meetings": 0,
     }
     assert repo.active_teaching_assignments() == []
     assert repo.active_canonical_assignments() == []

@@ -44,6 +44,11 @@ except ModuleNotFoundError:  # pragma: no cover
     )
     from backend.services.session_decomposer import SessionDecomposer, SessionDecompositionError
 
+try:
+    from backend.services.coordination_meetings import plan_meetings
+except ModuleNotFoundError:  # pragma: no cover
+    from services.coordination_meetings import plan_meetings
+
 from .serializers import serialize_activity, serialize_conflict, serialize_conflicts, serialize_proposal
 
 
@@ -326,6 +331,12 @@ class SchedulerUseCases:
         requirements = self._order_requirements_by_scarce_days(
             requirements, blocked_activities, max_days_teacher_names
         )
+        # Reunions de coordinació conjuntes: s'hi reserva l'hora abans de generar
+        # les classes (com una activitat fixa), perquè no hi quedin tapades.
+        meeting_activities, meeting_report = self._plan_coordination_meeting_activities(
+            blocked_activities, day_names, hour_names
+        )
+        fixed_scheduled_activities += meeting_activities
         blocked_activities += fixed_scheduled_activities
 
         split_groups = {
@@ -549,6 +560,7 @@ class SchedulerUseCases:
                 "fixed_activities_total": len(fixed_activities),
             },
             "unscheduled_activities": unscheduled_from_warnings,
+            "coordination_meetings": meeting_report,
         }
 
     def accept_proposal(self, proposal_id: str) -> Dict[str, Any]:
@@ -1244,6 +1256,94 @@ class SchedulerUseCases:
                 locked_assignment["fixed_day"], locked_assignment["fixed_start"] = placement
                 return locked_assignment
         return assignment
+
+    def _plan_coordination_meeting_activities(
+        self,
+        blocked_activities: List[ScheduledActivity],
+        day_names: List[str],
+        hour_names: List[str],
+    ) -> Tuple[List[ScheduledActivity], Dict[str, Any]]:
+        """Planifica les reunions de coordinació conjuntes de les dades
+        acadèmiques i les retorna com a activitats fixes (una per reunió, amb
+        tots els assistents). Retorna també un informe amb el que s'ha
+        planificat i el que no s'ha pogut (professor desconegut o sense franja
+        comuna), perquè res no desaparegui en silenci."""
+        report: Dict[str, Any] = {"planned": [], "unplanned": []}
+        meetings = [m for m in self._academic_data_repo.list_coordination_meetings() if m.get("active", True)]
+        if not meetings:
+            return [], report
+
+        known = {
+            str(teacher.get("name") or "").strip().casefold(): str(teacher.get("name") or "").strip()
+            for teacher in self._academic_data_repo.list_teachers()
+            if teacher.get("active", True) and teacher.get("name")
+        }
+        blocked_by_teacher: Dict[str, set] = {}
+        for blocked in blocked_activities:
+            for name in teacher_names(blocked.teacher_id):
+                blocked_by_teacher.setdefault(name.casefold(), set()).add(
+                    (blocked.day, blocked.start_timeslot.period)
+                )
+
+        valid: List[Dict[str, Any]] = []
+        for meeting in meetings:
+            members = [meeting.get("coordinator"), *(meeting.get("participants") or [])]
+            missing = [name for name in members if name and str(name).strip().casefold() not in known]
+            if missing:
+                report["unplanned"].append(
+                    {"name": meeting.get("name"), "reason": "professor_desconegut", "members": missing}
+                )
+            else:
+                valid.append(meeting)
+
+        planned, unplanned = plan_meetings(valid, blocked_by_teacher, day_names, hour_names)
+        report["unplanned"].extend(unplanned)
+
+        activities: List[ScheduledActivity] = []
+        for item in planned:
+            teacher = ", ".join(known[name.casefold()] for name in item["members"])
+            metadata = {
+                "subject": item["subject"],
+                "group": "",
+                "teacher": teacher,
+                "coordination_meeting": item["name"],
+            }
+            teaching_block = TeachingBlock(
+                id=f"fixed-coordination-{item['name']}",
+                duration=item["hours"],
+                order=0,
+                duration_blocks=item["blocks"],
+                preferred_room_id="",
+                preferred_teacher_id=teacher,
+                fixed=True,
+                fixed_day=item["day"],
+                fixed_start=item["start"],
+                metadata=metadata,
+            )
+            activities.append(
+                ScheduledActivity(
+                    teaching_block=teaching_block,
+                    day=item["day_index"],
+                    start_timeslot=TimeSlot(day=item["day_index"], period=item["start_index"]),
+                    duration=item["blocks"],
+                    room_id="",
+                    teacher_id=teacher,
+                    group_id="",
+                    metadata=metadata,
+                )
+            )
+            report["planned"].append(
+                {
+                    "name": item["name"],
+                    "teachers": teacher,
+                    "day": item["day"],
+                    "start": item["start"],
+                    "hours": item["hours"],
+                    "within_preferred_window": item["within_preferred_window"],
+                    "consecutive_series": item["consecutive_series"],
+                }
+            )
+        return activities, report
 
     def _build_fixed_activity_from_assignment(
         self, assignment: Dict[str, Any], day_index: int, hour_index: int

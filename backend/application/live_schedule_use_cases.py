@@ -13,6 +13,7 @@ try:
     from backend.scheduler_engine.teacher_utils import teacher_names
     from backend.scheduler_engine.subject_utils import FIXED_MEETING_BLOCKS, FIXED_MEETING_DAY, is_tutoria_subject
     from backend.services.contract_hours import contract_hours
+    from backend.services.coordination_meetings import is_joint_coordination_subject
     from backend.services.schedule_pdf_exporter import classify_activity
 except ModuleNotFoundError:  # pragma: no cover
     from repositories.working_timetable_repository import WorkingTimetableRepository, WorkingTimetableSnapshot
@@ -23,6 +24,7 @@ except ModuleNotFoundError:  # pragma: no cover
     from scheduler_engine.teacher_utils import teacher_names
     from scheduler_engine.subject_utils import FIXED_MEETING_BLOCKS, FIXED_MEETING_DAY, is_tutoria_subject
     from services.contract_hours import contract_hours
+    from services.coordination_meetings import is_joint_coordination_subject
     from services.schedule_pdf_exporter import classify_activity
 
 from .serializers import serialize_activity, serialize_conflicts
@@ -1028,6 +1030,19 @@ class LiveScheduleUseCases:
                 raw = [raw]
         return {" ".join(str(item).split()).casefold() for item in (raw or [])}
 
+    def _joint_meeting_coverage(self) -> Dict[str, float]:
+        """Hores de coordinació que ja cobreixen les reunions conjuntes (p. ex.
+        "Coordinació conjunta · Gràfic") a cadascun dels seus assistents: no
+        s'han de tornar a assignar com a hores de coordinació soltes."""
+        covered: Dict[str, float] = {}
+        for activity in self._engine.state.all():
+            if not is_joint_coordination_subject(activity.subject):
+                continue
+            hours = activity.duration / 2
+            for name in teacher_names(activity.teacher):
+                covered[name.casefold()] = covered.get(name.casefold(), 0.0) + hours
+        return covered
+
     def _shared_coordination_groups(self) -> Dict[str, Dict[str, Any]]:
         """{clau: {name, members}} per a les coordinacions que comparteixen
         dos o més professors actius (mateix nom de coordinació i hores > 0)."""
@@ -1105,6 +1120,7 @@ class LiveScheduleUseCases:
         hour_names: List[str],
         hour_index: Dict[str, int],
         restrictions: Dict[str, Dict[str, Any]],
+        pre_covered: Optional[Dict[str, float]] = None,
     ) -> tuple:
         """Una coordinació amb el mateix nom a diversos professors (p.ex. ED)
         és UNA sola reunió: es col·loca a la mateixa franja per a tots, en
@@ -1130,7 +1146,8 @@ class LiveScheduleUseCases:
             for teacher in entry["members"]:
                 restriction = restrictions.get(teacher["name"], {})
                 fixed = 1.0 if restriction.get("weekly_coordination_active", True) else 0.0
-                remaining.append(max(0.0, self._to_hours(teacher.get("coordination_hours")) - fixed))
+                already = (pre_covered or {}).get(str(teacher["name"]).casefold(), 0.0)
+                remaining.append(max(0.0, self._to_hours(teacher.get("coordination_hours")) - fixed - already))
             blocks = round(min(remaining) * 2)
             if blocks <= 0:
                 continue
@@ -1186,9 +1203,12 @@ class LiveScheduleUseCases:
 
         # Coordinacions compartides (mateix nom a diversos professors): una
         # sola franja comuna. Les hores que cobreix es resten de cada membre.
+        joint_covered = self._joint_meeting_coverage()
         shared_added, shared_covered, shared_skipped = self._place_shared_coordinations(
-            hour_names, hour_index, restrictions
+            hour_names, hour_index, restrictions, joint_covered
         )
+        for member, hours in joint_covered.items():
+            shared_covered[member] = shared_covered.get(member, 0.0) + hours
         skipped_no_slot.extend(shared_skipped)
 
         for teacher in self._academic_data_repo.list_teachers():
